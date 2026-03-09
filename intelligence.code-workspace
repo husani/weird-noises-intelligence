@@ -1,0 +1,38 @@
+{
+  "folders": [
+    {"path": ".", "name": "Intelligence"},
+    {"path": "shared", "name": "Shared"},
+    {"path": "frontend", "name": "Frontend"}
+  ],
+  "settings": {},
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Backend",
+        "type": "shell",
+        "command": "poetry run uvicorn app:app --reload --port 8005",
+        "options": { "cwd": "${workspaceFolder:Intelligence}" },
+        "isBackground": true,
+        "problemMatcher": [],
+        "presentation": { "panel": "dedicated" }
+      },
+      {
+        "label": "Frontend",
+        "type": "shell",
+        "command": "npm run dev",
+        "options": { "cwd": "${workspaceFolder:Frontend}" },
+        "isBackground": true,
+        "problemMatcher": [],
+        "presentation": { "panel": "dedicated" }
+      },
+      {
+        "label": "Start All",
+        "dependsOn": ["Backend", "Frontend"],
+        "dependsOrder": "parallel",
+        "runOptions": { "runOn": "folderOpen" },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

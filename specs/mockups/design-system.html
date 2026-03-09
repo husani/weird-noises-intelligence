@@ -1,0 +1,3975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intelligence — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* Backgrounds */
+    --bg-deep: #13110f;
+    --bg-base: #1a1816;
+    --bg-surface: #232120;
+    --bg-elevated: #2c2a27;
+    --bg-hover: #343230;
+
+    /* Text */
+    --text-primary: #efe9df;
+    --text-secondary: #a69e91;
+    --text-tertiary: #736b60;
+
+    /* Accent palette */
+    --accent-warm: #c4915a;
+    --accent-warm-muted: rgba(196, 145, 90, 0.15);
+    --accent-warm-subtle: rgba(196, 145, 90, 0.08);
+
+    --accent-sage: #7d9e87;
+    --accent-sage-muted: rgba(125, 158, 135, 0.15);
+
+    --accent-rose: #b07a7a;
+    --accent-rose-muted: rgba(176, 122, 122, 0.12);
+
+    --accent-blue: #7a8fa0;
+    --accent-blue-muted: rgba(122, 143, 160, 0.15);
+
+    --accent-lavender: #9088a8;
+    --accent-lavender-muted: rgba(144, 136, 168, 0.15);
+
+    /* Chart / data visualization palette — not semantic, just distinguishable */
+    --chart-1: #c4915a;   /* warm — reuse */
+    --chart-2: #7d9e87;   /* sage — reuse */
+    --chart-3: #b07a7a;   /* rose — reuse */
+    --chart-4: #7a8fa0;   /* blue — reuse */
+    --chart-5: #9088a8;   /* lavender — reuse */
+    --chart-6: #c9a84c;   /* gold */
+    --chart-7: #6b9ea8;   /* teal */
+    --chart-8: #a87d6b;   /* clay */
+    --chart-9: #8a9e6b;   /* olive */
+    --chart-10: #9e7a8f;  /* mauve */
+
+    /* Borders */
+    --border: rgba(255, 245, 230, 0.06);
+    --border-strong: rgba(255, 245, 230, 0.1);
+
+    /* Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+
+    /* Transitions */
+    --transition-micro: 0.12s ease;       /* hover states, color changes */
+    --transition-standard: 0.2s ease;     /* panels, tabs, toggles */
+    --transition-emphasis: 0.3s ease-out; /* modals, drawers, page transitions */
+
+    /* Fonts */
+    --font-display: 'Cormorant', Georgia, serif;
+    --font-body: 'Outfit', -apple-system, sans-serif;
+  }
+
+  html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    line-height: 1.6;
+    padding: 48px 32px 120px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* ============ REFERENCE PAGE LAYOUT ============ */
+  .ref-title {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 400;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+  .ref-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    margin-bottom: 64px;
+  }
+
+  .ref-section {
+    margin-bottom: 72px;
+  }
+  .ref-section-title {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+  }
+  .ref-section-desc {
+    font-size: 0.9375rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+    margin-bottom: 32px;
+  }
+
+  .ref-group {
+    margin-bottom: 40px;
+  }
+  .ref-group-label {
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  .ref-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  /* ============ TYPOGRAPHY ============ */
+  .type-display-1 {
+    font-family: var(--font-display);
+    font-size: 2.75rem;
+    font-weight: 400;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+  .type-display-2 {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+  }
+  .type-body {
+    font-size: 1rem;
+    font-weight: 300;
+    line-height: 1.7;
+  }
+  .type-body-strong {
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.7;
+  }
+  .type-meta {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .type-sample {
+    margin-bottom: 20px;
+  }
+  .type-label {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+
+  /* ============ COLORS ============ */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .color-swatch {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+  .color-swatch-block {
+    height: 72px;
+    border: 1px solid var(--border);
+  }
+  .color-swatch-info {
+    padding: 10px 12px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+  }
+  .color-swatch-name {
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--text-primary);
+  }
+  .color-swatch-value {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+
+  /* ============ COMPONENT SHOWCASE ============ */
+  .showcase {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    margin-bottom: 16px;
+  }
+  .showcase-dark {
+    background: var(--bg-deep);
+  }
+
+  /* ============ TAGS ============ */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 11px;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--accent-warm);
+    background: var(--accent-warm-subtle);
+    cursor: default;
+    letter-spacing: 0.01em;
+  }
+
+  /* ============ BADGES ============ */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+  .badge-warm { background: var(--accent-warm-muted); color: var(--accent-warm); }
+  .badge-sage { background: var(--accent-sage-muted); color: var(--accent-sage); }
+  .badge-rose { background: var(--accent-rose-muted); color: var(--accent-rose); }
+  .badge-blue { background: var(--accent-blue-muted); color: var(--accent-blue); }
+  .badge-lavender { background: var(--accent-lavender-muted); color: var(--accent-lavender); }
+  .badge-neutral {
+    background: rgba(255, 245, 230, 0.05);
+    color: var(--text-secondary);
+  }
+
+  /* ============ STATUS INDICATORS ============ */
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9375rem;
+    font-weight: 400;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-warm .status-dot { background: var(--accent-warm); }
+  .status-warm { color: var(--accent-warm); }
+  .status-sage .status-dot { background: var(--accent-sage); }
+  .status-sage { color: var(--accent-sage); }
+  .status-rose .status-dot { background: var(--accent-rose); }
+  .status-rose { color: var(--accent-rose); }
+  .status-blue .status-dot { background: var(--accent-blue); }
+  .status-blue { color: var(--accent-blue); }
+  .status-neutral .status-dot { background: var(--text-tertiary); }
+  .status-neutral { color: var(--text-tertiary); }
+  .status-dot.pulse {
+    animation: pulse-dot 2.5s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ============ SECTION CARD ============ */
+  .section-card {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+  }
+  .section-card-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .section-card-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .section-card-meta {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ============ QUERY BAR ============ */
+  .query-bar {
+    position: relative;
+  }
+  .query-input {
+    width: 100%;
+    padding: 14px 20px 14px 48px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 300;
+    outline: none;
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  .query-input::placeholder {
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  .query-input:focus {
+    border-color: rgba(196, 145, 90, 0.3);
+    box-shadow: 0 0 0 3px rgba(196, 145, 90, 0.06);
+  }
+  .query-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    pointer-events: none;
+  }
+
+  /* ============ ITEM LIST ============ */
+  .item-list { list-style: none; }
+  .item-row {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: start;
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-primary {
+    font-weight: 500;
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .item-secondary {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+  }
+
+  /* ============ STAT GRID ============ */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .stat-card {
+    padding: 16px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .stat-label {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .stat-note {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+    margin-top: 4px;
+  }
+
+  /* ============ TIMELINE ============ */
+  .timeline { position: relative; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: var(--border-strong);
+  }
+  .timeline-item {
+    position: relative;
+    padding-left: 28px;
+    padding-bottom: 20px;
+  }
+  .timeline-item:last-child { padding-bottom: 0; }
+  .timeline-dot {
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 2px solid var(--text-tertiary);
+  }
+  .timeline-dot-active {
+    border-color: var(--accent-warm);
+    background: var(--accent-warm-muted);
+  }
+  .timeline-date {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .timeline-content {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    line-height: 1.6;
+  }
+  .timeline-content strong {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  /* ============ PERSON CARD ============ */
+  .person-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .person-card:hover { border-color: var(--border-strong); }
+  .person-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .person-name {
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  .person-role {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  .person-card-wn {
+    border-color: rgba(196, 145, 90, 0.2);
+  }
+  .person-card-wn .person-avatar {
+    background: var(--accent-warm-muted);
+    color: var(--accent-warm);
+  }
+
+  /* ============ PROSE ============ */
+  .prose {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    font-weight: 300;
+  }
+  .prose em { font-style: italic; }
+
+  /* ============ ASSESSMENT ============ */
+  .assessment-quote {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    line-height: 1.6;
+    font-style: italic;
+  }
+  .assessment-attribution {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    margin-top: 6px;
+    font-style: normal;
+  }
+
+  /* ============ PROGRESS BAR ============ */
+  .progress-bar-track {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-surface);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent-warm);
+    transition: width 0.5s ease;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    margin-top: 8px;
+  }
+  .progress-label-current { color: var(--text-primary); font-weight: 500; }
+  .progress-label-target { color: var(--text-tertiary); font-weight: 300; }
+
+  /* ============ MATCH STRENGTH ============ */
+  .match-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .match-bar-track {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-surface);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .match-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+  .match-label {
+    font-size: 0.875rem;
+    font-weight: 400;
+    min-width: 48px;
+  }
+  .match-strong .match-bar-fill { background: var(--accent-warm); }
+  .match-strong .match-label { color: var(--accent-warm); }
+  .match-moderate .match-bar-fill { background: var(--accent-sage); }
+  .match-moderate .match-label { color: var(--accent-sage); }
+  .match-weak .match-bar-fill { background: var(--text-tertiary); }
+  .match-weak .match-label { color: var(--text-tertiary); }
+
+  /* ============ NAV ============ */
+  .nav-demo {
+    display: flex;
+    align-items: center;
+    height: 56px;
+    background: rgba(19, 17, 15, 0.85);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0 24px;
+  }
+  .nav-wordmark {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--text-primary);
+    margin-right: 40px;
+    flex-shrink: 0;
+  }
+  .nav-tools {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex: 1;
+  }
+  .nav-tools::-webkit-scrollbar { display: none; }
+  .nav-tool {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+    text-decoration: none;
+  }
+  .nav-tool:hover { color: var(--text-secondary); background: var(--bg-hover); }
+  .nav-tool-active { color: var(--text-primary); background: var(--bg-elevated); }
+  .nav-user {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    margin-left: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  /* ============ BUTTONS ============ */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    font-weight: 400;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .btn-primary {
+    background: var(--accent-warm);
+    color: var(--bg-deep);
+  }
+  .btn-primary:hover { background: #d4a06a; }
+  .btn-secondary {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+  }
+  .btn-secondary:hover { background: var(--bg-hover); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover { color: var(--text-primary); background: var(--bg-surface); }
+
+  /* ============ FORM INPUTS ============ */
+  .input {
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 300;
+    outline: none;
+    transition: border-color 0.25s;
+    width: 100%;
+    max-width: 360px;
+  }
+  .input::placeholder { color: var(--text-tertiary); }
+  .input:focus { border-color: rgba(196, 145, 90, 0.3); }
+  .input-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  /* ============ CONFIDENCE LEVELS ============ */
+  .confidence {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+  }
+  .confidence-bars {
+    display: flex;
+    gap: 2px;
+  }
+  .confidence-bar {
+    width: 3px;
+    height: 12px;
+    border-radius: 1.5px;
+    background: var(--bg-hover);
+  }
+  .confidence-bar.filled { background: var(--text-secondary); }
+  .confidence-high .confidence-bar.filled { background: var(--accent-warm); }
+
+  /* ============ ALERTS / MESSAGES ============ */
+  .alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: var(--radius-md);
+    font-size: 0.9375rem;
+    font-weight: 300;
+    line-height: 1.5;
+  }
+  .alert-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+  }
+  .alert-content { flex: 1; }
+  .alert-title {
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+  .alert-error {
+    background: var(--accent-rose-muted);
+    border: 1px solid rgba(176, 122, 122, 0.25);
+    color: var(--text-primary);
+  }
+  .alert-error .alert-icon { color: var(--accent-rose); }
+  .alert-error .alert-title { color: var(--accent-rose); }
+  .alert-warning {
+    background: var(--accent-warm-subtle);
+    border: 1px solid rgba(196, 145, 90, 0.2);
+    color: var(--text-primary);
+  }
+  .alert-warning .alert-icon { color: var(--accent-warm); }
+  .alert-warning .alert-title { color: var(--accent-warm); }
+  .alert-success {
+    background: var(--accent-sage-muted);
+    border: 1px solid rgba(125, 158, 135, 0.25);
+    color: var(--text-primary);
+  }
+  .alert-success .alert-icon { color: var(--accent-sage); }
+  .alert-success .alert-title { color: var(--accent-sage); }
+  .alert-info {
+    background: var(--accent-blue-muted);
+    border: 1px solid rgba(122, 143, 160, 0.2);
+    color: var(--text-primary);
+  }
+  .alert-info .alert-icon { color: var(--accent-blue); }
+  .alert-info .alert-title { color: var(--accent-blue); }
+
+  /* ============ INLINE FIELD ERROR ============ */
+  .input-error {
+    border-color: rgba(176, 122, 122, 0.5);
+  }
+  .input-error:focus {
+    border-color: var(--accent-rose);
+    box-shadow: 0 0 0 3px rgba(176, 122, 122, 0.1);
+  }
+  .field-error {
+    font-size: 0.875rem;
+    color: var(--accent-rose);
+    margin-top: 6px;
+    font-weight: 400;
+  }
+
+  /* ============ TOAST ============ */
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    max-width: 420px;
+  }
+  .toast-icon { flex-shrink: 0; }
+  .toast-dismiss {
+    margin-left: auto;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 4px;
+  }
+  .toast-dismiss:hover { color: var(--text-secondary); }
+
+  /* ============ MODAL ============ */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    /* for demo, make it relative */
+    position: relative;
+    min-height: 400px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+  }
+  .modal {
+    background: var(--bg-base);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 28px 0;
+  }
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+  }
+  .modal-close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+  }
+  .modal-close:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+  }
+  .modal-body {
+    padding: 20px 28px;
+  }
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 28px 24px;
+  }
+
+  /* ============ CONFIRM DIALOG ============ */
+  .confirm-body {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    line-height: 1.6;
+  }
+
+  /* ============ EMPTY STATE ============ */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+  }
+  .empty-state-icon {
+    color: var(--text-tertiary);
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+  .empty-state-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  .empty-state-desc {
+    font-size: 0.9375rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+    max-width: 320px;
+    margin: 0 auto 20px;
+  }
+
+  /* ============ LOADING ============ */
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--bg-hover);
+    border-top-color: var(--accent-warm);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .loading-skeleton {
+    height: 16px;
+    background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ============ DROPDOWN / SELECT ============ */
+  .select-wrapper {
+    position: relative;
+    max-width: 360px;
+  }
+  .select {
+    appearance: none;
+    width: 100%;
+    padding: 10px 40px 10px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 300;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.25s;
+  }
+  .select:focus { border-color: rgba(196, 145, 90, 0.3); }
+  .select-arrow {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    pointer-events: none;
+  }
+
+  /* ============ TEXTAREA ============ */
+  .textarea {
+    width: 100%;
+    max-width: 360px;
+    min-height: 100px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 300;
+    outline: none;
+    resize: vertical;
+    transition: border-color 0.25s;
+  }
+  .textarea::placeholder { color: var(--text-tertiary); }
+  .textarea:focus { border-color: rgba(196, 145, 90, 0.3); }
+
+  /* ============ CHECKBOX / TOGGLE ============ */
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    font-weight: 300;
+  }
+  .toggle-track {
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: var(--bg-hover);
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle-track.active { background: var(--accent-warm); }
+  .toggle-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-primary);
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle-track.active .toggle-thumb {
+    transform: translateX(18px);
+  }
+
+  /* ============ EDIT STATE ============ */
+  .editable-field {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+    cursor: text;
+    position: relative;
+  }
+  .editable-field:hover {
+    border-color: var(--border);
+    background: var(--bg-surface);
+  }
+  .editable-field.editing {
+    border-color: rgba(196, 145, 90, 0.3);
+    background: var(--bg-surface);
+    cursor: auto;
+  }
+  .edit-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+  .edit-hint {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+    margin-top: 6px;
+  }
+
+  /* ============ FILE UPLOAD ============ */
+  .file-upload {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .file-upload:hover {
+    border-color: rgba(196, 145, 90, 0.3);
+    background: var(--bg-surface);
+  }
+  .file-upload-icon {
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+    opacity: 0.6;
+  }
+  .file-upload-title {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .file-upload-desc {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  .file-upload-link {
+    color: var(--accent-warm);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .file-item-icon {
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .file-item-name {
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    flex: 1;
+  }
+  .file-item-meta {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  .file-item-remove {
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+  .file-item-remove:hover { color: var(--accent-rose); }
+
+  /* ============ TABLE ============ */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+  }
+  .data-table th {
+    text-align: left;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-strong);
+  }
+  .data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    font-weight: 300;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--bg-surface); }
+  .data-table .cell-number {
+    font-family: var(--font-body);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .data-table .cell-strong {
+    font-weight: 500;
+  }
+  .data-table .cell-positive { color: var(--accent-sage); }
+  .data-table .cell-negative { color: var(--accent-rose); }
+  .data-table .cell-muted { color: var(--text-tertiary); }
+  .data-table tfoot td {
+    border-top: 1px solid var(--border-strong);
+    border-bottom: none;
+    font-weight: 500;
+  }
+  .data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+  }
+  .data-table th.sortable:hover { color: var(--text-secondary); }
+  .data-table th .sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: middle;
+    opacity: 0.4;
+  }
+  .data-table th.sorted .sort-icon { opacity: 1; color: var(--accent-warm); }
+  .data-table th.sorted { color: var(--text-secondary); }
+
+  /* ============ TABLE CONTROLS ============ */
+  .table-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  .table-controls-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .table-controls-left .select {
+    padding: 6px 32px 6px 10px;
+    font-size: 0.875rem;
+    max-width: 80px;
+  }
+  .table-pagination {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .page-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .page-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+  .page-btn.active {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  .page-btn.disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+  .page-btn.disabled:hover { background: transparent; color: var(--text-tertiary); }
+
+  /* ============ RATING INPUT ============ */
+  .rating-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+  }
+  .rating-label {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    min-width: 100px;
+  }
+  .rating-dots {
+    display: flex;
+    gap: 6px;
+  }
+  .rating-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: transparent;
+    font-weight: 500;
+  }
+  .rating-dot:hover {
+    border-color: var(--accent-warm);
+    background: var(--accent-warm-subtle);
+    color: var(--accent-warm);
+  }
+  .rating-dot.selected {
+    border-color: var(--accent-warm);
+    background: var(--accent-warm);
+    color: var(--bg-deep);
+  }
+
+  /* ============ TABS ============ */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 12px 20px;
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .tab:hover { color: var(--text-secondary); }
+  .tab.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--accent-warm);
+    font-weight: 500;
+  }
+  .tab-count {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    background: var(--bg-elevated);
+    border-radius: 10px;
+    padding: 1px 7px;
+    margin-left: 6px;
+    font-weight: 400;
+  }
+  .tab.active .tab-count {
+    background: var(--accent-warm-muted);
+    color: var(--accent-warm);
+  }
+
+  /* ============ PROACTIVE SURFACING ============ */
+  .surfacing-panel {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .surfacing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .surfacing-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+  }
+  .surfacing-count {
+    font-size: 0.8125rem;
+    color: var(--accent-warm);
+    background: var(--accent-warm-muted);
+    border-radius: 10px;
+    padding: 2px 10px;
+    font-weight: 500;
+  }
+  .surfacing-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  .surfacing-item:last-child { border-bottom: none; }
+  .surfacing-item:hover { background: var(--bg-surface); }
+  .surfacing-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .surfacing-icon-warm { background: var(--accent-warm-muted); color: var(--accent-warm); }
+  .surfacing-icon-sage { background: var(--accent-sage-muted); color: var(--accent-sage); }
+  .surfacing-icon-rose { background: rgba(176, 122, 122, 0.12); color: var(--accent-rose); }
+  .surfacing-icon-blue { background: var(--accent-blue-muted); color: var(--accent-blue); }
+  .surfacing-text {
+    font-size: 0.9375rem;
+    font-weight: 300;
+    color: var(--text-primary);
+    line-height: 1.5;
+    flex: 1;
+  }
+  .surfacing-text strong { font-weight: 500; }
+  .surfacing-time {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+  }
+  .surfacing-dismiss {
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 4px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .surfacing-item:hover .surfacing-dismiss { opacity: 1; }
+  .surfacing-dismiss:hover { color: var(--text-secondary); }
+
+  /* ============ SIDE-BY-SIDE ============ */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .comparison-col {
+    background: var(--bg-base);
+    padding: 24px;
+  }
+  .comparison-col-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .comparison-col-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+  }
+
+  /* ============ VOICE MEMO ============ */
+  .voice-record-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-rose);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+  .voice-record-btn:hover { background: rgba(176, 122, 122, 0.1); }
+  .voice-record-btn .record-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-rose);
+    transition: border-radius 0.2s, width 0.2s, height 0.2s;
+  }
+  .voice-record-btn.recording .record-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    animation: pulse-record 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-record {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+  .voice-recording-state {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .voice-timer {
+    font-variant-numeric: tabular-nums;
+    font-size: 1rem;
+    color: var(--accent-rose);
+    font-weight: 400;
+  }
+  .voice-waveform {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 24px;
+  }
+  .voice-waveform-bar {
+    width: 3px;
+    border-radius: 1.5px;
+    background: var(--accent-rose);
+    animation: waveform 0.8s ease-in-out infinite;
+  }
+  @keyframes waveform {
+    0%, 100% { height: 4px; }
+    50% { height: 100%; }
+  }
+  .voice-playback {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .voice-play-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-primary);
+    flex-shrink: 0;
+  }
+  .voice-play-btn:hover { background: var(--bg-hover); }
+  .voice-track {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-hover);
+    border-radius: 2px;
+    position: relative;
+  }
+  .voice-track-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: var(--text-secondary);
+    border-radius: 2px;
+  }
+  .voice-duration {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .voice-transcript {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    font-style: italic;
+    line-height: 1.5;
+    margin-top: 8px;
+    padding-left: 16px;
+    border-left: 2px solid var(--border);
+  }
+
+  /* ============ BREADCRUMBS ============ */
+  .breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.875rem;
+    font-weight: 300;
+  }
+  .breadcrumb {
+    color: var(--text-tertiary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  .breadcrumb:hover { color: var(--text-secondary); }
+  .breadcrumb-current {
+    color: var(--text-primary);
+    font-weight: 400;
+    cursor: default;
+  }
+  .breadcrumb-sep {
+    color: var(--text-tertiary);
+    opacity: 0.5;
+    font-size: 0.75rem;
+  }
+
+  /* ============ ACCORDION ============ */
+  .accordion-item {
+    border-bottom: 1px solid var(--border);
+  }
+  .accordion-item:last-child { border-bottom: none; }
+  .accordion-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 16px 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: left;
+  }
+  .accordion-trigger:hover { color: var(--accent-warm); }
+  .accordion-chevron {
+    color: var(--text-tertiary);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .accordion-item.open .accordion-chevron {
+    transform: rotate(180deg);
+  }
+  .accordion-content {
+    padding: 0 0 20px;
+    font-size: 1rem;
+    font-weight: 300;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+  .accordion-content.collapsed {
+    display: none;
+  }
+
+  /* ============ ACTION MENU ============ */
+  .action-trigger {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--text-tertiary);
+    transition: color 0.15s, background 0.15s;
+  }
+  .action-trigger:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+  }
+  .action-menu {
+    min-width: 180px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    padding: 4px;
+    overflow: hidden;
+  }
+  .action-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    font-size: 0.9375rem;
+    font-weight: 300;
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.12s;
+  }
+  .action-menu-item:hover { background: var(--bg-hover); }
+  .action-menu-item-icon {
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .action-menu-item-destructive { color: var(--accent-rose); }
+  .action-menu-item-destructive .action-menu-item-icon { color: var(--accent-rose); }
+  .action-menu-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  /* ============ PHOTO AVATAR ============ */
+  .person-avatar-photo {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .person-avatar-lg {
+    width: 56px;
+    height: 56px;
+    font-size: 1.125rem;
+  }
+  .person-avatar-photo.person-avatar-lg {
+    width: 56px;
+    height: 56px;
+  }
+
+  /* ============ CONFIDENTIALITY ============ */
+  .confidential {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 400;
+  }
+  .confidential-icon {
+    opacity: 0.7;
+  }
+
+  /* ============ CHIP INPUT ============ */
+  .chip-input-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    max-width: 440px;
+    cursor: text;
+    transition: border-color 0.25s;
+  }
+  .chip-input-wrapper:focus-within {
+    border-color: rgba(196, 145, 90, 0.3);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px 3px 10px;
+    border-radius: 4px;
+    background: var(--accent-warm-subtle);
+    color: var(--accent-warm);
+    font-size: 0.8125rem;
+    font-weight: 400;
+  }
+  .chip-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--accent-warm);
+    opacity: 0.6;
+    transition: opacity 0.15s;
+  }
+  .chip-remove:hover { opacity: 1; }
+  .chip-input {
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    font-weight: 300;
+    outline: none;
+    flex: 1;
+    min-width: 80px;
+    padding: 3px 0;
+  }
+  .chip-input::placeholder { color: var(--text-tertiary); }
+
+  /* ============ QUERY RESULTS ============ */
+  .query-result-prose {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+  }
+  .query-result-prose .prose { margin-bottom: 16px; }
+  .query-result-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .query-result-source {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    background: var(--bg-surface);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-weight: 300;
+  }
+  .query-result-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .query-result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--transition-micro);
+  }
+  .query-result-item:hover { border-color: var(--border-strong); }
+  .query-result-item-body { flex: 1; }
+  .query-result-item-title {
+    font-weight: 500;
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .query-result-item-desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    line-height: 1.5;
+  }
+  .query-result-item-meta {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+  }
+
+  /* ============ DRAWER ============ */
+  .drawer-demo {
+    position: relative;
+    height: 420px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+  }
+  .drawer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 380px;
+    max-width: 85%;
+    background: var(--bg-base);
+    border-left: 1px solid var(--border-strong);
+    box-shadow: -16px 0 64px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .drawer-title {
+    font-family: var(--font-display);
+    font-size: 1.375rem;
+    font-weight: 500;
+  }
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  /* ============ LINKS ============ */
+  .link {
+    color: var(--accent-warm);
+    text-decoration: none;
+    font-weight: 400;
+    transition: color var(--transition-micro);
+    cursor: pointer;
+  }
+  .link:hover {
+    color: #d4a06a;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .link-external::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-left: 3px;
+    vertical-align: middle;
+    background: currentColor;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='currentColor' stroke-width='1.5'%3E%3Cpath d='M5 1H1v10h10V7M7.5 1H11v3.5M11 1L5.5 6.5'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='currentColor' stroke-width='1.5'%3E%3Cpath d='M5 1H1v10h10V7M7.5 1H11v3.5M11 1L5.5 6.5'/%3E%3C/svg%3E");
+  }
+  .link-subtle {
+    color: var(--text-secondary);
+  }
+  .link-subtle:hover { color: var(--text-primary); }
+
+  /* ============ NAV NOTIFICATION ============ */
+  .nav-notification-dot {
+    position: relative;
+  }
+  .nav-notification-dot::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent-warm);
+    border: 1.5px solid var(--bg-deep);
+  }
+  .nav-notification-count {
+    position: relative;
+  }
+  .nav-notification-count::after {
+    content: attr(data-count);
+    position: absolute;
+    top: 2px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--accent-warm);
+    color: var(--bg-deep);
+    font-size: 0.625rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 1.5px solid var(--bg-deep);
+  }
+
+  /* ============ FOCUS STATES ============ */
+  .input:focus-visible,
+  .select:focus-visible,
+  .textarea:focus-visible,
+  .query-input:focus-visible {
+    outline: 2px solid rgba(196, 145, 90, 0.4);
+    outline-offset: 2px;
+  }
+  .btn:focus-visible {
+    outline: 2px solid rgba(196, 145, 90, 0.4);
+    outline-offset: 2px;
+  }
+  .focus-ring:focus-visible {
+    outline: 2px solid rgba(196, 145, 90, 0.4);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* ============ TRUNCATION ============ */
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .show-more-toggle {
+    font-size: 0.875rem;
+    color: var(--accent-warm);
+    cursor: pointer;
+    margin-top: 4px;
+    font-weight: 400;
+  }
+  .show-more-toggle:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ============ COMMAND PALETTE ============ */
+  .cmd-palette-backdrop {
+    position: relative;
+    min-height: 400px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 80px;
+  }
+  .cmd-palette {
+    width: 100%;
+    max-width: 560px;
+    background: var(--bg-base);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+  .cmd-palette-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cmd-palette-input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    font-weight: 300;
+    outline: none;
+  }
+  .cmd-palette-input::placeholder { color: var(--text-tertiary); }
+  .cmd-palette-kbd {
+    font-size: 0.6875rem;
+    color: var(--text-tertiary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: var(--font-body);
+    font-weight: 500;
+  }
+  .cmd-palette-results {
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .cmd-palette-group-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-tertiary);
+    padding: 10px 20px 4px;
+    font-weight: 500;
+  }
+  .cmd-palette-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background var(--transition-micro);
+  }
+  .cmd-palette-item:hover, .cmd-palette-item.highlighted {
+    background: var(--bg-surface);
+  }
+  .cmd-palette-item-icon {
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .cmd-palette-item-label {
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    flex: 1;
+  }
+  .cmd-palette-item-hint {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  .cmd-palette-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 16px;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+  }
+  .cmd-palette-footer span { display: flex; align-items: center; gap: 4px; }
+
+  /* ============ DATE DISPLAY ============ */
+  .date-relative {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  .date-absolute {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    body { padding: 24px 16px 80px; }
+    .ref-title { font-size: 2rem; }
+    .color-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+    .stat-grid { grid-template-columns: 1fr; }
+    .comparison { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="ref-title">Intelligence Design System</h1>
+<div style="max-width: 720px; margin-bottom: 48px;">
+  <p class="ref-subtitle" style="margin-bottom: 16px;">This is the shared component library for the Intelligence platform. Every component here is a reusable template — not tied to any specific tool. Tools compose these components to build their interfaces. When building a new tool or page, draw from these patterns; don't invent new ones unless nothing here fits. Sample content is illustrative only.</p>
+  <div style="background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 24px; font-size: 0.9375rem; color: var(--text-secondary); font-weight: 300; line-height: 1.7;">
+    <div style="font-weight: 500; color: var(--text-primary); margin-bottom: 8px;">Usage principles</div>
+    <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 4px;">
+      <li>Use CSS variables for all colors, fonts, radii, and borders — never hardcode values.</li>
+      <li>Components are composable: section cards wrap prose, item lists, stat grids, timelines, or any other content type.</li>
+      <li>Nothing below 13px rendered font size. Body text is 15–16px.</li>
+      <li>Dark background throughout. No light/white backgrounds anywhere.</li>
+      <li>Must work beautifully on desktop, tablet, and phone. Phone is not a degraded experience.</li>
+    </ul>
+    <div style="font-weight: 500; color: var(--text-primary); margin-bottom: 8px; margin-top: 16px;">Accent color semantics</div>
+    <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 4px;">
+      <li><span style="color: var(--accent-warm);">Warm</span> — primary actions, active states, attention, the brand accent.</li>
+      <li><span style="color: var(--accent-sage);">Sage</span> — positive states, success, healthy, compliant.</li>
+      <li><span style="color: var(--accent-rose);">Rose</span> — negative states, errors, destructive actions, warnings.</li>
+      <li><span style="color: var(--accent-blue);">Blue</span> — informational, neutral-active, supplementary data.</li>
+      <li><span style="color: var(--accent-lavender);">Lavender</span> — categorization, tertiary grouping, supplementary.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TYPOGRAPHY -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Typography</h2>
+  <p class="ref-section-desc">Cormorant for display. Outfit for everything else.</p>
+
+  <div class="type-sample">
+    <div class="type-label">Page title — Cormorant 2.75rem / 400</div>
+    <div class="type-display-1">Rebecca Friedman</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Page title — show example</div>
+    <div class="type-display-1">Moonshot</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Section title — Cormorant 1.5rem / 500</div>
+    <div class="type-display-2">Production History</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Body — Outfit 1rem / 300</div>
+    <div class="type-body" style="max-width: 640px;">The second act sags between scenes 4 and 7 — three consecutive dialogue scenes with no musical number create a pacing valley right when the emotional stakes should be escalating. The Act I finale lands hard, but the momentum dissipates before the midpoint turn.</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Body strong — Outfit 1rem / 500</div>
+    <div class="type-body-strong">Workshop &middot; The Public Theater &middot; June 2026</div>
+  </div>
+  <div class="type-sample">
+    <div class="type-label">Meta / Label — Outfit 0.8125rem / uppercase</div>
+    <div class="type-meta">3 script versions &middot; 12 songs &middot; Est. runtime 2h15m</div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- COLORS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Colors</h2>
+  <p class="ref-section-desc">Warm dark palette with five semantic accent colors, plus an extended chart palette for data visualization.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Backgrounds</div>
+    <div class="color-grid">
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #13110f;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Deep</div><div class="color-swatch-value">#13110f</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #1a1816;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Base</div><div class="color-swatch-value">#1a1816</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #232120;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Surface</div><div class="color-swatch-value">#232120</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #2c2a27;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Elevated</div><div class="color-swatch-value">#2c2a27</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #343230;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Hover</div><div class="color-swatch-value">#343230</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Text</div>
+    <div class="color-grid">
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #efe9df;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Primary</div><div class="color-swatch-value">#efe9df</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #a69e91;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Secondary</div><div class="color-swatch-value">#a69e91</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #736b60;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Tertiary</div><div class="color-swatch-value">#736b60</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Accents</div>
+    <div class="color-grid">
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #c4915a;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Warm</div><div class="color-swatch-value">#c4915a</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #7d9e87;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Sage</div><div class="color-swatch-value">#7d9e87</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #b07a7a;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Rose</div><div class="color-swatch-value">#b07a7a</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #7a8fa0;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Blue</div><div class="color-swatch-value">#7a8fa0</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #9088a8;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">Lavender</div><div class="color-swatch-value">#9088a8</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Chart palette (data visualization only — not for UI components)</div>
+    <div class="color-grid" style="grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));">
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #c4915a;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">1 — Warm</div><div class="color-swatch-value">#c4915a</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #7d9e87;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">2 — Sage</div><div class="color-swatch-value">#7d9e87</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #b07a7a;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">3 — Rose</div><div class="color-swatch-value">#b07a7a</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #7a8fa0;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">4 — Blue</div><div class="color-swatch-value">#7a8fa0</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #9088a8;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">5 — Lavender</div><div class="color-swatch-value">#9088a8</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #c9a84c;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">6 — Gold</div><div class="color-swatch-value">#c9a84c</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #6b9ea8;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">7 — Teal</div><div class="color-swatch-value">#6b9ea8</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #a87d6b;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">8 — Clay</div><div class="color-swatch-value">#a87d6b</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #8a9e6b;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">9 — Olive</div><div class="color-swatch-value">#8a9e6b</div></div>
+      </div>
+      <div class="color-swatch">
+        <div class="color-swatch-block" style="background: #9e7a8f;"></div>
+        <div class="color-swatch-info"><div class="color-swatch-name">10 — Mauve</div><div class="color-swatch-value">#9e7a8f</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Chart palette in use — bar chart</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div style="display: flex; align-items: flex-end; gap: 8px; height: 160px; padding-bottom: 24px; border-bottom: 1px solid var(--border);">
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+          <div style="width: 100%; height: 75%; background: var(--chart-1); border-radius: 3px 3px 0 0; min-height: 8px;"></div>
+          <span style="font-size: 0.6875rem; color: var(--text-tertiary);">Email</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+          <div style="width: 100%; height: 52%; background: var(--chart-2); border-radius: 3px 3px 0 0; min-height: 8px;"></div>
+          <span style="font-size: 0.6875rem; color: var(--text-tertiary);">Social</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+          <div style="width: 100%; height: 88%; background: var(--chart-4); border-radius: 3px 3px 0 0; min-height: 8px;"></div>
+          <span style="font-size: 0.6875rem; color: var(--text-tertiary);">Events</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+          <div style="width: 100%; height: 35%; background: var(--chart-6); border-radius: 3px 3px 0 0; min-height: 8px;"></div>
+          <span style="font-size: 0.6875rem; color: var(--text-tertiary);">Tickets</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+          <div style="width: 100%; height: 20%; background: var(--chart-7); border-radius: 3px 3px 0 0; min-height: 8px;"></div>
+          <span style="font-size: 0.6875rem; color: var(--text-tertiary);">Donate</span>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;">
+          <div style="width: 100%; height: 42%; background: var(--chart-9); border-radius: 3px 3px 0 0; min-height: 8px;"></div>
+          <span style="font-size: 0.6875rem; color: var(--text-tertiary);">Direct</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Chart palette in use — horizontal stacked bar</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 6px;">Moonshot Audience by Channel</div>
+        <div style="display: flex; height: 24px; border-radius: 4px; overflow: hidden;">
+          <div style="width: 32%; background: var(--chart-1);"></div>
+          <div style="width: 22%; background: var(--chart-2);"></div>
+          <div style="width: 18%; background: var(--chart-4);"></div>
+          <div style="width: 14%; background: var(--chart-6);"></div>
+          <div style="width: 8%; background: var(--chart-7);"></div>
+          <div style="width: 6%; background: var(--chart-9);"></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 6px;">Stable Geniuses Audience by Channel</div>
+        <div style="display: flex; height: 24px; border-radius: 4px; overflow: hidden;">
+          <div style="width: 18%; background: var(--chart-1);"></div>
+          <div style="width: 38%; background: var(--chart-2);"></div>
+          <div style="width: 12%; background: var(--chart-4);"></div>
+          <div style="width: 10%; background: var(--chart-6);"></div>
+          <div style="width: 15%; background: var(--chart-7);"></div>
+          <div style="width: 7%; background: var(--chart-9);"></div>
+        </div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px;">
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; color: var(--text-tertiary);"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--chart-1);"></div> Email</div>
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; color: var(--text-tertiary);"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--chart-2);"></div> Social</div>
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; color: var(--text-tertiary);"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--chart-4);"></div> Events</div>
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; color: var(--text-tertiary);"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--chart-6);"></div> Tickets</div>
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; color: var(--text-tertiary);"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--chart-7);"></div> Donate</div>
+        <div style="display: flex; align-items: center; gap: 5px; font-size: 0.8125rem; color: var(--text-tertiary);"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--chart-9);"></div> Direct</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- NAV -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Navigation</h2>
+  <p class="ref-section-desc">Tool switcher. Shown with a few tools and with many.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Early build (3 tools)</div>
+    <div class="nav-demo">
+      <div class="nav-wordmark">Intelligence</div>
+      <div class="nav-tools">
+        <a class="nav-tool nav-tool-active">Producers</a>
+        <a class="nav-tool">Shows</a>
+        <a class="nav-tool">Talent</a>
+      </div>
+      <div class="nav-user">H</div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Full build (11 tools)</div>
+    <div class="nav-demo">
+      <div class="nav-wordmark">Intelligence</div>
+      <div class="nav-tools">
+        <a class="nav-tool nav-tool-active">Producers</a>
+        <a class="nav-tool">Shows</a>
+        <a class="nav-tool">Talent</a>
+        <a class="nav-tool">Casting</a>
+        <a class="nav-tool">Radar</a>
+        <a class="nav-tool">Dramaturg</a>
+        <a class="nav-tool">Audience</a>
+        <a class="nav-tool">Collaborators</a>
+        <a class="nav-tool">Theatre Ops</a>
+        <a class="nav-tool">Funding</a>
+        <a class="nav-tool">Context</a>
+      </div>
+      <div class="nav-user">H</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- QUERY BAR -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Query Bar</h2>
+  <p class="ref-section-desc">Natural language input with search icon. Placeholder text varies by context.</p>
+
+  <div class="showcase showcase-dark" style="display: flex; flex-direction: column; gap: 16px;">
+    <div class="query-bar">
+      <svg class="query-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7.5" cy="7.5" r="5.5"/><path d="M12 12l4 4"/></svg>
+      <input type="text" class="query-input" placeholder="How has the second act changed across drafts?">
+    </div>
+    <div class="query-bar">
+      <svg class="query-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7.5" cy="7.5" r="5.5"/><path d="M12 12l4 4"/></svg>
+      <input type="text" class="query-input" placeholder="Who could play a college-age male lead, sings tenor?">
+    </div>
+    <div class="query-bar">
+      <svg class="query-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7.5" cy="7.5" r="5.5"/><path d="M12 12l4 4"/></svg>
+      <input type="text" class="query-input" placeholder="What's the cultural landscape for queer musicals?">
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TAGS & BADGES -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Tags & Badges</h2>
+  <p class="ref-section-desc">Tags are user-created, ad-hoc labels. Badges are system-defined categories in color variants.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Tags</div>
+    <div class="showcase">
+      <div class="ref-row">
+        <span class="tag">User-created label</span>
+        <span class="tag">Another tag</span>
+        <span class="tag">A third one</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Badges — color variants</div>
+    <div class="showcase">
+      <div class="ref-row">
+        <span class="badge badge-warm">Warm</span>
+        <span class="badge badge-sage">Sage</span>
+        <span class="badge badge-rose">Rose</span>
+        <span class="badge badge-blue">Blue</span>
+        <span class="badge badge-lavender">Lavender</span>
+        <span class="badge badge-neutral">Neutral</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- STATUS INDICATORS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Status Indicators</h2>
+  <p class="ref-section-desc">Reusable patterns for representing states across any tool.</p>
+
+  <div class="showcase">
+    <div class="ref-group">
+      <div class="ref-group-label">Dot + label — color variants</div>
+      <div class="ref-row">
+        <span class="status status-warm"><span class="status-dot"></span> Warm</span>
+        <span class="status status-sage"><span class="status-dot"></span> Sage</span>
+        <span class="status status-rose"><span class="status-dot"></span> Rose</span>
+        <span class="status status-blue"><span class="status-dot"></span> Blue</span>
+        <span class="status status-neutral"><span class="status-dot"></span> Neutral</span>
+      </div>
+    </div>
+
+    <div class="ref-group">
+      <div class="ref-group-label">Dot + label — pulsing variant (live / active states)</div>
+      <div class="ref-row">
+        <span class="status status-warm"><span class="status-dot pulse"></span> Active</span>
+        <span class="status status-sage"><span class="status-dot pulse"></span> In progress</span>
+      </div>
+    </div>
+
+    <div class="ref-group">
+      <div class="ref-group-label">Tiered indicator — for levels / confidence / intensity</div>
+      <div class="ref-row" style="gap: 24px;">
+        <span class="confidence confidence-high">
+          <span class="confidence-bars"><span class="confidence-bar filled"></span><span class="confidence-bar filled"></span><span class="confidence-bar filled"></span></span>
+          High
+        </span>
+        <span class="confidence">
+          <span class="confidence-bars"><span class="confidence-bar filled"></span><span class="confidence-bar filled"></span><span class="confidence-bar"></span></span>
+          Medium
+        </span>
+        <span class="confidence">
+          <span class="confidence-bars"><span class="confidence-bar filled"></span><span class="confidence-bar"></span><span class="confidence-bar"></span></span>
+          Low
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SECTION CARD -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Section Card</h2>
+  <p class="ref-section-desc">Primary content container. Title with optional meta, wraps any content type.</p>
+
+  <div class="section-card" style="max-width: 640px;">
+    <div class="section-card-header">
+      <h3 class="section-card-title">Section Title</h3>
+      <span class="section-card-meta">Optional meta</span>
+    </div>
+    <p class="prose">The three-act structure works against a story this intimate. The midpoint break at the airport feels engineered rather than earned — the characters haven't built enough pressure to justify the rupture. Consider a two-act structure with the airport scene as the Act I curtain. The songs are doing the emotional heavy lifting that the book scenes aren't.</p>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ITEM LIST -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Item List</h2>
+  <p class="ref-section-desc">Structured rows with primary text, secondary text, and optional badge. Use for any list of records.</p>
+
+  <div class="showcase" style="max-width: 640px;">
+    <ul class="item-list">
+      <li class="item-row">
+        <div>
+          <div class="item-primary">Workshop at The Public</div>
+          <div class="item-secondary">June 14–28, 2026 &middot; Script v3 &middot; 8 actors</div>
+        </div>
+        <span class="badge badge-blue">Upcoming</span>
+      </li>
+      <li class="item-row">
+        <div>
+          <div class="item-primary">Staged Reading</div>
+          <div class="item-secondary">January 10, 2026 &middot; Script v2 &middot; New York Theatre Workshop</div>
+        </div>
+        <span class="badge badge-neutral">Completed</span>
+      </li>
+      <li class="item-row">
+        <div>
+          <div class="item-primary">Internal Read</div>
+          <div class="item-secondary">September 5, 2025 &middot; Script v1</div>
+        </div>
+        <span class="badge badge-neutral">Completed</span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- STAT GRID -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Stat Grid</h2>
+  <p class="ref-section-desc">Grid of labeled values with optional notes. Use for any set of key metrics.</p>
+
+  <div class="showcase">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Weekly Operating</div>
+        <div class="stat-value">$127K</div>
+        <div class="stat-note">$4K under budget</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Cast Size</div>
+        <div class="stat-value">8</div>
+        <div class="stat-note">4 doubling possible</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Audience Growth</div>
+        <div class="stat-value">+23%</div>
+        <div class="stat-note">vs. previous quarter</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Recoupment</div>
+        <div class="stat-value">68%</div>
+        <div class="stat-note">14 weeks at current pace</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TIMELINE -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Timeline</h2>
+  <p class="ref-section-desc">Chronological events with date, title, and description. Active dot variant for most recent.</p>
+
+  <div class="showcase" style="max-width: 640px;">
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-dot timeline-dot-active"></div>
+        <div class="timeline-date">March 5, 2026</div>
+        <div class="timeline-content"><strong>Script v3 uploaded.</strong> Major restructure — collapsed to two acts, moved airport scene to Act I curtain. 4 new songs added.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-date">January 10, 2026</div>
+        <div class="timeline-content"><strong>Staged reading at NYTW.</strong> 8 actors, invited audience of 40. Post-reading discussion ran 45 minutes. Strongest response to the mother-daughter duet.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-date">September 5, 2025</div>
+        <div class="timeline-content"><strong>Internal read.</strong> First full read-through with Marc and Husani. Identified structural concerns with Act II pacing.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- PERSON CARDS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Person Cards</h2>
+  <p class="ref-section-desc">Compact person reference with avatar, name, and role. WN-known variant has warm border.</p>
+
+  <div class="showcase">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 520px;">
+      <div class="person-card person-card-wn">
+        <div class="person-avatar">DK</div>
+        <div>
+          <div class="person-name">David Kim</div>
+          <div class="person-role">Director &middot; Attached</div>
+        </div>
+      </div>
+      <div class="person-card person-card-wn">
+        <div class="person-avatar">AL</div>
+        <div>
+          <div class="person-name">Ana Lucia Reyes</div>
+          <div class="person-role">Choreographer &middot; Interested</div>
+        </div>
+      </div>
+      <div class="person-card">
+        <div class="person-avatar">JR</div>
+        <div>
+          <div class="person-name">James Rosen</div>
+          <div class="person-role">General Manager</div>
+        </div>
+      </div>
+      <div class="person-card">
+        <div class="person-avatar">TW</div>
+        <div>
+          <div class="person-name">Tanya Whitfield</div>
+          <div class="person-role">Soprano &middot; Casting candidate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ASSESSMENTS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Internal Assessments</h2>
+  <p class="ref-section-desc">Attributed quotes with author and date. Italic text with subtle styling.</p>
+
+  <div class="showcase" style="max-width: 640px;">
+    <div style="margin-bottom: 20px;">
+      <div class="assessment-quote">"Incredible instinct for staging intimacy. The scene work in the reading was the best I've seen from a first-time collaborator. Pushes back on choices with taste, not ego."</div>
+      <div class="assessment-attribution">Marc &middot; January 2026 &middot; re: David Kim</div>
+    </div>
+    <div>
+      <div class="assessment-quote">"Voice is extraordinary but she needs a director who can pull the acting out of her. Not right for a workshop where she'd need to carry scenes on her own."</div>
+      <div class="assessment-attribution">Husani &middot; February 2026 &middot; re: Tanya Whitfield</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- PROGRESS & MATCH -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Progress & Match Strength</h2>
+  <p class="ref-section-desc">Progress bar for any current-vs-target value. Match strength for any scored relationship.</p>
+
+  <div class="showcase" style="max-width: 480px;">
+    <div class="ref-group">
+      <div class="ref-group-label">Capitalization progress</div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" style="width: 68%;"></div>
+      </div>
+      <div class="progress-label">
+        <span class="progress-label-current">$2.72M raised</span>
+        <span class="progress-label-target">$4M target</span>
+      </div>
+    </div>
+
+    <div class="ref-group" style="margin-top: 32px;">
+      <div class="ref-group-label">Match strength</div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="match-bar match-strong">
+          <span style="min-width: 100px; font-size: 0.9375rem;">Moonshot</span>
+          <div class="match-bar-track"><div class="match-bar-fill" style="width: 92%;"></div></div>
+          <span class="match-label">Strong</span>
+        </div>
+        <div class="match-bar match-moderate">
+          <span style="min-width: 100px; font-size: 0.9375rem;">Stable Geniuses</span>
+          <div class="match-bar-track"><div class="match-bar-fill" style="width: 54%;"></div></div>
+          <span class="match-label">Moderate</span>
+        </div>
+        <div class="match-bar match-weak">
+          <span style="min-width: 100px; font-size: 0.9375rem;">Third Show</span>
+          <div class="match-bar-track"><div class="match-bar-fill" style="width: 22%;"></div></div>
+          <span class="match-label">Weak</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- BUTTONS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Buttons</h2>
+  <p class="ref-section-desc">Primary, secondary, and ghost variants.</p>
+
+  <div class="showcase">
+    <div class="ref-row">
+      <button class="btn btn-primary">Upload Script</button>
+      <button class="btn btn-secondary">Export</button>
+      <button class="btn btn-ghost">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- FORM INPUTS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Form Inputs</h2>
+  <p class="ref-section-desc">Text inputs, labels. Adding people, notes, tags.</p>
+
+  <div class="showcase" style="max-width: 480px;">
+    <div style="margin-bottom: 20px;">
+      <label class="input-label">Name</label>
+      <input type="text" class="input" placeholder="Full name">
+    </div>
+    <div>
+      <label class="input-label">Notes</label>
+      <input type="text" class="input" placeholder="Add a note...">
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ALERTS / MESSAGES -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Alerts & Messages</h2>
+  <p class="ref-section-desc">Error, warning, success, and info states for system feedback.</p>
+
+  <div class="showcase" style="display: flex; flex-direction: column; gap: 12px; max-width: 640px;">
+    <div class="alert alert-error">
+      <svg class="alert-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v5"/><circle cx="10" cy="14" r="0.5" fill="currentColor"/></svg>
+      <div class="alert-content">
+        <div class="alert-title">Script upload failed</div>
+        <div>The file format isn't supported. Upload a PDF or Word document.</div>
+      </div>
+    </div>
+
+    <div class="alert alert-warning">
+      <svg class="alert-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2L1 18h18L10 2z"/><path d="M10 8v4"/><circle cx="10" cy="15" r="0.5" fill="currentColor"/></svg>
+      <div class="alert-content">
+        <div class="alert-title">AEA work rule approaching</div>
+        <div>Cast member Sarah Chen is at 7 of 8 consecutive performance days. Schedule a day off by Friday or you'll be in violation.</div>
+      </div>
+    </div>
+
+    <div class="alert alert-success">
+      <svg class="alert-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.5l2 2 5-5"/></svg>
+      <div class="alert-content">
+        <div class="alert-title">Offering document signed</div>
+        <div>Michael Torres signed the investment agreement for Moonshot. $150K committed.</div>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <svg class="alert-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle cx="10" cy="6.5" r="0.5" fill="currentColor"/></svg>
+      <div class="alert-content">
+        <div class="alert-title">New radar briefing available</div>
+        <div>This week's cultural landscape analysis is ready. 3 signals connect to shows on your slate.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TOASTS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Toasts</h2>
+  <p class="ref-section-desc">Transient notifications. Appear and dismiss.</p>
+
+  <div class="showcase" style="display: flex; flex-direction: column; gap: 12px; align-items: flex-start;">
+    <div class="toast">
+      <svg class="toast-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--accent-sage)" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.5l2 2 5-5"/></svg>
+      <span>Audition note saved</span>
+      <svg class="toast-dismiss" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </div>
+    <div class="toast">
+      <svg class="toast-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--accent-warm)" stroke-width="1.5"><path d="M10 2L1 18h18L10 2z"/><path d="M10 8v4"/><circle cx="10" cy="15" r="0.5" fill="currentColor"/></svg>
+      <span>Costume budget trending 12% over</span>
+      <svg class="toast-dismiss" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </div>
+    <div class="toast">
+      <svg class="toast-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--accent-rose)" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v5"/><circle cx="10" cy="14" r="0.5" fill="currentColor"/></svg>
+      <span>Couldn't reach the server. Retrying...</span>
+      <svg class="toast-dismiss" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MODAL -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Modal</h2>
+  <p class="ref-section-desc">Overlays for quick, focused actions — logging, confirming, selecting. Not for creating major entities.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Form modal — log interaction</div>
+    <div class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 class="modal-title">Log Interaction</h3>
+          <div class="modal-close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom: 20px;">
+            <label class="input-label">Date</label>
+            <input type="text" class="input" value="March 7, 2026" style="max-width: 100%;">
+          </div>
+          <div style="margin-bottom: 20px;">
+            <label class="input-label">Context</label>
+            <input type="text" class="input" placeholder="Meeting, email, event, phone call..." style="max-width: 100%;">
+          </div>
+          <div>
+            <label class="input-label">Notes</label>
+            <textarea class="textarea" placeholder="What happened, what was discussed, any follow-up needed..." style="max-width: 100%;"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group" style="margin-top: 24px;">
+    <div class="ref-group-label">Confirmation modal</div>
+    <div class="modal-backdrop" style="min-height: 240px;">
+      <div class="modal" style="max-width: 440px;">
+        <div class="modal-header">
+          <h3 class="modal-title">Remove from creative team?</h3>
+          <div class="modal-close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </div>
+        </div>
+        <div class="modal-body">
+          <p class="confirm-body">This will remove Ana Lucia Reyes from the Moonshot creative team. Her status will change to "Departed."</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-primary" style="background: var(--accent-rose);">Remove</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group" style="margin-top: 24px;">
+    <div class="ref-group-label">Destructive confirmation</div>
+    <div class="modal-backdrop" style="min-height: 240px;">
+      <div class="modal" style="max-width: 440px;">
+        <div class="modal-header">
+          <h3 class="modal-title">Delete script version?</h3>
+          <div class="modal-close">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </div>
+        </div>
+        <div class="modal-body">
+          <p class="confirm-body">This will permanently delete Script v1 and all associated music files. Dramaturg analysis for this version will also be removed. This can't be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-primary" style="background: var(--accent-rose);">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- FORMS (EXPANDED) -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Forms</h2>
+  <p class="ref-section-desc">Inputs, textareas, selects, toggles, and error states.</p>
+
+  <div class="showcase" style="max-width: 480px;">
+    <div style="margin-bottom: 24px;">
+      <label class="input-label">Name</label>
+      <input type="text" class="input" placeholder="Full name">
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <label class="input-label">Name (with error)</label>
+      <input type="text" class="input input-error" value="R">
+      <div class="field-error">Enter a full name</div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <label class="input-label">Notes</label>
+      <textarea class="textarea" placeholder="Add observations, context, anything relevant..."></textarea>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <label class="input-label">Medium</label>
+      <div class="select-wrapper">
+        <select class="select">
+          <option>Musical</option>
+          <option>Play</option>
+          <option>Screenplay</option>
+          <option>Teleplay</option>
+        </select>
+        <svg class="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <label class="input-label">Development Stage</label>
+      <div class="select-wrapper">
+        <select class="select">
+          <option>Early Development</option>
+          <option>Internal Read</option>
+          <option>Workshop</option>
+          <option>Staged Reading</option>
+          <option>Seeking Production</option>
+          <option>In Production</option>
+          <option>Running</option>
+          <option>Closed</option>
+        </select>
+        <svg class="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <div class="toggle">
+        <div class="toggle-track active"><div class="toggle-thumb"></div></div>
+        Restrict to confidential
+      </div>
+    </div>
+
+    <div>
+      <div class="toggle">
+        <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        Show in public directory
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- EMPTY STATES -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Empty States</h2>
+  <p class="ref-section-desc">When there's no data yet. First use, no results, no interactions.</p>
+
+  <div class="showcase" style="max-width: 640px;">
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="20" cy="20" r="16"/><path d="M14 20h12M20 14v12"/></svg>
+      </div>
+      <div class="empty-state-title">No script uploaded</div>
+      <div class="empty-state-desc">Upload a script to unlock dramaturgical analysis, character breakdowns, casting requirements, and more.</div>
+      <button class="btn btn-primary">Upload Script</button>
+    </div>
+  </div>
+
+  <div class="showcase" style="max-width: 640px; margin-top: 16px;">
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="17" cy="17" r="12"/><path d="M26 26l8 8"/></svg>
+      </div>
+      <div class="empty-state-title">No results</div>
+      <div class="empty-state-desc">Nothing matched that query. Try different terms or broaden your search.</div>
+    </div>
+  </div>
+
+  <div class="showcase" style="max-width: 640px; margin-top: 16px;">
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 12h24M8 20h24M8 28h16"/></svg>
+      </div>
+      <div class="empty-state-title">No meetings yet</div>
+      <div class="empty-state-desc">Once meetings are ingested, summaries, decisions, and commitments will appear here.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- LOADING STATES -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Loading States</h2>
+  <p class="ref-section-desc">Spinner for actions in progress. Skeleton for content loading.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Spinner</div>
+    <div class="showcase">
+      <div class="ref-row" style="gap: 24px; align-items: center;">
+        <div class="loading-spinner"></div>
+        <div class="loading-spinner" style="width: 32px; height: 32px;"></div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="loading-spinner"></div>
+          <span style="font-size: 0.9375rem; color: var(--text-secondary); font-weight: 300;">Analyzing script...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Skeleton</div>
+    <div class="showcase" style="max-width: 480px;">
+      <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 24px;">
+        <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--bg-surface); flex-shrink: 0;"></div>
+        <div style="flex: 1;">
+          <div class="loading-skeleton" style="width: 60%; margin-bottom: 10px; height: 20px;"></div>
+          <div class="loading-skeleton" style="width: 40%; height: 14px;"></div>
+        </div>
+      </div>
+      <div class="loading-skeleton" style="margin-bottom: 10px;"></div>
+      <div class="loading-skeleton" style="margin-bottom: 10px;"></div>
+      <div class="loading-skeleton" style="width: 75%;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- EDIT STATES -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Edit States</h2>
+  <p class="ref-section-desc">How existing content transitions to editable. Hover reveals the edit affordance. Clicking activates edit mode with a focused border. Save/cancel actions appear below.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Display state (hover to see edit affordance)</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="editable-field">
+        <p class="prose">The second act restructure solved the pacing problem. Moving the airport scene to the Act I curtain gives the audience a genuine cliffhanger instead of a slow fade.</p>
+      </div>
+      <div class="edit-hint">Click to edit</div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Active edit state</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="editable-field editing">
+        <p class="prose" contenteditable="true" style="outline: none;">The second act restructure solved the pacing problem. Moving the airport scene to the Act I curtain gives the audience a genuine cliffhanger instead of a slow fade.</p>
+      </div>
+      <div class="edit-actions">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Inline value editing</div>
+    <div class="showcase" style="max-width: 480px;">
+      <div style="margin-bottom: 16px;">
+        <div class="type-meta" style="margin-bottom: 6px;">Display</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1rem; font-weight: 300;">Workshop at The Public</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" style="cursor: pointer; opacity: 0.5;"><path d="M10.5 1.5l2 2-7 7H3.5v-2l7-7z"/></svg>
+        </div>
+      </div>
+      <div>
+        <div class="type-meta" style="margin-bottom: 6px;">Editing</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="text" class="input" value="Workshop at The Public" style="max-width: 280px; border-color: rgba(196, 145, 90, 0.3);">
+          <button class="btn btn-primary" style="padding: 8px 16px;">Save</button>
+          <button class="btn btn-ghost" style="padding: 8px 12px;">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- FILE UPLOAD -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">File Upload</h2>
+  <p class="ref-section-desc">Drag-and-drop zone with click fallback. Uploaded files show as removable items below.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Upload zone</div>
+    <div class="showcase" style="max-width: 540px;">
+      <div class="file-upload">
+        <div class="file-upload-icon">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 24V10M12 16l6-6 6 6"/><path d="M6 22v6a2 2 0 002 2h20a2 2 0 002-2v-6"/></svg>
+        </div>
+        <div class="file-upload-title">Drop file here or <span class="file-upload-link">browse</span></div>
+        <div class="file-upload-desc">PDF or Word document, up to 50MB</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Uploaded files</div>
+    <div class="showcase" style="max-width: 540px; display: flex; flex-direction: column; gap: 8px;">
+      <div class="file-item">
+        <svg class="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h8l4 4v12a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M12 2v4h4"/></svg>
+        <span class="file-item-name">moonshot-script-v3.pdf</span>
+        <span class="file-item-meta">2.4 MB</span>
+        <svg class="file-item-remove" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </div>
+      <div class="file-item">
+        <svg class="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="12" r="4"/><path d="M10 8V3M6 5l4-2 4 2"/></svg>
+        <span class="file-item-name">act-1-finale-demo.mp3</span>
+        <span class="file-item-meta">8.1 MB</span>
+        <svg class="file-item-remove" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TABLE -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Data Table</h2>
+  <p class="ref-section-desc">For structured tabular data. Supports sortable columns, number alignment, positive/negative coloring, footer totals, pagination, and results-per-page.</p>
+
+  <div class="showcase" style="overflow-x: auto;">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="sortable sorted">Category <svg class="sort-icon" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6.5l3-3 3 3"/></svg></th>
+          <th class="sortable" style="text-align: right;">Budget <svg class="sort-icon" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3 3 3-3"/></svg></th>
+          <th class="sortable" style="text-align: right;">Actual <svg class="sort-icon" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3 3 3-3"/></svg></th>
+          <th class="sortable" style="text-align: right;">Variance <svg class="sort-icon" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l3 3 3-3"/></svg></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="cell-strong">Costumes</td>
+          <td class="cell-number">$28,000</td>
+          <td class="cell-number">$31,400</td>
+          <td class="cell-number cell-negative">+$3,400</td>
+        </tr>
+        <tr>
+          <td class="cell-strong">Lighting</td>
+          <td class="cell-number">$18,000</td>
+          <td class="cell-number">$17,800</td>
+          <td class="cell-number cell-positive">-$200</td>
+        </tr>
+        <tr>
+          <td class="cell-strong">Scenic</td>
+          <td class="cell-number">$45,000</td>
+          <td class="cell-number">$42,300</td>
+          <td class="cell-number cell-positive">-$2,700</td>
+        </tr>
+        <tr>
+          <td class="cell-strong">Sound</td>
+          <td class="cell-number">$12,000</td>
+          <td class="cell-number">$12,000</td>
+          <td class="cell-number cell-muted">$0</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="cell-strong">Total</td>
+          <td class="cell-number">$103,000</td>
+          <td class="cell-number">$103,500</td>
+          <td class="cell-number cell-negative">+$500</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="table-controls">
+      <div class="table-controls-left">
+        <span>Show</span>
+        <div class="select-wrapper" style="max-width: 80px;">
+          <select class="select" style="padding: 6px 32px 6px 10px; font-size: 0.875rem;">
+            <option>10</option>
+            <option>25</option>
+            <option>50</option>
+          </select>
+          <svg class="select-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+        </div>
+        <span>per page</span>
+        <span style="margin-left: 12px; color: var(--text-tertiary);">1–10 of 47</span>
+      </div>
+      <div class="table-pagination">
+        <button class="page-btn disabled">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8.5 3.5l-4 3.5 4 3.5"/></svg>
+        </button>
+        <button class="page-btn active">1</button>
+        <button class="page-btn">2</button>
+        <button class="page-btn">3</button>
+        <button class="page-btn">4</button>
+        <button class="page-btn">5</button>
+        <button class="page-btn">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5.5 3.5l4 3.5-4 3.5"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- RATING INPUT -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Rating Input</h2>
+  <p class="ref-section-desc">Quick-tap dot rating for structured evaluations. Designed for fast input, especially on mobile. Not dropdown forms — tap targets.</p>
+
+  <div class="showcase" style="max-width: 480px;">
+    <div class="rating-row">
+      <span class="rating-label">Vocal</span>
+      <div class="rating-dots">
+        <div class="rating-dot selected">1</div>
+        <div class="rating-dot selected">2</div>
+        <div class="rating-dot selected">3</div>
+        <div class="rating-dot selected">4</div>
+        <div class="rating-dot">5</div>
+      </div>
+    </div>
+    <div class="rating-row">
+      <span class="rating-label">Acting</span>
+      <div class="rating-dots">
+        <div class="rating-dot selected">1</div>
+        <div class="rating-dot selected">2</div>
+        <div class="rating-dot selected">3</div>
+        <div class="rating-dot">4</div>
+        <div class="rating-dot">5</div>
+      </div>
+    </div>
+    <div class="rating-row">
+      <span class="rating-label">Movement</span>
+      <div class="rating-dots">
+        <div class="rating-dot">1</div>
+        <div class="rating-dot">2</div>
+        <div class="rating-dot">3</div>
+        <div class="rating-dot">4</div>
+        <div class="rating-dot">5</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TABS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Tabs</h2>
+  <p class="ref-section-desc">Switch between views within a page. Active tab has warm underline. Optional count badges. Scrolls horizontally on small screens.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Standard tabs</div>
+    <div class="showcase">
+      <div class="tab-bar">
+        <div class="tab active">Overview</div>
+        <div class="tab">History</div>
+        <div class="tab">Analysis</div>
+        <div class="tab">Notes</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Tabs with counts</div>
+    <div class="showcase">
+      <div class="tab-bar">
+        <div class="tab active">Candidates<span class="tab-count">24</span></div>
+        <div class="tab">Scheduled<span class="tab-count">8</span></div>
+        <div class="tab">Reviewed<span class="tab-count">16</span></div>
+        <div class="tab">Offers<span class="tab-count">2</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Many tabs (scrollable)</div>
+    <div class="showcase">
+      <div class="tab-bar">
+        <div class="tab active">Structure</div>
+        <div class="tab">Characters</div>
+        <div class="tab">Emotional Map</div>
+        <div class="tab">Themes</div>
+        <div class="tab">Dialogue</div>
+        <div class="tab">Comparables</div>
+        <div class="tab">Producing</div>
+        <div class="tab">Concerns</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- BREADCRUMBS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Breadcrumbs</h2>
+  <p class="ref-section-desc">Hierarchical navigation showing current location. Earlier segments are clickable. Current page is not.</p>
+
+  <div class="showcase" style="display: flex; flex-direction: column; gap: 20px;">
+    <div class="breadcrumbs">
+      <a class="breadcrumb">Shows</a>
+      <span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-current">Moonshot</span>
+    </div>
+    <div class="breadcrumbs">
+      <a class="breadcrumb">Shows</a>
+      <span class="breadcrumb-sep">›</span>
+      <a class="breadcrumb">Moonshot</a>
+      <span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-current">Script v3</span>
+    </div>
+    <div class="breadcrumbs">
+      <a class="breadcrumb">Casting</a>
+      <span class="breadcrumb-sep">›</span>
+      <a class="breadcrumb">Moonshot</a>
+      <span class="breadcrumb-sep">›</span>
+      <a class="breadcrumb">Lead Role</a>
+      <span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-current">Candidates</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- PROACTIVE SURFACING -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Proactive Surfacing</h2>
+  <p class="ref-section-desc">The system tells you things you didn't ask for. A persistent, prioritized feed of actionable items across all tools. Each item has a colored icon by type, descriptive text, timestamp, and dismiss-on-hover.</p>
+
+  <div class="showcase" style="max-width: 540px;">
+    <div class="surfacing-panel">
+      <div class="surfacing-header">
+        <span class="surfacing-title">Needs Attention</span>
+        <span class="surfacing-count">5</span>
+      </div>
+      <div class="surfacing-item">
+        <div class="surfacing-icon surfacing-icon-warm">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/></svg>
+        </div>
+        <div style="flex: 1;">
+          <div class="surfacing-text"><strong>Follow-up overdue.</strong> You pitched Rebecca Friedman on Moonshot 2 weeks ago — no response yet.</div>
+          <div class="surfacing-time">3 hours ago</div>
+        </div>
+        <svg class="surfacing-dismiss" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+      </div>
+      <div class="surfacing-item">
+        <div class="surfacing-icon surfacing-icon-rose">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2L1.5 14h13L8 2z"/><path d="M8 6v3"/><circle cx="8" cy="11.5" r="0.5" fill="currentColor"/></svg>
+        </div>
+        <div style="flex: 1;">
+          <div class="surfacing-text"><strong>AEA 8-performance limit.</strong> Sarah Chen is at 7 consecutive. Schedule a day off by Friday.</div>
+          <div class="surfacing-time">Today</div>
+        </div>
+        <svg class="surfacing-dismiss" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+      </div>
+      <div class="surfacing-item">
+        <div class="surfacing-icon surfacing-icon-sage">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M5 8.5l2 2 4-4"/></svg>
+        </div>
+        <div style="flex: 1;">
+          <div class="surfacing-text"><strong>Dossier updated.</strong> David Kim just directed a new production at Playwrights Horizons — profile refreshed.</div>
+          <div class="surfacing-time">Yesterday</div>
+        </div>
+        <svg class="surfacing-dismiss" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+      </div>
+      <div class="surfacing-item">
+        <div class="surfacing-icon surfacing-icon-blue">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>
+        </div>
+        <div style="flex: 1;">
+          <div class="surfacing-text"><strong>Meeting prep ready.</strong> You have a call with Michael Torres in 2 hours. Context from 3 previous conversations assembled.</div>
+          <div class="surfacing-time">Just now</div>
+        </div>
+        <svg class="surfacing-dismiss" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+      </div>
+      <div class="surfacing-item">
+        <div class="surfacing-icon surfacing-icon-warm">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l6 4 6-4"/><rect x="2" y="3" width="12" height="10" rx="1.5"/></svg>
+        </div>
+        <div style="flex: 1;">
+          <div class="surfacing-text"><strong>Audience drift.</strong> 14 people who engaged regularly with Stable Geniuses haven't interacted in 3 months.</div>
+          <div class="surfacing-time">2 days ago</div>
+        </div>
+        <svg class="surfacing-dismiss" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SIDE-BY-SIDE COMPARISON -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Side-by-Side Comparison</h2>
+  <p class="ref-section-desc">Two-column layout for evaluating options. Candidates for a role, script versions, project audiences. Stacks vertically on mobile.</p>
+
+  <div class="comparison">
+    <div class="comparison-col">
+      <div class="comparison-col-header">
+        <div class="person-avatar" style="width: 32px; height: 32px; font-size: 0.75rem;">TW</div>
+        <div class="comparison-col-title">Tanya Whitfield</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div class="rating-row">
+          <span class="rating-label" style="min-width: 70px; font-size: 0.8125rem;">Vocal</span>
+          <div class="rating-dots">
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">1</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">2</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">3</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">4</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">5</div>
+          </div>
+        </div>
+        <div class="rating-row">
+          <span class="rating-label" style="min-width: 70px; font-size: 0.8125rem;">Acting</span>
+          <div class="rating-dots">
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">1</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">2</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">3</div>
+            <div class="rating-dot" style="width: 22px; height: 22px; font-size: 0.625rem;">4</div>
+            <div class="rating-dot" style="width: 22px; height: 22px; font-size: 0.625rem;">5</div>
+          </div>
+        </div>
+      </div>
+      <div class="assessment-quote" style="font-size: 0.875rem;">"Extraordinary voice but needs a director who can pull the acting out of her."</div>
+      <div class="assessment-attribution" style="font-size: 0.8125rem;">Husani · Round 1</div>
+    </div>
+    <div class="comparison-col">
+      <div class="comparison-col-header">
+        <div class="person-avatar" style="width: 32px; height: 32px; font-size: 0.75rem;">MJ</div>
+        <div class="comparison-col-title">Maya Johnson</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div class="rating-row">
+          <span class="rating-label" style="min-width: 70px; font-size: 0.8125rem;">Vocal</span>
+          <div class="rating-dots">
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">1</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">2</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">3</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">4</div>
+            <div class="rating-dot" style="width: 22px; height: 22px; font-size: 0.625rem;">5</div>
+          </div>
+        </div>
+        <div class="rating-row">
+          <span class="rating-label" style="min-width: 70px; font-size: 0.8125rem;">Acting</span>
+          <div class="rating-dots">
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">1</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">2</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">3</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">4</div>
+            <div class="rating-dot selected" style="width: 22px; height: 22px; font-size: 0.625rem;">5</div>
+          </div>
+        </div>
+      </div>
+      <div class="assessment-quote" style="font-size: 0.875rem;">"Completely inhabited the character. Strongest actor we've seen this round. Voice is solid, not spectacular."</div>
+      <div class="assessment-attribution" style="font-size: 0.8125rem;">Husani · Round 1</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- VOICE MEMO -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Voice Memo</h2>
+  <p class="ref-section-desc">Tap-to-record with transcription. Three states: ready, recording, playback with transcript. Mobile-first tap targets.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Ready to record</div>
+    <div class="showcase" style="display: flex; align-items: center; gap: 16px;">
+      <button class="voice-record-btn">
+        <div class="record-dot"></div>
+      </button>
+      <span style="font-size: 0.9375rem; color: var(--text-tertiary); font-weight: 300;">Tap to record</span>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Recording in progress</div>
+    <div class="showcase">
+      <div class="voice-recording-state">
+        <button class="voice-record-btn recording">
+          <div class="record-dot"></div>
+        </button>
+        <div class="voice-waveform">
+          <div class="voice-waveform-bar" style="animation-delay: 0s; height: 8px;"></div>
+          <div class="voice-waveform-bar" style="animation-delay: 0.1s; height: 16px;"></div>
+          <div class="voice-waveform-bar" style="animation-delay: 0.2s; height: 12px;"></div>
+          <div class="voice-waveform-bar" style="animation-delay: 0.3s; height: 20px;"></div>
+          <div class="voice-waveform-bar" style="animation-delay: 0.15s; height: 10px;"></div>
+          <div class="voice-waveform-bar" style="animation-delay: 0.25s; height: 18px;"></div>
+          <div class="voice-waveform-bar" style="animation-delay: 0.05s; height: 6px;"></div>
+          <div class="voice-waveform-bar" style="animation-delay: 0.35s; height: 14px;"></div>
+        </div>
+        <span class="voice-timer">0:12</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Playback with transcript</div>
+    <div class="showcase" style="max-width: 480px;">
+      <div class="voice-playback">
+        <div class="voice-play-btn">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5l9 5.5-9 5.5V1.5z"/></svg>
+        </div>
+        <div class="voice-track">
+          <div class="voice-track-fill" style="width: 35%;"></div>
+        </div>
+        <span class="voice-duration">0:34</span>
+      </div>
+      <div class="voice-transcript">Really strong comedic instincts, the timing on the second monologue was perfect. Voice is clear and controlled in the upper register. I'd want to see her with a scene partner before making a decision.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ACCORDION -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Expandable Sections</h2>
+  <p class="ref-section-desc">Collapsible accordion for long pages. Chevron rotates on open. Any content type can be inside.</p>
+
+  <div class="showcase" style="max-width: 640px;">
+    <div class="accordion-item open">
+      <button class="accordion-trigger">
+        Section Title (Open)
+        <svg class="accordion-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
+      <div class="accordion-content">
+        This section is expanded. Any content can go here — prose, lists, stat grids, timelines, tables. The accordion is a layout wrapper, not a content type. It controls visibility.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">
+        Section Title (Closed)
+        <svg class="accordion-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
+      <div class="accordion-content collapsed">
+        This content is hidden.
+      </div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">
+        Another Closed Section
+        <svg class="accordion-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
+      <div class="accordion-content collapsed">
+        This content is hidden.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ACTION MENU -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Action Menu</h2>
+  <p class="ref-section-desc">Contextual dropdown for actions on an item. Triggered by kebab/ellipsis icon. Supports dividers and destructive items.</p>
+
+  <div class="showcase" style="display: flex; gap: 40px; align-items: flex-start;">
+    <div>
+      <div class="ref-group-label" style="margin-bottom: 8px;">Trigger</div>
+      <div class="action-trigger">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
+      </div>
+    </div>
+    <div>
+      <div class="ref-group-label" style="margin-bottom: 8px;">Open menu</div>
+      <div class="action-menu">
+        <div class="action-menu-item">
+          <svg class="action-menu-item-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 1.5l2 2-7.5 7.5H3.5v-2L11 1.5z"/></svg>
+          Edit
+        </div>
+        <div class="action-menu-item">
+          <svg class="action-menu-item-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4"/></svg>
+          Duplicate
+        </div>
+        <div class="action-menu-item">
+          <svg class="action-menu-item-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7.5h9M9 4.5l3 3-3 3"/></svg>
+          Move to...
+        </div>
+        <div class="action-menu-divider"></div>
+        <div class="action-menu-item action-menu-item-destructive">
+          <svg class="action-menu-item-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4"/></svg>
+          Delete
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- AVATAR VARIANTS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Avatar Variants</h2>
+  <p class="ref-section-desc">Initials fallback and photo variant. Two sizes: standard (36px) and large (56px). WN-known warm border applies to both.</p>
+
+  <div class="showcase">
+    <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+      <div style="text-align: center;">
+        <div class="person-avatar" style="margin: 0 auto 6px;">DK</div>
+        <div class="type-meta">Initials</div>
+      </div>
+      <div style="text-align: center;">
+        <img class="person-avatar-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Crect fill='%23534b42' width='36' height='36' rx='18'/%3E%3Ctext x='18' y='22' text-anchor='middle' fill='%23a69e91' font-size='12' font-family='sans-serif'%3Ephoto%3C/text%3E%3C/svg%3E" style="margin: 0 auto 6px; display: block;">
+        <div class="type-meta">Photo</div>
+      </div>
+      <div style="text-align: center;">
+        <div class="person-avatar person-avatar-lg" style="margin: 0 auto 6px;">DK</div>
+        <div class="type-meta">Large</div>
+      </div>
+      <div style="text-align: center;">
+        <img class="person-avatar-photo person-avatar-lg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Crect fill='%23534b42' width='56' height='56' rx='28'/%3E%3Ctext x='28' y='33' text-anchor='middle' fill='%23a69e91' font-size='14' font-family='sans-serif'%3Ephoto%3C/text%3E%3C/svg%3E" style="margin: 0 auto 6px; display: block;">
+        <div class="type-meta">Large photo</div>
+      </div>
+      <div style="text-align: center;">
+        <div class="person-avatar person-avatar-lg" style="margin: 0 auto 6px; background: var(--accent-warm-muted); color: var(--accent-warm); border: 1.5px solid rgba(196, 145, 90, 0.3);">DK</div>
+        <div class="type-meta">WN-known</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- CONFIDENTIALITY INDICATOR -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Confidentiality Indicator</h2>
+  <p class="ref-section-desc">Subtle lock icon with label. Two states: open (default, usually not shown) and restricted. Intended to be placed inline with titles or metadata.</p>
+
+  <div class="showcase" style="display: flex; flex-direction: column; gap: 16px; max-width: 480px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500;">Weekly Budget Review</span>
+      <span class="confidential">
+        <svg class="confidential-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5.5" width="8" height="5" rx="1"/><path d="M3.5 5.5V4a2.5 2.5 0 015 0v1.5"/></svg>
+        Restricted
+      </span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500;">Creative Team Standup</span>
+      <span class="confidential" style="color: var(--text-tertiary); opacity: 0.6;">
+        <svg class="confidential-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5.5" width="8" height="5" rx="1"/><path d="M3.5 5.5V4a2.5 2.5 0 014.5 0"/></svg>
+        Open
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- CHIP INPUT -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Chip Input</h2>
+  <p class="ref-section-desc">Multi-select input where selected items appear as removable chips. For tags, people assignment, role selection. Type to add, click × to remove.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">With selections</div>
+    <div class="showcase">
+      <div class="chip-input-wrapper">
+        <div class="chip">
+          NYC-based
+          <div class="chip-remove">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg>
+          </div>
+        </div>
+        <div class="chip">
+          Strong mover
+          <div class="chip-remove">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg>
+          </div>
+        </div>
+        <div class="chip">
+          Workshop candidate
+          <div class="chip-remove">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg>
+          </div>
+        </div>
+        <input type="text" class="chip-input" placeholder="Add tag...">
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Empty</div>
+    <div class="showcase">
+      <div class="chip-input-wrapper">
+        <input type="text" class="chip-input" placeholder="Type to add tags...">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- QUERY RESULTS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Query Results</h2>
+  <p class="ref-section-desc">What comes back when someone asks a question. Two patterns: prose response (synthesized answer) and result list (matched items). Can combine both — a prose summary followed by the items it references.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Prose response</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="query-result-prose">
+        <p class="prose">The cultural landscape for queer musicals is strong and growing. Three major productions opened in the last 18 months with queer leads, all performing above projections. BookTok activity around queer romance is up 40% year-over-year, and two novels in the space have been optioned for screen adaptation. The appetite is broad — not limited to a niche audience. Moonshot's positioning is strong here because it approaches queerness through family dynamics rather than romance, which is a relatively unoccupied space in the current landscape.</p>
+        <div class="query-result-sources">
+          <span class="query-result-source">Radar · Cultural signals</span>
+          <span class="query-result-source">Shows · Moonshot profile</span>
+          <span class="query-result-source">Audience · Engagement data</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Result list</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="query-result-list">
+        <div class="query-result-item">
+          <div class="person-avatar" style="width: 36px; height: 36px;">TW</div>
+          <div class="query-result-item-body">
+            <div class="query-result-item-title">Tanya Whitfield</div>
+            <div class="query-result-item-desc">Soprano, strong belt-mix. 4 Off-Broadway credits including a lead at Second Stage. NYC-based.</div>
+          </div>
+          <div class="query-result-item-meta">Strong fit</div>
+        </div>
+        <div class="query-result-item">
+          <div class="person-avatar" style="width: 36px; height: 36px;">MJ</div>
+          <div class="query-result-item-body">
+            <div class="query-result-item-title">Maya Johnson</div>
+            <div class="query-result-item-desc">Mezzo with exceptional acting. Recent Williamstown and NYTW. Dance training at Juilliard.</div>
+          </div>
+          <div class="query-result-item-meta">Strong fit</div>
+        </div>
+        <div class="query-result-item">
+          <div class="person-avatar" style="width: 36px; height: 36px;">ER</div>
+          <div class="query-result-item-body">
+            <div class="query-result-item-title">Elena Reyes</div>
+            <div class="query-result-item-desc">Soprano, primarily regional. National tour of In the Heights. Strong mover, limited NYC visibility.</div>
+          </div>
+          <div class="query-result-item-meta">Moderate fit</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- DRAWER PANEL -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Drawer Panel</h2>
+  <p class="ref-section-desc">Slide-in panel from the right for viewing detail without navigating away. Scrollable body, fixed header with close button. Overlays the page with a dimmed backdrop.</p>
+
+  <div class="drawer-demo">
+    <div class="drawer-backdrop"></div>
+    <div class="drawer">
+      <div class="drawer-header">
+        <span class="drawer-title">David Kim</span>
+        <div class="modal-close">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </div>
+      </div>
+      <div class="drawer-body">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+          <div class="person-avatar person-avatar-lg" style="background: var(--accent-warm-muted); color: var(--accent-warm);">DK</div>
+          <div>
+            <div style="font-size: 0.9375rem; color: var(--text-secondary); font-weight: 300;">Director</div>
+            <span class="status status-warm" style="font-size: 0.8125rem;"><span class="status-dot"></span> Attached</span>
+          </div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <div class="type-meta" style="margin-bottom: 8px;">Recent Credits</div>
+          <ul class="item-list">
+            <li class="item-row" style="padding: 8px 0;">
+              <div>
+                <div class="item-primary" style="font-size: 0.9375rem;">The Visitor</div>
+                <div class="item-secondary" style="font-size: 0.8125rem;">Playwrights Horizons · 2026</div>
+              </div>
+            </li>
+            <li class="item-row" style="padding: 8px 0;">
+              <div>
+                <div class="item-primary" style="font-size: 0.9375rem;">Soft Power</div>
+                <div class="item-secondary" style="font-size: 0.8125rem;">Public Theater · 2025</div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <div class="type-meta" style="margin-bottom: 8px;">Internal Assessment</div>
+          <div class="assessment-quote" style="font-size: 0.875rem;">"Incredible instinct for staging intimacy. Pushes back on choices with taste, not ego."</div>
+          <div class="assessment-attribution" style="font-size: 0.8125rem;">Marc · January 2026</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- LINKS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Links</h2>
+  <p class="ref-section-desc">Three variants: standard (warm color), external (with arrow icon), and subtle (secondary color, for dense lists). Underline on hover.</p>
+
+  <div class="showcase" style="display: flex; flex-direction: column; gap: 16px; max-width: 480px;">
+    <div>
+      <span class="type-meta" style="display: block; margin-bottom: 4px;">Standard</span>
+      <span class="link">View full dossier</span>
+    </div>
+    <div>
+      <span class="type-meta" style="display: block; margin-bottom: 4px;">External</span>
+      <span class="link link-external">BroadwayWorld profile</span>
+    </div>
+    <div>
+      <span class="type-meta" style="display: block; margin-bottom: 4px;">Subtle</span>
+      <span class="link link-subtle">3 more credits</span>
+    </div>
+    <div>
+      <span class="type-meta" style="display: block; margin-bottom: 4px;">Inline in prose</span>
+      <p class="prose">She previously produced <span class="link">Small Hours</span> at Atlantic Theater Company and co-produced <span class="link">Bright Wire</span> at Second Stage. Coverage in <span class="link link-external">American Theatre</span> described her approach as "unusually artist-centered."</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- NAV NOTIFICATION -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Nav Notification Indicators</h2>
+  <p class="ref-section-desc">How the nav signals that the system has things to tell you. Dot for presence, count for quantity. Applied to the user avatar or a dedicated nav element.</p>
+
+  <div class="showcase">
+    <div class="ref-group">
+      <div class="ref-group-label">Dot indicator (something needs attention)</div>
+      <div class="nav-demo" style="max-width: 500px;">
+        <div class="nav-wordmark">Intelligence</div>
+        <div class="nav-tools">
+          <a class="nav-tool nav-tool-active">Shows</a>
+          <a class="nav-tool">Talent</a>
+          <a class="nav-tool">Casting</a>
+        </div>
+        <div class="nav-user nav-notification-dot">H</div>
+      </div>
+    </div>
+    <div class="ref-group" style="margin-top: 20px;">
+      <div class="ref-group-label">Count indicator (specific number of items)</div>
+      <div class="nav-demo" style="max-width: 500px;">
+        <div class="nav-wordmark">Intelligence</div>
+        <div class="nav-tools">
+          <a class="nav-tool nav-tool-active">Shows</a>
+          <a class="nav-tool">Talent</a>
+          <a class="nav-tool">Casting</a>
+        </div>
+        <div class="nav-user nav-notification-count" data-count="5">H</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TRANSITION TOKENS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Transitions & Motion</h2>
+  <p class="ref-section-desc">Three speed tiers. Use CSS variables: --transition-micro, --transition-standard, --transition-emphasis. All use ease or ease-out curves. Never linear for UI transitions.</p>
+
+  <div class="showcase" style="max-width: 640px;">
+    <div style="display: grid; grid-template-columns: auto 1fr auto; gap: 16px 24px; align-items: center;">
+      <div class="type-meta">Micro</div>
+      <div style="font-size: 0.9375rem; color: var(--text-secondary); font-weight: 300;">Hover states, color changes, opacity shifts</div>
+      <code style="font-size: 0.8125rem; color: var(--text-tertiary); background: var(--bg-surface); padding: 2px 8px; border-radius: 4px;">0.12s ease</code>
+
+      <div class="type-meta">Standard</div>
+      <div style="font-size: 0.9375rem; color: var(--text-secondary); font-weight: 300;">Tabs switching, toggles, panels expanding, accordions</div>
+      <code style="font-size: 0.8125rem; color: var(--text-tertiary); background: var(--bg-surface); padding: 2px 8px; border-radius: 4px;">0.2s ease</code>
+
+      <div class="type-meta">Emphasis</div>
+      <div style="font-size: 0.9375rem; color: var(--text-secondary); font-weight: 300;">Modals opening, drawers sliding, page transitions</div>
+      <code style="font-size: 0.8125rem; color: var(--text-tertiary); background: var(--bg-surface); padding: 2px 8px; border-radius: 4px;">0.3s ease-out</code>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- FOCUS STATES -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Focus States</h2>
+  <p class="ref-section-desc">Visible focus ring for keyboard navigation. Warm-tinted outline with offset. Applied automatically via :focus-visible so mouse users don't see it. Add class "focus-ring" to any custom interactive element.</p>
+
+  <div class="showcase" style="max-width: 480px;">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div>
+        <div class="type-meta" style="margin-bottom: 6px;">Input focused via keyboard</div>
+        <input type="text" class="input" placeholder="Tab to focus" style="outline: 2px solid rgba(196, 145, 90, 0.4); outline-offset: 2px;">
+      </div>
+      <div>
+        <div class="type-meta" style="margin-bottom: 6px;">Button focused via keyboard</div>
+        <button class="btn btn-primary" style="outline: 2px solid rgba(196, 145, 90, 0.4); outline-offset: 2px;">Upload Script</button>
+      </div>
+      <div>
+        <div class="type-meta" style="margin-bottom: 6px;">Ghost button focused</div>
+        <button class="btn btn-ghost" style="outline: 2px solid rgba(196, 145, 90, 0.4); outline-offset: 2px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- TRUNCATION -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Truncation & Overflow</h2>
+  <p class="ref-section-desc">Three patterns: single-line ellipsis (truncate), multi-line clamp (line-clamp-2, line-clamp-3), and show more/less toggle for expandable content.</p>
+
+  <div class="showcase" style="max-width: 480px;">
+    <div style="margin-bottom: 20px;">
+      <div class="type-meta" style="margin-bottom: 6px;">Single-line truncate</div>
+      <div class="truncate" style="font-size: 1rem; font-weight: 300; max-width: 300px; color: var(--text-primary);">This is a very long person name or title that would overflow its container and needs to be truncated with an ellipsis</div>
+    </div>
+    <div style="margin-bottom: 20px;">
+      <div class="type-meta" style="margin-bottom: 6px;">Two-line clamp</div>
+      <div class="line-clamp-2" style="font-size: 1rem; font-weight: 300; color: var(--text-secondary); max-width: 400px; line-height: 1.6;">Friedman gravitates toward intimate, character-driven musicals with social themes. Her production history shows a clear pattern: small-cast pieces with contemporary settings and emotionally direct storytelling. She avoids spectacle and has never produced anything requiring more than a 5-piece band.</div>
+    </div>
+    <div>
+      <div class="type-meta" style="margin-bottom: 6px;">Show more / show less</div>
+      <div class="line-clamp-3" style="font-size: 1rem; font-weight: 300; color: var(--text-secondary); max-width: 400px; line-height: 1.6;">The second act sags between scenes 4 and 7 — three consecutive dialogue scenes with no musical number create a pacing valley right when the emotional stakes should be escalating. The Act I finale lands hard, but the momentum dissipates before the midpoint turn. Consider restructuring the transition from the airport scene into a musical sequence that maintains the energy through the act break.</div>
+      <div class="show-more-toggle">Show more</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- DATE DISPLAY -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Date Display Conventions</h2>
+  <p class="ref-section-desc">Not a visual component — guidance for builders. Use relative dates for recent activity, absolute dates for anything older. Tooltip the full date on hover for relative displays.</p>
+
+  <div class="showcase" style="max-width: 540px;">
+    <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px 24px; align-items: baseline;">
+      <div class="type-meta">Just now</div>
+      <span class="date-relative">Under 1 minute ago</span>
+
+      <div class="type-meta">Minutes</div>
+      <span class="date-relative">12 minutes ago</span>
+
+      <div class="type-meta">Hours</div>
+      <span class="date-relative">3 hours ago</span>
+
+      <div class="type-meta">Yesterday</div>
+      <span class="date-relative">Yesterday at 4:30 PM</span>
+
+      <div class="type-meta">This week</div>
+      <span class="date-relative">Tuesday at 2:15 PM</span>
+
+      <div class="type-meta">This year</div>
+      <span class="date-absolute">March 3 at 10:00 AM</span>
+
+      <div class="type-meta">Older</div>
+      <span class="date-absolute">October 12, 2025</span>
+
+      <div class="type-meta">Month only</div>
+      <span class="date-absolute">January 2026</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- COMMAND PALETTE -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Command Palette</h2>
+  <p class="ref-section-desc">Global search and navigation. ⌘K to open from anywhere. Search across people, shows, tools, and actions. Results grouped by type. Keyboard-navigable.</p>
+
+  <div class="cmd-palette-backdrop">
+    <div class="cmd-palette">
+      <div class="cmd-palette-input-wrap">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5"><circle cx="7.5" cy="7.5" r="5.5"/><path d="M12 12l4 4"/></svg>
+        <input type="text" class="cmd-palette-input" placeholder="Search or jump to..." value="moon">
+        <span class="cmd-palette-kbd">ESC</span>
+      </div>
+      <div class="cmd-palette-results">
+        <div class="cmd-palette-group-label">Shows</div>
+        <div class="cmd-palette-item highlighted">
+          <svg class="cmd-palette-item-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M6 5.5l4.5 2.5-4.5 2.5z"/></svg>
+          <span class="cmd-palette-item-label">Moonshot</span>
+          <span class="cmd-palette-item-hint">Workshop · Script v3</span>
+        </div>
+        <div class="cmd-palette-group-label">People</div>
+        <div class="cmd-palette-item">
+          <div class="person-avatar" style="width: 24px; height: 24px; font-size: 0.625rem;">RF</div>
+          <span class="cmd-palette-item-label">Rebecca Friedman</span>
+          <span class="cmd-palette-item-hint">Producer</span>
+        </div>
+        <div class="cmd-palette-item">
+          <div class="person-avatar" style="width: 24px; height: 24px; font-size: 0.625rem;">MT</div>
+          <span class="cmd-palette-item-label">Michael Torres</span>
+          <span class="cmd-palette-item-hint">Investor</span>
+        </div>
+        <div class="cmd-palette-group-label">Actions</div>
+        <div class="cmd-palette-item">
+          <svg class="cmd-palette-item-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M6 8h4M8 6v4"/></svg>
+          <span class="cmd-palette-item-label">Upload script to Moonshot</span>
+        </div>
+      </div>
+      <div class="cmd-palette-footer">
+        <span><span class="cmd-palette-kbd">↑↓</span> navigate</span>
+        <span><span class="cmd-palette-kbd">↵</span> select</span>
+        <span><span class="cmd-palette-kbd">esc</span> close</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

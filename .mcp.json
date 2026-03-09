@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "intelligence": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:8005/mcp/mcp", "--header", "Authorization:Bearer 562ebf99c5d265257db980a8aaa1f9a9991423a16207e181864824c94ca33699"]
+    }
+  }
+}
