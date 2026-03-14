@@ -1,0 +1,514 @@
+# Intelligence — Seed Data
+#
+# Lookup values, social platforms, and other reference data that the
+# application expects to exist. This is NOT test data (fake producers,
+# shows, etc.) — that lives in seed_test_data.py.
+#
+# Structure mirrors the database models: every seedable field on the
+# model is represented here. Auto-generated fields (id, created_at,
+# updated_at, sort_order) are omitted — sort_order is derived from
+# position in the list.
+#
+# Run with: poetry run python scripts/seed_data.py
+
+# --- SocialPlatform model ---
+# Fields: name, base_url, icon_svg, description
+social_platforms:
+  - name: Instagram
+    base_url: https://instagram.com/
+    icon_svg: '<rect x="2" y="2" width="20" height="20" rx="5" /><circle cx="12" cy="12" r="5" /><circle cx="17.5" cy="6.5" r="1.5" />'
+    description: "Photo and video sharing platform. Users post images, short videos, stories (24-hour ephemeral content), and reels (short-form video). Profiles can be personal or organizational."
+
+  - name: Facebook
+    base_url: https://facebook.com/
+    icon_svg: '<path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />'
+    description: "Social networking platform. Users maintain personal profiles and organizations maintain pages. Features include event listings, groups, and community engagement. Profiles and pages are often public and indexable by search engines."
+
+  - name: Twitter/X
+    base_url: https://x.com/
+    icon_svg: '<path d="M4 4l6.5 8L4 20h2l5.3-6.5L16 20h4l-6.8-8.3L19.5 4h-2l-5 6.2L8 4H4z" />'
+    description: "Microblogging platform. Users post short-form text, images, and links. Content is typically public. Used for commentary, announcements, and real-time discourse."
+
+  - name: LinkedIn
+    base_url: https://linkedin.com/
+    icon_svg: '<path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z" /><rect x="2" y="9" width="4" height="12" /><circle cx="4" cy="4" r="2" />'
+    description: "Professional networking platform. Profiles contain employment history, organizational affiliations, education, and professional connections. The standard platform for professional identity and career history. URLs are unique per person and serve as a reliable identity signal."
+
+  - name: YouTube
+    base_url: https://youtube.com/
+    icon_svg: '<path d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.94 2C5.12 20 12 20 12 20s6.88 0 8.6-.46a2.78 2.78 0 001.94-2A29 29 0 0023 12a29 29 0 00-.46-5.58z" /><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" />'
+    description: "Video sharing platform. Hosts long-form and short-form video content. Channels belong to individuals or organizations. Content includes recorded performances, interviews, trailers, panel discussions, and educational material."
+
+  - name: TikTok
+    base_url: https://tiktok.com/
+    icon_svg: '<path d="M9 12a4 4 0 104 4V4a5 5 0 005 5" />'
+    description: "Short-form video platform. Content is algorithmically distributed — reach is based on engagement rather than follower count. Users post videos typically under three minutes."
+
+  - name: IBDb
+    base_url: https://ibdb.com/
+    icon_svg: '<path d="M4 3h16a1 1 0 011 1v16a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" /><path d="M8 8v8M12 8v8M16 8v8" />'
+    description: "Internet Broadway Database. The authoritative historical record of Broadway and Off-Broadway productions, including cast, creative team, producers, venues, dates, and awards. Maintained by the Broadway League."
+
+  - name: BroadwayWorld
+    base_url: https://broadwayworld.com/
+    icon_svg: '<circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />'
+    description: "Theatre news, reviews, and community site with profiles for people and productions. Covers Broadway, Off-Broadway, regional, and international theatre. Includes a database of credits and production listings."
+
+  - name: Playbill
+    base_url: https://playbill.com/
+    icon_svg: '<path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />'
+    description: "Theatre publication covering Broadway, Off-Broadway, and touring. Publishes news, features, interviews, and reviews. Also maintains the Playbill Vault, an archive of historical production and cast data."
+
+  - name: TCG
+    base_url: https://tcg.org/
+    icon_svg: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />'
+    description: "Theatre Communications Group. The national service organization for nonprofit professional theatre in the United States. Publishes American Theatre magazine, manages the member directory of nonprofit theatres, and administers grants and programs for the field."
+
+  - name: New Play Exchange
+    base_url: https://newplayexchange.org/
+    icon_svg: '<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" /><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />'
+    description: "Digital library and licensing platform for new plays and musicals. Writers publish work with synopses, cast requirements, and production history. Theatres and producers use it to discover and license new material."
+
+# --- LookupValue model ---
+# Fields: category, entity_type, value, display_label, description, css_class
+# sort_order is derived from position in the values list.
+#
+# Each section key is used as the category name unless category_name is
+# specified (for cases like "role" where one category spans multiple
+# entity_types).
+lookup_values:
+
+  # --- Organization types ---
+  org_type:
+    entity_type: organization
+    values:
+      - value: producing office
+        display_label: Producing Office
+        description: "A business entity through which an individual producer or small group of producers operates. Their company. Typically a small organization centered on one or a few lead producers. Examples: Seaview Productions, The Araca Group, Foresight Theatrical."
+        css_class: badge-warm
+      - value: non-profit theatre
+        display_label: Non-Profit Theatre
+        description: "A 501(c)(3) mission-driven organization that typically has a home venue, a season of programming, and an artistic director. Funded through a mix of earned revenue, grants, and donations. Examples: The Public Theater, Manhattan Theatre Club, Steppenwolf."
+        css_class: badge-sage
+      - value: commercial production company
+        display_label: Commercial Production Company
+        description: "A for-profit company that produces, invests in, or general-manages theatre productions. Typically larger or more corporate than a producing office, may represent an investment group or entertainment conglomerate. Examples: The Shubert Organization, Level Forward."
+        css_class: badge-blue
+      - value: development program
+        display_label: Development Program
+        description: "An organization or initiative focused on nurturing new work through readings, workshops, residencies, or labs. Supports work in progress rather than full production. Examples: NAMT, Sundance Theatre Lab, The Lark."
+        css_class: badge-lavender
+      - value: other
+        display_label: Other
+        description: "An organization whose primary function is outside the producing, presenting, or development space but is still relevant — trade associations, unions, educational institutions, arts councils, fiscal sponsors, etc."
+        css_class: badge-neutral
+
+  # --- Venue types ---
+  venue_type:
+    entity_type: venue
+    values:
+      - value: Broadway house
+        display_label: Broadway House
+        description: "One of the 41 designated Broadway theatres in New York City, all in the Times Square / Midtown Manhattan area, with 500+ seats, operating under a Broadway League agreement."
+        css_class: badge-warm
+      - value: Off-Broadway
+        display_label: Off-Broadway
+        description: "A New York City theatre with 100–499 seats operating under an Off-Broadway contract. Spread across Manhattan and increasingly Brooklyn. A distinct contractual and institutional category, not just \"smaller than Broadway.\""
+        css_class: badge-sage
+      - value: Off-Off-Broadway
+        display_label: Off-Off-Broadway
+        description: "A New York City venue with fewer than 100 seats, typically operating under a Showcase Code or similar agreement. Often the launching ground for experimental and emerging work."
+        css_class: badge-blue
+      - value: regional
+        display_label: Regional
+        description: "A professional theatre outside New York City. Includes LORT (League of Resident Theatres) venues, SPT (Small Professional Theatre) venues, and other professional theatres across the country."
+        css_class: badge-teal
+      - value: festival
+        display_label: Festival
+        description: "A venue or program that presents work as part of a time-limited festival rather than a traditional run. Fringe festivals, curated presentation series, and seasonal festivals."
+        css_class: badge-lavender
+      - value: other
+        display_label: Other
+        description: "A venue that doesn't fit standard classifications — concert halls, non-traditional or found spaces, university theatres, international venues, or outdoor amphitheatres."
+        css_class: badge-neutral
+
+  # --- Production scale ---
+  scale:
+    entity_type: production
+    values:
+      - value: Broadway
+        display_label: Broadway
+        description: "A production running in a designated Broadway house under a Broadway League agreement. The highest-profile and typically highest-budget tier in American commercial theatre."
+        css_class: badge-warm
+      - value: Off-Broadway
+        display_label: Off-Broadway
+        description: "A production running under an Off-Broadway contract in NYC, typically in a 100–499 seat venue. A major tier for new work, transfers, and mid-scale production."
+        css_class: badge-sage
+      - value: Off-Off-Broadway
+        display_label: Off-Off-Broadway
+        description: "A production in a NYC venue with fewer than 100 seats, typically under a Showcase Code or similar agreement. Lower budget, often experimental or developmental."
+        css_class: badge-blue
+      - value: regional
+        display_label: Regional
+        description: "A production at a professional theatre outside NYC. Covers a wide range of scale and budget depending on the theatre."
+        css_class: badge-teal
+      - value: touring
+        display_label: Touring
+        description: "A production traveling between cities — national tours, bus-and-truck tours, international tours, or limited engagement touring productions."
+        css_class: badge-rose
+      - value: international
+        display_label: International
+        description: "A production mounted outside the United States. Includes West End (London), and productions in any other country."
+        css_class: badge-lavender
+      - value: other
+        display_label: Other
+        description: "A production that doesn't fit standard scale classifications — concert stagings, university productions, site-specific work, benefit performances, or other non-standard contexts."
+        css_class: badge-neutral
+
+  # --- Show medium ---
+  medium:
+    entity_type: show
+    values:
+      - value: musical
+        display_label: Musical
+        description: "A theatrical work where songs and/or dance are integral to the storytelling. Music advances the plot and develops characters. Removing the musical numbers would fundamentally alter the narrative."
+        css_class: badge-warm
+      - value: play
+        display_label: Play
+        description: "A theatrical work told primarily through dialogue and action without integral musical numbers."
+        css_class: badge-sage
+      - value: play with music
+        display_label: Play with Music
+        description: "A play that incorporates songs or musical performance as atmosphere, commentary, or character expression rather than as the primary storytelling vehicle. The narrative stands without the music."
+        css_class: badge-blue
+      - value: revue
+        display_label: Revue
+        description: "A theatrical work structured as a collection of songs, sketches, or performance pieces organized around a theme rather than a single continuous narrative. Includes tribute shows, anthology musicals, and themed variety formats."
+        css_class: badge-lavender
+      - value: solo show
+        display_label: Solo Show
+        description: "A theatrical work performed by a single actor, whether scripted, devised, or autobiographical. The single-performer format is the defining characteristic regardless of whether the piece includes music."
+        css_class: badge-rose
+      - value: other
+        display_label: Other
+        description: "A theatrical work that doesn't fit standard medium classifications — immersive experiences, devised ensemble work, dance-theatre, circus-theatre, puppetry, or other hybrid forms."
+        css_class: badge-neutral
+
+  # --- Roles: producer <-> show (IP-level) ---
+  role_producer_show:
+    category_name: role
+    entity_type: producer_show
+    values:
+      - value: rights holder
+        display_label: Rights Holder
+        description: "Controls the underlying rights to the work — has optioned or owns the intellectual property. Decides whether and how the show gets produced."
+        css_class: badge-warm
+      - value: lead producer
+        display_label: Lead Producer
+        description: "The primary producer shepherding the work across its life — not just one production but the show as a property. Drives overall strategy, creative team selection, and the trajectory from development to production and beyond."
+        css_class: badge-sage
+      - value: developer
+        display_label: Developer
+        description: "Actively involved in developing the work — commissioning drafts, organizing readings and workshops, shaping the creative team — without necessarily controlling rights or leading commercial production."
+        css_class: badge-blue
+
+  # --- Roles: producer <-> production (credit) ---
+  role_producer_production:
+    category_name: role
+    entity_type: producer_production
+    values:
+      - value: lead producer
+        display_label: Lead Producer
+        description: "The primary producer of this specific production. Named first or most prominently in credits. Bears primary financial, logistical, and creative responsibility for this mounting."
+        css_class: badge-warm
+      - value: co-producer
+        display_label: Co-Producer
+        description: "A producing partner sharing financial and/or creative responsibility. Named alongside other producers. May bring specific resources — a venue relationship, investor access, marketing infrastructure — rather than overseeing everything."
+        css_class: badge-sage
+      - value: associate producer
+        display_label: Associate Producer
+        description: "A secondary producing credit, typically involving a specific area of responsibility — casting, marketing, a funding tranche — rather than overall production oversight. In commercial theatre, often tied to raising a defined minimum investment."
+        css_class: badge-blue
+      - value: executive producer
+        display_label: Executive Producer
+        description: "Typically a financial role. A major investor or the representative of a major investing entity. May have limited involvement in creative or day-to-day decisions. The credit signals financial contribution more than operational producing work."
+        css_class: badge-lavender
+
+  # --- Award outcomes ---
+  award_outcome:
+    entity_type: award
+    values:
+      - value: nominated
+        display_label: Nominated
+        description: "Received a formal nomination for this award but did not win."
+        css_class: badge-blue
+      - value: won
+        display_label: Won
+        description: "Won this award."
+        css_class: badge-warm
+
+  # --- Email types: producer ---
+  email_type_producer:
+    category_name: email_type
+    entity_type: producer
+    values:
+      - value: personal
+        display_label: Personal
+        description: "A personal email address belonging to the individual, not associated with any company or organization domain."
+        css_class: null
+      - value: work
+        display_label: Work
+        description: "An email address at the producer's own company or producing office domain."
+        css_class: null
+      - value: organizational
+        display_label: Organizational
+        description: "An email address at an organization the producer is affiliated with but that isn't their own entity. For example, their address at a nonprofit theatre where they serve as artistic director."
+        css_class: null
+
+  # --- Email types: venue ---
+  email_type_venue:
+    category_name: email_type
+    entity_type: venue
+    values:
+      - value: box office
+        display_label: Box Office
+        description: "Ticket sales and patron services."
+        css_class: null
+      - value: events
+        display_label: Events
+        description: "Venue rentals, special events, and programming inquiries."
+        css_class: null
+      - value: general
+        display_label: General
+        description: "The venue's main contact address for inquiries that don't fall under a specific department."
+        css_class: null
+
+  # --- Email types: organization ---
+  email_type_organization:
+    category_name: email_type
+    entity_type: organization
+    values:
+      - value: general
+        display_label: General
+        description: "The organization's main contact address."
+        css_class: null
+      - value: submissions
+        display_label: Submissions
+        description: "Where the organization receives scripts, show submissions, or project proposals. Typically managed by the literary department or artistic office."
+        css_class: null
+      - value: press
+        display_label: Press
+        description: "Media relations and press inquiries."
+        css_class: null
+
+  # --- Trait categories ---
+  # Traits are characteristics derived by AI from structured data already in
+  # the database (productions, shows, organizations, awards, etc.).
+  # Descriptions define what each trait measures and how to derive it.
+  trait_category:
+    entity_type: producer_trait
+    values:
+      - value: genres
+        display_label: Genres
+        description: "The theatrical genres this producer's work clusters in, based on the genres of shows they've produced. A producer may have multiple genre traits. Example values: musical theatre, straight drama, comedy, thriller, immersive, concert/cabaret."
+        css_class: null
+      - value: themes
+        display_label: Themes
+        description: "Recurring thematic interests across this producer's body of work, based on the themes of shows they've produced. A producer may have multiple theme traits. Example values: social justice, identity and belonging, family dynamics, historical, coming-of-age, political, queer stories."
+        css_class: null
+      - value: scale_preference
+        display_label: Scale Preference
+        description: "The production scales this producer typically works at, based on the scale distribution of their production credits. Example values: primarily Broadway, primarily Off-Broadway, primarily regional, works across scales."
+        css_class: null
+      - value: lead_vs_co_producer
+        display_label: Lead vs Co-Producer
+        description: "Whether this producer typically leads productions or joins as a co-producer, based on their role distribution across production credits. Example values: primarily leads, primarily co-produces, balanced mix."
+        css_class: null
+      - value: capitalization_range
+        display_label: Capitalization Range
+        description: "The typical budget tier of this producer's productions, based on production budget tiers and any known capitalization figures. Example values: under $2M, $2M–$5M range, $5M–$15M range, large-scale $15M+."
+        css_class: null
+      - value: funding_approach
+        display_label: Funding Approach
+        description: "How this producer typically finances productions, based on production funding types across their track record. Example values: primarily commercial, primarily nonprofit/institutional, mixed commercial and nonprofit."
+        css_class: null
+      - value: development_stage_preference
+        display_label: Development Stage Preference
+        description: "Where in a project's lifecycle this producer typically gets involved, based on the production types (readings, workshops, premieres, transfers) they're associated with. Example values: early development, premieres, transfers and later-stage, full lifecycle."
+        css_class: null
+      - value: new_work_vs_existing_ip
+        display_label: New Work vs Existing IP
+        description: "Whether this producer tends toward original work, adaptations, or revivals, based on the work origin of shows they've produced. Example values: champions new work, primarily adaptations, revival specialist, balanced mix."
+        css_class: null
+      - value: risk_profile
+        display_label: Risk Profile
+        description: "How experimental or commercially conventional this producer's choices tend to be, based on the combination of venue choices, show profiles, scale patterns, and production outcomes. Example values: risk-taker (untested material, unconventional formats), commercially conservative, calculated risks (proven creative teams on new material)."
+        css_class: null
+      - value: career_stage
+        display_label: Career Stage
+        description: "Where this producer is in their career, based on the span and trajectory of their production history. Example values: emerging (few credits, recent start), mid-career (established track record, growing), established (long history, major credits), legacy (industry institution, decades of work)."
+        css_class: null
+      - value: activity_level
+        display_label: Activity Level
+        description: "How actively this producer is currently producing, based on the recency and frequency of their production credits. Example values: highly active (multiple productions per year), moderately active (one every year or two), less active recently, no recent credits."
+        css_class: null
+      - value: operational_style
+        display_label: Operational Style
+        description: "How this producer tends to function in the producing role, based on patterns in their credits, organizational affiliations, and co-producing relationships. Example values: hands-on creative partner, business-side operator, institutional leader, investor-producer."
+        css_class: null
+      - value: artist_loyalty
+        display_label: Artist Loyalty
+        description: "Whether this producer repeatedly works with the same writers, directors, and composers, or works broadly. Based on recurring creative team relationships across productions. Example values: strong loyalty (repeatedly champions specific artists), broad collaborator (works widely), too early to determine."
+        css_class: null
+      - value: geographic_scope
+        display_label: Geographic Scope
+        description: "Where this producer's work happens geographically, based on production and venue locations. Example values: NYC-focused, regional focus, national (NYC + regional), international, multi-market."
+        css_class: null
+      - value: organizational_model
+        display_label: Organizational Model
+        description: "How this producer structures their producing work, based on organizational affiliations and producing patterns. Example values: independent operator, runs a production company, embedded in a nonprofit institution, producing partnership."
+        css_class: null
+
+  # --- Intel categories ---
+  # Intel entries are discrete observations discovered through AI research
+  # on the internet. Descriptions define what qualifies for each category.
+  # The AI may create new categories when observations don't fit existing ones.
+  intel_category:
+    entity_type: producer_intel
+    values:
+      - value: career_move
+        display_label: Career Move
+        description: "A change in professional position or organizational affiliation. New job, departure, promotion, founding a company, joining a board, stepping down from a role. The move itself, not the announcement of a project."
+        css_class: null
+      - value: deal_activity
+        display_label: Deal Activity
+        description: "Involvement in a specific business transaction — optioning rights to a work, closing financing, signing a venue deal, acquiring a company or catalog. The business mechanics, not the creative plans."
+        css_class: null
+      - value: public_statement
+        display_label: Public Statement
+        description: "Something this producer has said publicly about their taste, intentions, philosophy, what they're looking for, or the state of the industry. Interviews, panel appearances, published writing, substantive social media posts. Not press releases or show announcements."
+        css_class: null
+      - value: industry_recognition
+        display_label: Industry Recognition
+        description: "Awards, honors, board appointments, festival jury service, lifetime achievement recognition, or other forms of industry acknowledgment not tied to a specific production. Production-specific awards belong in the awards table."
+        css_class: null
+      - value: relationship_signal
+        display_label: Relationship Signal
+        description: "Information about this producer's relationships with other people or organizations that isn't captured in production credits or organizational affiliations. Mentorships, partnerships forming or dissolving, personal connections, collaborations outside of credited production work."
+        css_class: null
+      - value: project_announcement
+        display_label: Project Announcement
+        description: "A public announcement of a new project, development deal, production plan, or creative partnership that hasn't yet resulted in a structured production record. The announcement is the intel — when the production happens, it becomes structured data."
+        css_class: null
+
+  # --- Work origin (show) ---
+  work_origin:
+    entity_type: show
+    values:
+      - value: original
+        display_label: Original
+        description: "A new work not based on pre-existing source material. The intellectual property was created for the stage."
+        css_class: badge-sage
+      - value: adaptation
+        display_label: Adaptation
+        description: "Based on pre-existing source material — a novel, film, TV show, album, historical account, or other non-theatrical work adapted for the stage."
+        css_class: badge-blue
+      - value: revival
+        display_label: Revival
+        description: "A previously produced theatrical work. The show itself is not new — this describes the work's origin, not any specific production of it."
+        css_class: badge-warm
+
+  # --- Production type ---
+  production_type:
+    entity_type: production
+    values:
+      - value: reading
+        display_label: Reading
+        description: "Actors perform the script with scripts in hand, minimal or no staging, no design elements. The earliest form of public presentation, focused on hearing the text and/or music."
+        css_class: null
+      - value: workshop
+        display_label: Workshop
+        description: "A more developed presentation than a reading. Actors may be partially or fully off-book, with staging and limited design elements. Under Equity, a contractual stage with specific rules about future production obligations to workshop participants."
+        css_class: null
+      - value: world_premiere
+        display_label: World Premiere
+        description: "The first full production of a work anywhere. The show's debut as a fully realized, designed, staged piece of theatre."
+        css_class: badge-sage
+      - value: premiere
+        display_label: Premiere
+        description: "The first full production of a work in a specific market or context, but not the first production ever. NYC premiere, regional premiere, West End premiere, etc."
+        css_class: badge-blue
+      - value: transfer
+        display_label: Transfer
+        description: "A production moving from one venue or market to another — Off-Broadway to Broadway, regional to NYC, NYC to West End. The creative team and often the cast carry over from the originating production."
+        css_class: badge-warm
+      - value: revival
+        display_label: Revival
+        description: "A new full production of a previously produced work, with a new creative team, new cast, and new interpretation. Distinct from a transfer, where the original production moves intact."
+        css_class: badge-lavender
+      - value: tour
+        display_label: Tour
+        description: "A production traveling between cities — national tours, bus-and-truck tours, international tours, or limited engagement touring productions."
+        css_class: badge-rose
+      - value: other
+        display_label: Other
+        description: "A production format outside standard classifications — concert stagings, benefit performances, industry presentations, site-specific work, or other non-standard formats."
+        css_class: badge-neutral
+
+  # --- Budget tier ---
+  budget_tier:
+    entity_type: production
+    values:
+      - value: under_500k
+        display_label: "Under $500K"
+        description: "Readings, workshops, bare-bones Off-Off-Broadway, small showcases, or minimal productions with little to no design budget."
+        css_class: null
+      - value: 500k_2m
+        display_label: "$500K\u2013$2M"
+        description: "Small Off-Broadway productions, well-funded development (readings or workshops with design elements), intimate regional productions."
+        css_class: null
+      - value: 2m_5m
+        display_label: "$2M\u2013$5M"
+        description: "Mid-scale Off-Broadway productions, larger regional productions, some smaller or limited-run Broadway transfers."
+        css_class: null
+      - value: 5m_15m
+        display_label: "$5M\u2013$15M"
+        description: "Full-scale Off-Broadway productions, mid-scale Broadway plays, major regional productions with significant production values."
+        css_class: null
+      - value: 15m_30m
+        display_label: "$15M\u2013$30M"
+        description: "Standard Broadway musicals, larger Broadway plays, major transfers with significant production values."
+        css_class: null
+      - value: 30m_plus
+        display_label: "$30M+"
+        description: "Large-scale Broadway musicals with substantial spectacle, technical complexity, or major star casting. The highest budget tier in commercial theatre."
+        css_class: null
+
+  # --- Funding type ---
+  funding_type:
+    entity_type: production
+    values:
+      - value: commercial
+        display_label: Commercial
+        description: "Funded by private investors (angels, producing partners, investment groups) who expect financial return. The standard Broadway capitalization model — investors put up capital, receive a share of profits if the show recoups."
+        css_class: null
+      - value: nonprofit
+        display_label: Nonprofit
+        description: "Produced by or primarily funded through a nonprofit theatre company's budget, including grants, individual donations, and institutional funds. The standard model for regional and institutional theatre."
+        css_class: null
+      - value: co_production
+        display_label: Co-Production
+        description: "Jointly produced and funded by two or more organizations, sharing costs, resources, and risk. Often combines commercial and nonprofit partners or multiple venues splitting a production."
+        css_class: null
+      - value: institutional
+        display_label: Institutional
+        description: "Funded by an institution such as a university, government arts council, or cultural foundation, where the institution itself is the primary funder rather than a nonprofit theatre company."
+        css_class: null
+      - value: independent
+        display_label: Independent
+        description: "Self-funded by the creators or produced with minimal external funding. Often applies to fringe, indie, or self-produced work where the producing team is also the primary investor."
+        css_class: null
+      - value: other
+        display_label: Other
+        description: "A funding structure outside standard classifications — crowd-funded, hybrid models, sponsored productions, or other non-traditional financing arrangements."
+        css_class: null

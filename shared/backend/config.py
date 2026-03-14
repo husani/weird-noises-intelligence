@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     environment: str  # "development" or "production" — controls cookie security, etc.
     allowed_domain: str  # Email domain allowed to log in, e.g. "husani.com" or "wemakeweirdnoises.com"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

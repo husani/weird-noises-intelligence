@@ -1,4 +1,4 @@
-# Intelligence — Phase 1 Build Log
+# Intelligence — Build Log
 
 ## What Was Built
 
@@ -57,26 +57,28 @@ Phase 1: Shared Infrastructure, as defined in `specs/1-shared-infra.md`. Everyth
 
 ### Frontend Infrastructure
 
-**Design System** (`frontend/src/styles/design-system.css`)
-- Full CSS variable system from `specs/mockups/design-system.html`
+**CSS Architecture** (`shared/frontend/styles/`)
+- `base.css` — reset, design tokens (CSS custom properties), typography; imports components.css and layouts.css
+- `components.css` — all shared component classes built from the design system spec
+- `layouts.css` — nav, page layout, sidebar, responsive breakpoints
 - Dark warm palette: deep/base/surface/elevated/hover backgrounds
 - Five semantic accent colors: warm, sage, rose, blue, lavender
 - Cormorant (display) + Outfit (body) typography
-- All component classes from the design system reference
+- Design system spec at `specs/mockups/design-system.html` is a reference document, never imported directly
 
-**React Components** (`frontend/src/shared/components/`)
+**React Components** (`shared/frontend/components/`)
 - Button, Badge, SectionCard, StatusIndicator, Modal, Alert, EmptyState, Spinner, Tabs
 
-**Auth Guard** (`frontend/src/shared/auth/AuthGuard.jsx`)
+**Auth Guard** (`shared/frontend/auth/AuthGuard.jsx`)
 - Calls `/api/auth/me` on mount, redirects to login on 401, provides `useAuth()` context
 
-**Layout** (`frontend/src/shared/layout/Layout.jsx`)
+**Layout** (`shared/frontend/layout/Layout.jsx`)
 - Sticky nav bar with "Intelligence" wordmark, tool links from registry, user avatar
 
-**Router** (`frontend/src/App.jsx`)
+**Router** (`App.jsx`)
 - Lazy-loaded routes wrapped in auth guard: Home (`/`) and Skeleton (`/skeleton/*`)
 
-**Home Page** (`frontend/src/pages/Home.jsx`)
+**Home Page** (`shared/frontend/pages/Home.jsx`)
 - Tool directory cards from registry, empty state when none
 
 ### Skeleton Tools
@@ -93,7 +95,7 @@ Two minimal tools that verify shared infrastructure end-to-end, including cross-
 - `interface.py` — registers `skeleton_b_echo` and `skeleton_b_info` MCP tools
 - No database, no routes, no UI — exists solely for cross-tool testing
 
-**Frontend** (`frontend/src/skeleton/SkeletonPage.jsx`)
+**Frontend** (`skeleton_a/frontend/SkeletonPage.jsx`)
 - "Run all infrastructure tests" button
 - Displays test results per subsystem with pass/fail badges
 
@@ -119,3 +121,133 @@ Two minimal tools that verify shared infrastructure end-to-end, including cross-
 - LLM-via-MCP: ready for testing after deployment (requires public URL)
 - Registry returns skeleton tool
 - Frontend builds cleanly
+
+---
+
+## Phase 2: Producers Tool
+
+Built as defined in `specs/2-producers.md`. The first real tool on the Intelligence platform — WN's knowledge base of theatre producers with AI-powered research, relationship tracking, and show matching.
+
+### Backend (`producers/backend/`)
+
+**Data Model** (`models.py`) — 21 tables:
+- `producers` — core record with identity, dossier fields, relationship state, research status
+- `productions` — separate entity, many-to-many with producers via `producer_productions` (with role)
+- `organizations` — separate entity, many-to-many with producers via `producer_organizations` (with role, dates)
+- `venues` — separate entity, linked to productions
+- `awards` — attached to productions (not directly to producers)
+- `interactions` — timestamped touchpoints with WN team members
+- `follow_up_signals` — AI-extracted from interaction text, with due dates and resolved status
+- `tags` / `producer_tags` — ad-hoc labels, many-to-many
+- `producer_show_connections` — connections to WN shows (from interactions and manual entry)
+- `show_matching_results` — AI-assessed fit between producers and shows
+- `change_history` — field-level audit log for every change (who, when, old/new value)
+- `producer_settings` — tool-level configuration (refresh cadence, thresholds, prompts)
+- `discovery_candidates` — AI-discovered producers pending team review, with dedup status/matches and scan linkage
+- `discovery_scans` — tracks each discovery run (focus, timing, candidate counts, status)
+- `discovery_focus_areas` — configurable areas for directed scans (name, description, rotation order)
+- `intelligence_profiles` — auto-generated database coverage summaries for discovery context
+- `discovery_calibrations` — distilled dismissal patterns for discovery calibration
+- `research_sources` — managed source list the AI always checks
+
+**Interface** (`interface.py`) — Business logic + 8 MCP tools:
+1. `producers_search` — search by name, email, org, genres, themes, location, tags, state
+2. `producers_get_record` — full producer profile with all dossier fields
+3. `producers_get_productions` — production history with venues, awards, co-producers
+4. `producers_get_organizations` — organizational affiliations with roles and dates
+5. `producers_get_interactions` — interaction history with follow-up signals
+6. `producers_get_relationship_state` — computed state label + pending follow-ups
+7. `producers_by_show` — producers connected to a specific WN show
+8. `producers_show_matches` — AI-assessed show matching results
+
+Plus route-facing methods: list, create, update, add interaction, tags, show connections, dashboard, discovery review, settings, import, change history, duplicate detection.
+
+**AI Pipeline** (`ai.py`) — All AI behaviors:
+- Dossier research — Claude with web search, fills structured fields from public sources, discovers email candidates with source/confidence
+- Follow-up extraction — detects implied actions and timeframes from interaction text
+- Show connection detection — finds show references in interaction text
+- Relationship summary — natural language synthesis of current relationship state
+- Show matching — assesses producer-show fit based on creative/financial/career alignment
+- AI query — natural language interface to the database via LLM + MCP
+- Relationship state computation — derives state label from stored fields + current date
+- Intelligence profile generation — summarizes database coverage (orgs, geography, aesthetics, scale) for discovery context
+- Discovery calibration — distills dismissal patterns into calibration summary
+- Multi-signal dedup — code-based matching (LinkedIn, email, website, fuzzy name) against producers and dismissed candidates
+
+**Prompts** (`prompts.py`) — System and user prompt templates for all 7 AI behaviors. Each is stored with a settings key so teams can customize prompts via the Settings page.
+
+**Routes** (`routes.py`) — 30+ API endpoints under `/api/producers/*`:
+- CRUD for producers with background research on create
+- Interaction logging with background AI processing (follow-ups, show detection, summary)
+- Dashboard data aggregation
+- Discovery queue management
+- Settings management (cadence, thresholds, sources, tags)
+- Spreadsheet import with duplicate detection
+- AI querying
+- Manual dossier refresh
+- Show connections and matches
+
+**Jobs** (`jobs.py`) — Scheduled background tasks:
+- `dossier_refresh` — daily at 3am UTC, checks per-producer cadence (monthly/biweekly)
+- `refresh_intelligence_profile` — Mondays at 5am UTC, regenerates intelligence profile from current database
+- `ai_discovery` — Mondays at 6am UTC, directed scan with focus area rotation, intelligence profile context, calibration, multi-signal dedup, scan tracking
+
+### Frontend (`producers/frontend/`)
+
+**Pages** — 8 views, all lazy-loaded with sub-routing:
+- **Dashboard** — stats grid, overdue follow-ups, research in progress, recent activity, AI updates
+- **Producer List** — searchable/filterable/sortable table with relationship state badges, pagination
+- **Producer Detail** — tabbed view (Dossier, Shows, Interactions, History, Identity) with editable fields
+- **Add Producer** — form with live duplicate detection, URL submission, initial tags
+- **Spreadsheet Import** — CSV upload with preview, quoted-field parsing, progress reporting
+- **Discovery Queue** — curatorial review with expandable cards, inline editing, email candidate selection, dedup warnings, scan history
+- **AI Query** — natural language search interface with conversation history
+- **Settings** — refresh cadence, discovery cadence, relationship thresholds, research sources, tag management
+
+**API Client** (`api.js`) — typed fetch wrappers for all 30+ endpoints.
+
+### Wiring (`app.py`)
+
+- `intelligence_producers` database created, all 21 tables initialized
+- `ProducersInterface` instantiated with session factory and MCP server (registers 8 MCP tools)
+- Registered in tool registry: name "Producers", path `/producers`
+- Routes mounted at `/api/producers/*`
+- Scheduled jobs: `producers_dossier_refresh` (daily 3am), `producers_intelligence_profile` (Monday 5am), `producers_ai_discovery` (Monday 6am)
+- Frontend route: `/producers/*` lazy-loads `ProducersPage`
+
+### Bug Scan & Fixes
+
+Two rounds of deep code review identified and fixed 20 bugs:
+
+**Critical fixes:**
+- Missing `datetime` import in background task + broken `__import__` for Producer model
+- Pagination broken when filtering by relationship state (computed in Python, not DB)
+
+**High-severity fixes:**
+- Dossier refresh sharing one session across all producers (one failure poisons all)
+- Deprecated `Query.get()` replaced with `.filter_by().first()`
+- `update_producer` filtering out `None` values (prevented clearing fields)
+
+**Medium fixes:**
+- `async def ai_query` blocking event loop → changed to sync `def`
+- Auto-resolving ALL follow-ups on any interaction → only overdue ones
+- `ProducerDetail` using `Promise.all` → `Promise.allSettled` for independent failure handling
+- N+1 queries in `search` and `list_producers` → added `joinedload`
+- CSV parser not handling quoted fields with commas → proper parser
+- Dashboard interactions missing producer name → added `joinedload` + `producer_name` field
+- Discovery queue button stuck on error → added try/finally
+- `gone_cold_threshold` hardcoded → parameterized with settings support
+- Show connections route using raw session → moved to interface method
+
+### Decisions
+
+Design decisions where the spec left room for interpretation are documented in `producers/DECISIONS.md`.
+
+### Verification
+
+- App boots with all 12 MCP tools (8 producers + 4 skeleton)
+- All 30+ API routes registered under `/api/producers/*`
+- 4 scheduled jobs active (skeleton heartbeat + dossier refresh + intelligence profile + AI discovery)
+- Frontend builds cleanly with all 8 lazy-loaded pages
+- `intelligence_producers` database with 17 tables created
+- 5 default research sources seeded (IBDB, Playbill, BroadwayWorld, LinkedIn, Broadway League)

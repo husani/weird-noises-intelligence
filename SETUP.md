@@ -10,6 +10,7 @@ Everything you need to configure before the platform runs end-to-end.
 
 - [x] PostgreSQL installed and running (Homebrew postgresql@17)
 - [x] `intelligence_skeleton` database created
+- [x] `intelligence_producers` database created
 
 ---
 
@@ -56,9 +57,46 @@ Everything you need to configure before the platform runs end-to-end.
 
 ---
 
-## 7. Database Password (Optional for Local Dev)
+## 7. Google Maps API Key (Places Autocomplete)
+
+**Status:** Done.
+
+- [x] API key created
+- [x] `VITE_GOOGLE_MAPS_API_KEY` set in `.env`
+- [ ] Enable the **Places API (New)** on the project if not already: [APIs & Services → Library](https://console.cloud.google.com/apis/library) → search "Places API (New)" → Enable
+- [ ] Restrict the key to HTTP referrers: `http://localhost:8006/*` for dev, `https://intelligence.husani.dev/*` for prod
+
+Without this key, location fields fall back to plain text inputs (City, State/Region, Country).
+
+---
+
+## 8. Database Password (Optional for Local Dev)
 
 The current `.env` has an empty `DB_PASSWORD` which works with Homebrew's default trust auth. For production, set a real password.
+
+---
+
+## Database Setup
+
+The app assumes the database is ready. Use the scripts in `scripts/` to manage it:
+
+```bash
+cd ~/Projects/weird-noises/intelligence
+
+# First time — create tables and seed reference data:
+poetry run python scripts/setup_db.py     # create tables from models
+poetry run python scripts/seed_data.py    # seed lookup values, social platforms
+
+# After model changes — drop everything and rebuild:
+poetry run python scripts/reset_db.py     # drop, create, seed (all-in-one)
+
+# Optionally, load fake test data for development:
+poetry run python scripts/seed_test_data.py
+```
+
+**Reference data** (lookup values, social platforms) lives in `scripts/seed_data.yml` and is inserted by `seed_data.py`. Edit the YAML when adding categories, lookup values, or platforms.
+
+**Test data** (fake producers, shows, etc.) lives in `scripts/seed_test_data.py`. This is separate from reference data.
 
 ---
 
@@ -70,7 +108,7 @@ cd ~/Projects/weird-noises/intelligence
 poetry run uvicorn app:app --reload --port 8005
 
 # Terminal 2 — Frontend
-cd ~/Projects/weird-noises/intelligence/frontend
+cd ~/Projects/weird-noises/intelligence
 npm run dev
 ```
 
@@ -113,4 +151,5 @@ Or open `intelligence.code-workspace` in VS Code — it has auto-start tasks for
 | `GOOGLE_AI_API_KEY` | Set | Gemini AI |
 | `APP_DOMAIN` | Set (http://localhost:8005) | Auth redirects, MCP URL |
 | `ENVIRONMENT` | Set (development) | Cookie security |
+| `VITE_GOOGLE_MAPS_API_KEY` | Not set | Location autocomplete (frontend) |
 | `ALLOWED_DOMAIN` | Set (husani.com) | Auth domain restriction |

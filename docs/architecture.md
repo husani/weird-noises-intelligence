@@ -16,16 +16,64 @@ Browser
   │                  ├── /api/auth/*         (shared)
   │                  ├── /api/registry/*     (shared)
   │                  ├── /api/skeleton/*     (skeleton tool)
+  │                  ├── /api/producers/*   (producers tool)
   │                  └── /api/<tool>/*       (future tools)
   │
   ├─ /*      ──▶  Vite dev server (port 8006, proxies /api to 8005)
-  │               or static files from frontend/dist in production
+  │               or static files from dist/ in production
   │
 LLM APIs
   │
   └─ /mcp/*  ──▶  FastMCP server (ASGI sub-app, same process)
                    Tools registered here are callable by LLMs
                    and by code in-process
+```
+
+## Project Structure
+
+```
+/intelligence/
+    main.jsx              React root, CSS imports
+    App.jsx               AuthGuard → Layout → Suspense → lazy routes
+    index.html            HTML entry point
+    vite.config.js        Vite config with @shared/@producers/@skeleton aliases
+    package.json          Node dependencies
+    app.py                FastAPI entry point
+    shared/
+        frontend/
+            layout/       Nav bar, tool switcher, page wrapper
+            auth/         Login page, OAuth flow, auth guards
+            components/   Reusable UI: Button, Badge, Modal, Alert, etc.
+            pages/        Home, LoginPage
+            styles/       base.css (imports components.css, layouts.css)
+        backend/
+            config.py     pydantic-settings
+            db.py         SQLAlchemy engine/session/Base
+            mcp.py        FastMCP server instance
+            registry.py   Tool metadata for nav/home
+            auth/         JWT, OAuth, middleware, routes
+            ai/           Anthropic + Google AI clients
+            storage/      GCS client + utilities
+            scheduler.py  APScheduler
+    producers/
+        frontend/
+            pages/        Dashboard, List, Detail, Add, Import, Discovery, AIQuery, Settings
+            styles/       producers.css
+            api.js        Fetch wrappers for /api/producers/*
+        backend/
+            models.py     SQLAlchemy models
+            interface.py  Business logic + MCP tools
+            routes.py     FastAPI router
+            ai/           AI pipeline, prompts
+            jobs.py       Scheduled jobs
+    skeleton_a/
+        frontend/
+            SkeletonPage.jsx
+        backend/
+            models.py, interface.py, routes.py, jobs.py
+    skeleton_b/
+        backend/
+            interface.py
 ```
 
 ## Backend
@@ -96,27 +144,39 @@ Google Cloud Storage utilities: `upload_file()`, `download_file()`, `get_signed_
 
 APScheduler `AsyncIOScheduler`. Started/stopped via the FastAPI lifespan context manager. Tools add jobs at startup in `app.py`.
 
+Current scheduled jobs:
+| Job ID | Schedule | Description |
+|--------|----------|-------------|
+| `skeleton_heartbeat` | Every 5 minutes | Logs a heartbeat for infra verification |
+| `producers_dossier_refresh` | Daily 3am UTC | Checks per-producer cadence, refreshes stale dossiers |
+| `producers_intelligence_profile` | Monday 5am UTC | Regenerates intelligence profile from current database |
+| `producers_ai_discovery` | Monday 6am UTC | Directed scan for new producer candidates |
+
 ## Frontend
 
 ### Stack
 
-React 19, React Router DOM 7, Vite 7. No Tailwind — the design system is pure CSS custom properties in `frontend/src/styles/design-system.css`.
+React 19, React Router DOM 7, Vite 7. No Tailwind — the design system is pure CSS custom properties. The spec at `specs/mockups/design-system.html` is a reference document; application CSS is built from it, never imported directly.
 
-### Structure
+### CSS Architecture
 
 ```
-frontend/src/
-  main.jsx            React root, router, CSS imports
-  App.jsx             AuthGuard → Layout → Suspense → lazy routes
-  shared/
-    auth/AuthGuard.jsx    Auth check, login redirect, useAuth() context
-    layout/Layout.jsx     Sticky nav, tool links from registry, user avatar
-    components/           Reusable UI: Button, Badge, Modal, Alert, etc.
-  pages/
-    Home.jsx              Tool directory cards
-    LoginPage.jsx         OAuth login page
-  skeleton/
-    SkeletonPage.jsx      Infrastructure test runner
+shared/frontend/styles/
+    base.css              Reset, design tokens, typography (imports the other two)
+    components.css        All shared component classes
+    layouts.css           Nav, page layout, sidebar, responsive
+producers/frontend/styles/
+    producers.css         Producer-specific classes
+```
+
+`main.jsx` imports `@shared/styles/base.css`. `ProducersPage.jsx` imports `@producers/styles/producers.css`. CSS custom properties (`style={{ '--var': value }}`) are the only acceptable use of inline styles — for passing computed values to CSS classes.
+
+### Vite Aliases
+
+```
+@shared   → shared/frontend/
+@producers → producers/frontend/
+@skeleton  → skeleton_a/frontend/
 ```
 
 ### Auth Flow
@@ -129,15 +189,15 @@ frontend/src/
 
 ### Adding a Page
 
-1. Create your component in `frontend/src/<tool>/`
-2. Add a lazy route in `App.jsx`
+1. Create your component in `<tool>/frontend/pages/`
+2. Add a lazy route in `App.jsx` using the `@<tool>` alias
 3. The nav link appears automatically from the registry
 
 ## How to Add a New Tool
 
 > **Read the [Conventions](#conventions) and [Common Mistakes](#common-mistakes--do-not-do-these) sections before building.** They cover naming rules, the interface pattern, and things that will waste your time if you get them wrong.
 >
-> **Reference implementation:** Study `skeleton_a/backend/` (interface, routes, models) and `frontend/src/skeleton/SkeletonPage.jsx` as working examples of every pattern described below.
+> **Reference implementation:** Study `skeleton_a/backend/` (interface, routes, models) and `skeleton_a/frontend/SkeletonPage.jsx` as working examples of every pattern described below.
 
 ### 1. Backend
 
@@ -201,7 +261,21 @@ def create_my_tool_router(interface):
     return router
 ```
 
-### 2. Wire It Up in `app.py`
+### 2. Frontend
+
+Create `<tool_name>/frontend/pages/<ToolName>Page.jsx` and add a lazy route in `App.jsx`:
+
+```jsx
+const MyToolPage = lazy(() => import('@<tool_name>/pages/<ToolName>Page'))
+// in routes:
+<Route path="/<tool_name>/*" element={<MyToolPage />} />
+```
+
+Create `<tool_name>/frontend/styles/<tool_name>.css` for tool-specific styles. Import it from the tool's main page component.
+
+The nav link and home page card appear automatically from the registry.
+
+### 3. Wire It Up in `app.py`
 
 ```python
 from <tool_name>.backend.models import MyModel
@@ -223,25 +297,13 @@ registry.register(
 app.include_router(create_my_tool_router(interface))
 ```
 
-### 3. Create the Database
+### 4. Create the Database
 
 ```bash
 psql -U $DB_USER -c "CREATE DATABASE intelligence_<tool_name>;"
 ```
 
 (`DB_USER` is in `.env` — check there for the value.)
-
-### 4. Frontend
-
-Create `frontend/src/<tool_name>/<ToolName>Page.jsx` and add a lazy route in `App.jsx`:
-
-```jsx
-const MyToolPage = lazy(() => import('./<tool_name>/<ToolName>Page'))
-// in routes:
-<Route path="/<tool_name>/*" element={<MyToolPage />} />
-```
-
-The nav link and home page card appear automatically from the registry. MCP tools are available to other tools and LLMs as soon as the interface is instantiated.
 
 ### 5. Using Other Tools' MCP Capabilities
 

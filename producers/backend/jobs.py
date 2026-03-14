@@ -1,0 +1,245 @@
+"""
+Scheduled jobs for Producers.
+
+- Dossier refresh: Monthly for all, biweekly for active relationships.
+- AI discovery: Directed scans with focus areas, intelligence profiles, and code-based dedup.
+- Intelligence profile: Regenerated before discovery scans.
+"""
+
+import json
+import logging
+from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
+
+
+def dossier_refresh(session_factory):
+    """Refresh dossiers based on cadence settings.
+
+    Monthly for all producers, biweekly for active relationships
+    (any interaction in the last 90 days). Cadences are configurable via settings.
+    """
+    from producers.backend.ai import run_dossier_research
+    from producers.backend.models import Producer, ProducerSettings
+
+    logger.info("Starting scheduled dossier refresh")
+    now = datetime.now(timezone.utc)
+
+    # Read settings and identify which producers need refresh
+    with session_factory() as session:
+        settings = {
+            s.key: s.value
+            for s in session.query(ProducerSettings).all()
+        }
+        baseline_days = settings.get("refresh_baseline_days", 30)
+        active_days = settings.get("refresh_active_days", 14)
+        active_window = settings.get("active_window_days", 90)
+
+        producers = session.query(Producer).filter(
+            Producer.research_status != "in_progress"
+        ).all()
+
+        ids_to_refresh = []
+        for producer in producers:
+            is_active = (
+                producer.last_contact_date and
+                (now - producer.last_contact_date).days <= active_window
+            )
+            cadence = active_days if is_active else baseline_days
+            if producer.last_research_date:
+                days_since = (now - producer.last_research_date).days
+                if days_since < cadence:
+                    continue
+            ids_to_refresh.append(producer.id)
+
+    # Run research in separate sessions per producer
+    refreshed = 0
+    for pid in ids_to_refresh:
+        try:
+            with session_factory() as session:
+                run_dossier_research(session, pid, is_refresh=True)
+            refreshed += 1
+        except Exception:
+            logger.exception("Refresh failed for producer %d", pid)
+
+    logger.info("Dossier refresh complete. Refreshed %d producers.", refreshed)
+
+
+def ai_discovery(session_factory, focus_area: str = None):
+    """Run a directed AI discovery scan.
+
+    Each scan:
+    1. Determines a focus area (explicit, rotation, or fallback)
+    2. Gets the current intelligence profile (database coverage summary)
+    3. Gets the calibration summary (distilled dismissal patterns)
+    4. Calls the LLM with focus + profile + calibration (no name lists)
+    5. Runs multi-signal dedup on each candidate
+    6. Stores candidates with dedup results for human review
+    """
+    from producers.backend.ai import (
+        DiscoveryCandidateData,
+        _call_llm,
+        _get_model,
+        _get_prompt,
+        dedup_candidate,
+        generate_intelligence_profile,
+        get_current_calibration,
+        get_current_intelligence_profile,
+        maybe_regenerate_calibration,
+    )
+    from producers.backend.models import (
+        DiscoveryCandidate,
+        DiscoveryFocusArea,
+        DiscoveryScan,
+        IntelligenceProfile,
+    )
+    from producers.backend.prompts import AI_DISCOVERY_SYSTEM, AI_DISCOVERY_USER
+
+    logger.info("Starting AI discovery scan")
+
+    with session_factory() as session:
+        # Create scan record
+        scan = DiscoveryScan(status="running")
+
+        # Determine focus area
+        focus_type = "manual"
+        if focus_area:
+            scan.focus_area = focus_area
+            scan.focus_type = "manual"
+        else:
+            # Pick next focus area in rotation (oldest last_used_at first)
+            next_focus = (session.query(DiscoveryFocusArea)
+                         .filter_by(active=True)
+                         .order_by(DiscoveryFocusArea.last_used_at.asc().nullsfirst())
+                         .first())
+            if next_focus:
+                focus_area = f"{next_focus.name}: {next_focus.description or next_focus.name}"
+                focus_type = "rotation"
+                next_focus.last_used_at = datetime.now(timezone.utc)
+            else:
+                focus_area = ("General industry scan: look at recent Off-Broadway openings, "
+                              "development announcements, festival programs, and co-producing "
+                              "credits on shows that share DNA with WN's work.")
+                focus_type = "fallback"
+            scan.focus_area = focus_area
+            scan.focus_type = focus_type
+
+        # Ensure intelligence profile is fresh (regenerate if none exists)
+        latest_profile = (session.query(IntelligenceProfile)
+                         .order_by(IntelligenceProfile.generated_at.desc())
+                         .first())
+        if not latest_profile:
+            generate_intelligence_profile(session)
+
+        intelligence_profile = get_current_intelligence_profile(session)
+        calibration_summary = get_current_calibration(session)
+
+        scan.intelligence_profile_snapshot = intelligence_profile
+        scan.calibration_snapshot = calibration_summary
+        session.add(scan)
+        session.flush()  # get scan.id
+
+        # Build prompts
+        system_template = _get_prompt(session, "ai_discovery", "system", AI_DISCOVERY_SYSTEM)
+        user_template = _get_prompt(session, "ai_discovery", "user", AI_DISCOVERY_USER)
+
+        slate_info = "Shows tool not yet built. Focus on general industry discovery."
+
+        system = system_template.format(calibration_summary=calibration_summary)
+        user = user_template.format(
+            focus_area=focus_area,
+            intelligence_profile=intelligence_profile,
+            slate_info=slate_info,
+        )
+        model = _get_model(session, "ai_discovery")
+
+        try:
+            response = _call_llm(model, system, user, use_web_search=True,
+                                 response_schema=DiscoveryCandidateData, response_list=True)
+            candidates_raw = json.loads(response)
+
+            if not candidates_raw or not isinstance(candidates_raw, list):
+                logger.warning("AI discovery returned no parseable results")
+                scan.status = "complete"
+                scan.completed_at = datetime.now(timezone.utc)
+                scan.candidates_found = 0
+                scan.candidates_after_dedup = 0
+                session.commit()
+                return
+
+            scan.candidates_found = len(candidates_raw)
+            added = 0
+
+            for candidate_data in candidates_raw:
+                first_name = candidate_data.get("first_name")
+                last_name = candidate_data.get("last_name")
+                if not first_name or not last_name:
+                    continue
+
+                # Check if already pending
+                already_pending = session.query(DiscoveryCandidate).filter(
+                    DiscoveryCandidate.first_name.ilike(f"%{first_name}%"),
+                    DiscoveryCandidate.last_name.ilike(f"%{last_name}%"),
+                    DiscoveryCandidate.status == "pending",
+                ).first()
+                if already_pending:
+                    continue
+
+                # Multi-signal dedup
+                dedup_result = dedup_candidate(session, candidate_data)
+
+                # Auto-filter definite duplicates from existing producers
+                # (but still store them on the scan for tracking)
+                auto_filtered = (
+                    dedup_result["status"] == "definite_duplicate"
+                    and any(m.get("match_type") == "hard" for m in dedup_result["matches"])
+                )
+
+                # Build raw_data with all enriched fields
+                raw_data = {
+                    k: v for k, v in candidate_data.items()
+                    if k not in ("first_name", "last_name", "reasoning", "source")
+                }
+
+                candidate = DiscoveryCandidate(
+                    scan_id=scan.id,
+                    first_name=first_name,
+                    last_name=last_name,
+                    reasoning=candidate_data.get("reasoning", ""),
+                    source=candidate_data.get("source"),
+                    raw_data=raw_data,
+                    dedup_status=dedup_result["status"],
+                    dedup_matches=dedup_result["matches"] if dedup_result["matches"] else None,
+                    status="dismissed" if auto_filtered else "pending",
+                    dismissed_reason="Auto-filtered: definite duplicate (hard identifier match)" if auto_filtered else None,
+                )
+                session.add(candidate)
+                if not auto_filtered:
+                    added += 1
+
+            scan.candidates_after_dedup = added
+            scan.status = "complete"
+            scan.completed_at = datetime.now(timezone.utc)
+            session.commit()
+
+            # Check if calibration needs regeneration
+            maybe_regenerate_calibration(session)
+
+            logger.info("AI discovery complete. Found %d candidates, %d after dedup.",
+                        scan.candidates_found, added)
+
+        except Exception:
+            logger.exception("AI discovery scan failed")
+            scan.status = "failed"
+            scan.completed_at = datetime.now(timezone.utc)
+            scan.error_detail = "Scan failed — check server logs for details."
+            session.commit()
+
+
+def refresh_intelligence_profile(session_factory):
+    """Regenerate the intelligence profile from current database state."""
+    from producers.backend.ai import generate_intelligence_profile
+
+    logger.info("Refreshing intelligence profile")
+    with session_factory() as session:
+        generate_intelligence_profile(session)

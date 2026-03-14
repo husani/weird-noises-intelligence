@@ -9,8 +9,8 @@ Usage:
 
     from shared.backend.ai.clients import get_anthropic_client, get_google_ai_client
 
-    response = get_anthropic_client().messages.create(model="claude-sonnet-4-20250514", ...)
-    response = get_google_ai_client().models.generate_content(model="gemini-2.0-flash", ...)
+    response = get_anthropic_client().messages.create(model="claude-sonnet-4-6", ...)
+    response = get_google_ai_client().models.generate_content(model="gemini-2.5-flash", ...)
 """
 
 import anthropic
