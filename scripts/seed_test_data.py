@@ -231,7 +231,7 @@ def main():
             ("Suffs", medium_musical, 2022, "Musical about the women's suffrage movement in the final years before the 19th Amendment. Written by Shaina Taub."),
             ("The Outsiders", medium_musical, 2023, "Musical adaptation of the S.E. Hinton novel about rival teen gangs in 1960s Oklahoma. Directed by Danya Taymor."),
             ("Merrily We Roll Along", medium_musical, 1981, "Sondheim and Furth musical told in reverse chronology, tracing three friends from middle-aged disillusionment back to youthful idealism."),
-            ("A Strange Loop", medium_musical, 2019, "Meta-musical by Michael R. Jackson about a Black queer writer writing a musical about a Black queer writer. Pulitzer Prize winner."),
+            ("A Strange Loop", medium_musical, None, None),
             ("Between Riverside and Crazy", medium_play, 2014, "Stephen Adly Guirgis play about a retired NYPD officer fighting to keep his rent-stabilized apartment on Riverside Drive. Pulitzer Prize winner."),
             ("Fat Ham", medium_play, 2021, "James Ijames' Pulitzer-winning play reimagining Hamlet at a Black Southern family barbecue."),
             ("Jagged Little Pill", medium_musical, 2018, "Musical inspired by Alanis Morissette's album, weaving her songs into an original story about a suburban Connecticut family."),
@@ -249,6 +249,13 @@ def main():
             shows.append(show)
         s.flush()
 
+        # Add plot_synopsis to some shows
+        shows[0].plot_synopsis = "In the heights of New York's political founding, an orphan immigrant from the Caribbean rises through sheer intellect and relentless ambition — serving as Washington's right hand, authoring the Federalist Papers, and building America's financial system — while his rivalries with Aaron Burr, Thomas Jefferson, and James Madison, and his devastating personal choices, hurtle him toward a fatal duel."
+        shows[1].plot_synopsis = "Orpheus, a poet and musician, journeys to Hadestown — an underground industrial wasteland ruled by the god Hades — to rescue his beloved Eurydice, who traded her freedom for security during a brutal winter. Armed only with his song, he must soften Hades' heart and trust that Eurydice follows behind him without looking back."
+        shows[3].plot_synopsis = "After classmate Connor Murphy's suicide, anxious loner Evan Hansen's fabricated story of their secret friendship spirals into a viral movement that gives the Murphy family comfort, Evan social belonging, and the internet a cause — until the lie threatens to consume everyone it was meant to save."
+        shows[6].plot_synopsis = "Inside a 1970s recording studio, a five-member rock band and their two sound engineers spend months crafting a landmark album while romantic entanglements, ego clashes, substance use, and the slow dissolution of the central couple's marriage play out in real time between takes."
+        # A Strange Loop plot_synopsis omitted — left for research testing
+
         # Add work_origin to some shows
         wo_original = lv("work_origin", "original")
         wo_adaptation = lv("work_origin", "adaptation")
@@ -259,7 +266,7 @@ def main():
         shows[1].work_origin_id = wo_original  # Hadestown
         shows[6].work_origin_id = wo_original  # Stereophonic
         shows[7].work_origin_id = wo_original  # Suffs
-        shows[10].work_origin_id = wo_original  # A Strange Loop
+        # A Strange Loop left blank for research testing
         # The Outsiders, Jagged Little Pill are adaptations
         shows[8].work_origin_id = wo_adaptation  # The Outsiders
         shows[13].work_origin_id = wo_adaptation  # Jagged Little Pill
@@ -283,7 +290,7 @@ def main():
             ("Suffs", showid("Suffs"), None, 2024, scale_broadway, "Shaina Taub. Women's suffrage musical."),
             ("The Outsiders", showid("The Outsiders"), None, 2024, scale_broadway, "Danya Taymor direction."),
             ("Merrily We Roll Along", showid("Merrily We Roll Along"), None, 2023, scale_broadway, "Jonathan Groff, Daniel Radcliffe, Lindsay Mendez."),
-            ("A Strange Loop", showid("A Strange Loop"), None, 2022, scale_broadway, "Michael R. Jackson. Pulitzer Prize winner."),
+            # A Strange Loop production omitted — left for research testing
             ("Between Riverside and Crazy", showid("Between Riverside and Crazy"), None, 2023, scale_offbway, "Stephen Adly Guirgis. Pulitzer."),
             ("Fat Ham", showid("Fat Ham"), None, 2023, scale_offbway, "James Ijames. Hamlet reimagining."),
             ("Jagged Little Pill", showid("Jagged Little Pill"), vid("St. James Theatre"), 2019, scale_broadway, "Alanis Morissette musical."),
@@ -296,7 +303,7 @@ def main():
         ]
         productions = []
         for title, show_id, v_id, year, sc_id, notes in prods_data:
-            prod = Production(show_id=show_id, title=title, venue_id=v_id, year=year, scale_id=sc_id, description=notes)
+            prod = Production(show_id=show_id, venue_id=v_id, year=year, scale_id=sc_id, description=notes)
             s.add(prod)
             productions.append(prod)
         s.flush()
@@ -335,8 +342,10 @@ def main():
         productions[6].budget_tier_id = bt_2m_5m
         productions[6].funding_type_id = ft_coprod
 
-        def prodid(title):
-            return next(p.id for p in productions if p.title == title)
+        def prodid(show_title):
+            """Look up a production by its show's title. Works because test data has one production per show."""
+            sh_id = showid(show_title)
+            return next(p.id for p in productions if p.show_id == sh_id)
 
         # ==================== PRODUCER ↔ SHOW (IP-level) ====================
         ps_links = [
@@ -347,7 +356,7 @@ def main():
             (pid("Orin", "Wolf"), showid("The Band's Visit"), role_ps_lead.id),
             (pid("Greg", "Nobile"), showid("Stereophonic"), role_ps_lead.id),
             (pid("Greg", "Nobile"), showid("Suffs"), role_ps_lead.id),
-            (pid("Barbara", "Whitman"), showid("A Strange Loop"), role_ps_lead.id),
+            # Barbara Whitman / A Strange Loop link omitted — left for research testing
             (pid("Sonia", "Friedman"), showid("Harry Potter and the Cursed Child"), role_ps_rights.id),
             (pid("Sonia", "Friedman"), showid("Leopoldstadt"), role_ps_lead.id),
             (pid("Tom", "Kirdahy"), showid("The Minutes"), role_ps_lead.id),
@@ -372,7 +381,7 @@ def main():
             (pid("Greg", "Nobile"), prodid("Suffs"), role_pp_lead.id),
             (pid("Greg", "Nobile"), prodid("The Outsiders"), role_pp_lead.id),
             (pid("Barbara", "Whitman"), prodid("Suffs"), role_pp_co.id),
-            (pid("Barbara", "Whitman"), prodid("A Strange Loop"), role_pp_lead.id),
+            # Barbara Whitman / A Strange Loop production link omitted — left for research testing
             (pid("Hunter", "Arnold"), prodid("Dear Evan Hansen"), role_pp_co.id),
             (pid("Hunter", "Arnold"), prodid("Merrily We Roll Along"), role_pp_lead.id),
             (pid("Hunter", "Arnold"), prodid("The Outsiders"), role_pp_co.id),
@@ -381,7 +390,7 @@ def main():
             (pid("Sonia", "Friedman"), prodid("Leopoldstadt"), role_pp_lead.id),
             (pid("Sonia", "Friedman"), prodid("Merrily We Roll Along"), role_pp_co.id),
             (pid("Rashad", "Chambers"), prodid("Fat Ham"), role_pp_lead.id),
-            (pid("Rashad", "Chambers"), prodid("A Strange Loop"), role_pp_co.id),
+            # Rashad Chambers / A Strange Loop production link omitted — left for research testing
             (pid("Jenny", "Gersten"), prodid("What the Constitution Means to Me"), role_pp_lead.id),
             (pid("Jenny", "Gersten"), prodid("Between Riverside and Crazy"), role_pp_co.id),
             (pid("Tom", "Kirdahy"), prodid("The Minutes"), role_pp_lead.id),
@@ -468,8 +477,7 @@ def main():
             (pid("Jordan", "Roth"), prodid("The Lehman Trilogy"), "Tony Award", "Best Play", 2023, outcome_nominated),
             (pid("Greg", "Nobile"), prodid("Stereophonic"), "Tony Award", "Best Play", 2024, outcome_won),
             (pid("Greg", "Nobile"), prodid("Suffs"), "Tony Award", "Best Musical", 2024, outcome_nominated),
-            (pid("Barbara", "Whitman"), prodid("A Strange Loop"), "Tony Award", "Best Musical", 2022, outcome_won),
-            (pid("Barbara", "Whitman"), prodid("A Strange Loop"), "Pulitzer Prize", "Drama", 2020, outcome_won),
+            # A Strange Loop awards omitted — left for research testing
             (pid("Hunter", "Arnold"), prodid("Dear Evan Hansen"), "Tony Award", "Best Musical", 2017, outcome_won),
             (pid("Hunter", "Arnold"), prodid("Merrily We Roll Along"), "Tony Award", "Best Revival of a Musical", 2024, outcome_won),
             (pid("Sonia", "Friedman"), prodid("Harry Potter and the Cursed Child"), "Tony Award", "Best Play", 2018, outcome_won),

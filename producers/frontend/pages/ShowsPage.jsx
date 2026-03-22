@@ -71,10 +71,6 @@ export default function ShowsPage() {
     },
     { key: 'original_year', label: 'Original Year' },
     { key: 'description', label: 'Description', className: 'cell-muted' },
-    {
-      key: 'production_count', label: 'Productions', number: true,
-      render: v => v > 0 ? <span className="cell-strong">{v}</span> : null,
-    },
   ]
 
   return (

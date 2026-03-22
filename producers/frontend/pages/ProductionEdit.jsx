@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
-import { getProductionDetail, createProduction, updateProduction, listVenues, listShows } from '@producers/api'
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { getProductionDetail, getShow, createProduction, updateProduction, listVenues } from '@producers/api'
 import { Alert } from '@shared/components'
 import { useLookupValues } from '@shared/hooks/useLookupValues'
 
@@ -69,123 +69,66 @@ function VenueSearch({ value, onChange }) {
   )
 }
 
-/* ── Show search typeahead ── */
-
-function ShowSearch({ value, onChange }) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-  const debounceRef = useRef(null)
-
-  useEffect(() => {
-    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  useEffect(() => {
-    if (!query.trim()) { setResults([]); setOpen(false); return }
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      listShows({ search: query, limit: 8 })
-        .then(d => {
-          setResults(d.shows || [])
-          setOpen((d.shows || []).length > 0)
-        })
-        .catch(() => {})
-    }, 250)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query])
-
-  if (value) {
-    return (
-      <div className="producer-search-selected">
-        <span className="cell-strong">{value.title}</span>
-        {value.medium && <span className="cell-muted"> ({value.medium.display_label})</span>}
-        <button type="button" className="producer-search-clear" onClick={() => { onChange(null); setQuery('') }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l8 8M12 4l-8 8" /></svg>
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div ref={ref} className="producer-search">
-      <input
-        className="input input-full"
-        placeholder="Search shows..."
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        onFocus={() => results.length > 0 && setOpen(true)}
-      />
-      {open && results.length > 0 && (
-        <div className="producer-search-dropdown">
-          {results.map(s => (
-            <div key={s.id} className="producer-search-option" onClick={() => { onChange(s); setOpen(false); setQuery('') }}>
-              <span className="cell-strong">{s.title}</span>
-              {s.medium && <span className="cell-muted"> ({s.medium.display_label})</span>}
-              {s.original_year && <span className="cell-muted"> — {s.original_year}</span>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /* ── Main page ── */
 
 export default function ProductionEdit() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const isNew = !id
   const { values: scaleValues } = useLookupValues('scale', 'production')
   const { values: productionTypeValues } = useLookupValues('production_type', 'production')
   const { values: budgetTierValues } = useLookupValues('budget_tier', 'production')
   const { values: fundingTypeValues } = useLookupValues('funding_type', 'production')
-  const [form, setForm] = useState({ title: '', year: '', scale_id: '', run_length: '', description: '', production_type_id: '', capitalization: '', budget_tier_id: '', recouped: '', funding_type_id: '' })
+  const [form, setForm] = useState({ year: '', scale_id: '', run_length: '', description: '', production_type_id: '', capitalization: '', budget_tier_id: '', recouped: '', funding_type_id: '' })
   const [show, setShow] = useState(null)
   const [venue, setVenue] = useState(null)
-  const [loading, setLoading] = useState(!isNew)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
-  const [productionTitle, setProductionTitle] = useState('')
-  const [touched, setTouched] = useState({})
 
   useEffect(() => {
-    if (isNew) return
-    getProductionDetail(id)
-      .then(data => {
-        if (data.error) { setError(data.error); return }
-        setProductionTitle(data.title)
-        setForm({
-          title: data.title || '',
-          year: data.year || '',
-          scale_id: data.scale?.id || '',
-          run_length: data.run_length || '',
-          description: data.description || '',
-          production_type_id: data.production_type?.id || '',
-          capitalization: data.capitalization || '',
-          budget_tier_id: data.budget_tier?.id || '',
-          recouped: data.recouped != null ? String(data.recouped) : '',
-          funding_type_id: data.funding_type?.id || '',
+    if (isNew) {
+      const showId = searchParams.get('show_id')
+      if (showId) {
+        getShow(showId)
+          .then(data => {
+            if (!data.error) setShow(data)
+          })
+          .catch(() => {})
+          .finally(() => setLoading(false))
+      } else {
+        setLoading(false)
+      }
+    } else {
+      getProductionDetail(id)
+        .then(data => {
+          if (data.error) { setError(data.error); return }
+          setForm({
+            year: data.year || '',
+            scale_id: data.scale?.id || '',
+            run_length: data.run_length || '',
+            description: data.description || '',
+            production_type_id: data.production_type?.id || '',
+            capitalization: data.capitalization || '',
+            budget_tier_id: data.budget_tier?.id || '',
+            recouped: data.recouped != null ? String(data.recouped) : '',
+            funding_type_id: data.funding_type?.id || '',
+          })
+          if (data.show) setShow(data.show)
+          if (data.venue) setVenue(data.venue)
         })
-        if (data.show) setShow(data.show)
-        if (data.venue) setVenue(data.venue)
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false))
-  }, [id, isNew])
+        .catch(err => setError(err.message))
+        .finally(() => setLoading(false))
+    }
+  }, [id, isNew, searchParams])
+
+  const backUrl = show ? `/producers/shows/${show.id}` : '/producers/shows'
 
   async function handleSave(e) {
     e.preventDefault()
-    if (!form.title.trim()) {
-      setTouched(prev => ({ ...prev, title: true }))
-      return
-    }
-    if (isNew && !show) {
-      setTouched(prev => ({ ...prev, show: true }))
+    if (!show) {
+      setError('Show is required')
       return
     }
     setSaving(true)
@@ -195,7 +138,7 @@ export default function ProductionEdit() {
         ...form,
         year: form.year ? parseInt(form.year, 10) : null,
         scale_id: form.scale_id ? parseInt(form.scale_id, 10) : null,
-        show_id: show ? show.id : null,
+        show_id: show.id,
         venue_id: venue ? venue.id : null,
         production_type_id: form.production_type_id ? parseInt(form.production_type_id, 10) : null,
         capitalization: form.capitalization ? parseInt(form.capitalization, 10) : null,
@@ -204,12 +147,11 @@ export default function ProductionEdit() {
         funding_type_id: form.funding_type_id ? parseInt(form.funding_type_id, 10) : null,
       }
       if (isNew) {
-        const result = await createProduction(payload)
-        navigate(`/producers/productions/${result.id}`)
+        await createProduction(payload)
       } else {
         await updateProduction(id, payload)
-        navigate(`/producers/productions/${id}`)
       }
+      navigate(backUrl)
     } catch (err) {
       setError(err.message)
       setSaving(false)
@@ -220,50 +162,29 @@ export default function ProductionEdit() {
     return <div className="disc-center"><div className="loading-spinner" /></div>
   }
 
-  const titleError = touched.title && !form.title.trim()
-  const showError = touched.show && !show
+  const showTitle = show ? show.title : 'Production'
 
   return (
     <>
       <div className="breadcrumbs">
-        <Link to="/producers/productions" className="breadcrumb">Productions</Link>
+        <Link to="/producers/shows" className="breadcrumb">Shows</Link>
         <span className="breadcrumb-sep">&rsaquo;</span>
-        {isNew ? (
-          <span className="breadcrumb-current">New</span>
-        ) : (
+        {show && (
           <>
-            <Link to={`/producers/productions/${id}`} className="breadcrumb">{productionTitle}</Link>
+            <Link to={`/producers/shows/${show.id}`} className="breadcrumb">{show.title}</Link>
             <span className="breadcrumb-sep">&rsaquo;</span>
-            <span className="breadcrumb-current">Edit</span>
           </>
         )}
+        <span className="breadcrumb-current">{isNew ? 'New Production' : 'Edit Production'}</span>
       </div>
 
       <div className="page-header">
-        <h1 className="page-title">{isNew ? 'New Production' : `Edit ${productionTitle}`}</h1>
+        <h1 className="page-title">{isNew ? `New Production of ${showTitle}` : `Edit Production of ${showTitle}`}</h1>
       </div>
 
       {error && <Alert variant="error" title={error} />}
 
       <form className="form-card" onSubmit={handleSave}>
-        <div className="form-field">
-          <label className="input-label">Show {isNew ? '*' : ''}</label>
-          <ShowSearch value={show} onChange={setShow} />
-          {showError && <div className="field-error">Show is required</div>}
-        </div>
-
-        <div className="form-field">
-          <label className="input-label">Title *</label>
-          <input
-            className={`input input-full${titleError ? ' input-error' : ''}`}
-            placeholder="Production title"
-            value={form.title}
-            onChange={e => setForm(prev => ({ ...prev, title: e.target.value }))}
-            onBlur={() => setTouched(prev => ({ ...prev, title: true }))}
-          />
-          {titleError && <div className="field-error">Title is required</div>}
-        </div>
-
         <div className="form-field">
           <label className="input-label">Year</label>
           <input
@@ -368,12 +289,7 @@ export default function ProductionEdit() {
         </div>
 
         <div className="form-actions">
-          <Link
-            to={isNew ? '/producers/productions' : `/producers/productions/${id}`}
-            className="btn btn-ghost"
-          >
-            Cancel
-          </Link>
+          <Link to={backUrl} className="btn btn-ghost">Cancel</Link>
           <button type="submit" className="btn btn-primary" disabled={saving}>
             {saving ? 'Saving...' : isNew ? 'Create Production' : 'Save Changes'}
           </button>

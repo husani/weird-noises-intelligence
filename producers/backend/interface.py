@@ -56,7 +56,9 @@ class ProducersInterface:
         self._register_mcp_tools(mcp_server)
 
     def _register_mcp_tools(self, mcp_server: FastMCP):
-        """Register all 6 Producers MCP tools."""
+        """Register Producers MCP tools — reads and writes for producers, shows, productions, venues, and discovery."""
+
+        # --- Producer reads ---
 
         @mcp_server.tool
         def producers_search(criteria: str) -> list[dict]:
@@ -99,6 +101,181 @@ class ProducersInterface:
             label (no_contact, new, active, waiting, overdue, gone_cold)."""
             return self.get_relationship_state(producer_id)
 
+        # --- Lookup values ---
+
+        @mcp_server.tool
+        def producers_get_lookup_values(category: str, entity_type: str) -> list[dict]:
+            """Get all lookup values for a category and entity type. Returns id, value,
+            display_label, description, and css_class for each value. The description
+            contains rich domain context that explains what each value means and when
+            to use it. Categories include: scale (production), medium (show),
+            work_origin (show), production_type (production), budget_tier (production),
+            funding_type (production), venue_type (venue), role (producer_production),
+            role (producer_show), scan_focus_type (discovery_scan)."""
+            return self.get_lookup_values(category, entity_type)
+
+        # --- Show reads ---
+
+        @mcp_server.tool
+        def producers_get_show(show_id: int) -> dict:
+            """Get a show with all its data. Returns: id, title, medium, original_year,
+            description, genre (prose), themes (prose), summary (prose), plot_synopsis (prose), work_origin,
+            productions (with year, venue, scale, producer credits), and
+            producer_shows (IP-level producer relationships with roles)."""
+            return self.get_show(show_id)
+
+        @mcp_server.tool
+        def producers_search_shows(search: str = "", limit: int = 50, offset: int = 0) -> dict:
+            """Search shows by title. Returns paginated list with id, title, medium,
+            original_year, description, genre, themes, summary, plot_synopsis, work_origin."""
+            return self.list_shows(search, limit, offset)
+
+        # --- Show writes ---
+
+        @mcp_server.tool
+        def producers_update_show(show_id: int, genre: str = None, themes: str = None,
+                                   summary: str = None, plot_synopsis: str = None,
+                                   work_origin_id: int = None,
+                                   medium_id: int = None, original_year: int = None,
+                                   description: str = None) -> dict:
+            """Update a show's fields. All parameters are optional — only provided fields
+            are updated. Use producers_get_lookup_values('work_origin', 'show') and
+            producers_get_lookup_values('medium', 'show') to get valid IDs.
+            genre, themes, summary, and plot_synopsis are prose fields — write rich, informative text."""
+            data = {}
+            if genre is not None: data["genre"] = genre
+            if themes is not None: data["themes"] = themes
+            if summary is not None: data["summary"] = summary
+            if plot_synopsis is not None: data["plot_synopsis"] = plot_synopsis
+            if work_origin_id is not None: data["work_origin_id"] = work_origin_id
+            if medium_id is not None: data["medium_id"] = medium_id
+            if original_year is not None: data["original_year"] = original_year
+            if description is not None: data["description"] = description
+            return self.update_show(show_id, data)
+
+        # --- Venue reads ---
+
+        @mcp_server.tool
+        def producers_search_venues(search: str = "", limit: int = 50, offset: int = 0) -> dict:
+            """Search venues by name. Returns paginated list with id, name, venue_type,
+            city, state_region, country, capacity, description."""
+            return self.list_venues(search, limit, offset)
+
+        # --- Venue writes ---
+
+        @mcp_server.tool
+        def producers_create_venue(name: str, venue_type_id: int = None, city: str = None,
+                                    state_region: str = None, country: str = None,
+                                    capacity: int = None, description: str = None) -> dict:
+            """Create a new venue. Use producers_get_lookup_values('venue_type', 'venue')
+            to get valid venue_type_id values. Always search for existing venues first
+            with producers_search_venues before creating a new one to avoid duplicates."""
+            return self.create_venue({
+                "name": name, "venue_type_id": venue_type_id, "city": city,
+                "state_region": state_region, "country": country,
+                "capacity": capacity, "description": description,
+            })
+
+        # --- Production writes ---
+
+        @mcp_server.tool
+        def producers_create_production(show_id: int, year: int = None,
+                                         venue_id: int = None, scale_id: int = None,
+                                         production_type_id: int = None,
+                                         budget_tier_id: int = None,
+                                         funding_type_id: int = None,
+                                         capitalization: int = None,
+                                         recouped: bool = None,
+                                         start_date: str = None, end_date: str = None,
+                                         run_length: str = None,
+                                         description: str = None) -> dict:
+            """Create a new production of a show. A production is a specific mounting —
+            a run at a venue in a given year. Use lookup value tools to get valid IDs:
+            producers_get_lookup_values('scale', 'production') for scale_id,
+            producers_get_lookup_values('production_type', 'production') for production_type_id,
+            producers_get_lookup_values('budget_tier', 'production') for budget_tier_id,
+            producers_get_lookup_values('funding_type', 'production') for funding_type_id.
+            Search for existing venues with producers_search_venues and use the venue_id.
+            Fill in every field you can find information for — capitalization in dollars,
+            recouped as true/false, start_date and end_date as YYYY-MM-DD."""
+            data = {"show_id": show_id}
+            if year is not None: data["year"] = year
+            if venue_id is not None: data["venue_id"] = venue_id
+            if scale_id is not None: data["scale_id"] = scale_id
+            if production_type_id is not None: data["production_type_id"] = production_type_id
+            if budget_tier_id is not None: data["budget_tier_id"] = budget_tier_id
+            if funding_type_id is not None: data["funding_type_id"] = funding_type_id
+            if capitalization is not None: data["capitalization"] = capitalization
+            if recouped is not None: data["recouped"] = recouped
+            if start_date is not None: data["start_date"] = start_date
+            if end_date is not None: data["end_date"] = end_date
+            if run_length is not None: data["run_length"] = run_length
+            if description is not None: data["description"] = description
+            return self.create_production(data, "ai:show_research")
+
+        @mcp_server.tool
+        def producers_update_production(production_id: int, year: int = None,
+                                         venue_id: int = None, scale_id: int = None,
+                                         production_type_id: int = None,
+                                         budget_tier_id: int = None,
+                                         funding_type_id: int = None,
+                                         capitalization: int = None,
+                                         recouped: bool = None,
+                                         start_date: str = None, end_date: str = None,
+                                         run_length: str = None,
+                                         description: str = None) -> dict:
+            """Update an existing production's fields. Only provided fields are updated.
+            Use the same lookup value tools as producers_create_production for valid IDs."""
+            data = {}
+            if year is not None: data["year"] = year
+            if venue_id is not None: data["venue_id"] = venue_id
+            if scale_id is not None: data["scale_id"] = scale_id
+            if production_type_id is not None: data["production_type_id"] = production_type_id
+            if budget_tier_id is not None: data["budget_tier_id"] = budget_tier_id
+            if funding_type_id is not None: data["funding_type_id"] = funding_type_id
+            if capitalization is not None: data["capitalization"] = capitalization
+            if recouped is not None: data["recouped"] = recouped
+            if start_date is not None: data["start_date"] = start_date
+            if end_date is not None: data["end_date"] = end_date
+            if run_length is not None: data["run_length"] = run_length
+            if description is not None: data["description"] = description
+            return self.update_production(production_id, data, "ai:show_research")
+
+        # --- Producer-show and producer-production links ---
+
+        @mcp_server.tool
+        def producers_add_producer_to_show(producer_id: int, show_id: int,
+                                            role_id: int = None) -> dict:
+            """Link a producer to a show at the IP level (rights, development, lead producing).
+            Use producers_get_lookup_values('role', 'producer_show') for valid role_id values.
+            Always search for the producer first with producers_search to get their ID."""
+            return self.add_producer_show(producer_id, show_id, role_id, "ai:show_research")
+
+        @mcp_server.tool
+        def producers_add_producer_to_production(production_id: int, producer_id: int,
+                                                  role_id: int = None) -> dict:
+            """Link a producer to a specific production with a credit role.
+            Use producers_get_lookup_values('role', 'producer_production') for valid role_id values.
+            Always search for the producer first with producers_search to get their ID."""
+            return self.add_producer_to_production(production_id, producer_id, role_id, "ai:show_research")
+
+        # --- Discovery candidates ---
+
+        @mcp_server.tool
+        def producers_add_discovery_candidate(first_name: str, last_name: str,
+                                               reasoning: str, source: str = None,
+                                               scan_id: int = None) -> dict:
+            """Add a producer to the discovery review queue. Use this when you find a
+            producer credit for someone who is NOT already in the database (check with
+            producers_search first). The reasoning should explain who they are and why
+            they were found — e.g. 'Lead producer of Hamilton's 2015 Broadway production.
+            Not currently in the WN database.' The team will review and decide whether
+            to confirm them, which triggers full dossier research."""
+            return self.create_discovery_candidate(
+                first_name=first_name, last_name=last_name,
+                reasoning=reasoning, source=source, scan_id=scan_id,
+            )
+
     # --- MCP tool implementations ---
 
     def search(self, criteria: str) -> list[dict]:
@@ -122,9 +299,10 @@ class ProducersInterface:
                 )
                 query = query.filter(Producer.id.in_(email_producer_ids))
             else:
-                # Search across name, location
+                # Search across name (individual and full), location
                 query = query.filter(
                     or_(
+                        (Producer.first_name + ' ' + Producer.last_name).ilike(f"%{criteria}%"),
                         Producer.first_name.ilike(f"%{criteria}%"),
                         Producer.last_name.ilike(f"%{criteria}%"),
                         Producer.city.ilike(f"%{criteria}%"),
@@ -241,7 +419,7 @@ class ProducersInterface:
                     }
                 results.append({
                     "production_id": prod.id,
-                    "title": prod.title,
+                    "title": show_data["title"] if show_data else None,
                     "show": show_data,
                     "venue": venue_data,
                     "year": prod.year,
@@ -843,6 +1021,23 @@ class ProducersInterface:
                 for c in candidates
             ]
 
+    def create_discovery_candidate(self, first_name: str, last_name: str,
+                                    reasoning: str, source: str = None,
+                                    scan_id: int = None) -> dict:
+        """Create a discovery candidate for team review."""
+        with self._session_factory() as session:
+            candidate = DiscoveryCandidate(
+                first_name=first_name,
+                last_name=last_name,
+                reasoning=reasoning,
+                source=source,
+                scan_id=scan_id,
+                status="pending",
+            )
+            session.add(candidate)
+            session.commit()
+            return {"id": candidate.id, "first_name": first_name, "last_name": last_name}
+
     def review_discovery(self, candidate_id: int, action: str,
                          user_email: str, reason: str = None,
                          edited_data: dict = None) -> dict:
@@ -940,6 +1135,7 @@ class ProducersInterface:
         with self._session_factory() as session:
             total = session.query(DiscoveryScan).count()
             scans = (session.query(DiscoveryScan)
+                     .options(joinedload(DiscoveryScan.focus_type))
                      .order_by(DiscoveryScan.started_at.desc())
                      .offset(offset)
                      .limit(limit)
@@ -959,7 +1155,7 @@ class ProducersInterface:
                 results.append({
                     "id": s.id,
                     "focus_area": s.focus_area,
-                    "focus_type": s.focus_type,
+                    "focus_type": self._lookup_dict(s.focus_type),
                     "started_at": str(s.started_at) if s.started_at else None,
                     "completed_at": str(s.completed_at) if s.completed_at else None,
                     "status": s.status,
@@ -975,13 +1171,15 @@ class ProducersInterface:
     def get_scan_detail(self, scan_id: int) -> dict | None:
         """Get a scan with its candidates."""
         with self._session_factory() as session:
-            scan = session.get(DiscoveryScan, scan_id)
+            scan = session.query(DiscoveryScan).options(
+                joinedload(DiscoveryScan.focus_type)
+            ).filter_by(id=scan_id).first()
             if not scan:
                 return None
             return {
                 "id": scan.id,
                 "focus_area": scan.focus_area,
-                "focus_type": scan.focus_type,
+                "focus_type": self._lookup_dict(scan.focus_type),
                 "started_at": str(scan.started_at) if scan.started_at else None,
                 "completed_at": str(scan.completed_at) if scan.completed_at else None,
                 "status": scan.status,
@@ -1635,9 +1833,9 @@ class ProducersInterface:
                 joinedload(Production.producers).joinedload(ProducerProduction.role),
             )
             if search:
-                query = query.filter(Production.title.ilike(f"%{search}%"))
+                query = query.join(Production.show).filter(Show.title.ilike(f"%{search}%"))
             total = query.count()
-            prods = query.order_by(Production.year.desc().nullslast(), Production.title).offset(offset).limit(limit).all()
+            prods = query.order_by(Production.year.desc().nullslast()).offset(offset).limit(limit).all()
             return {
                 "productions": [self._production_detail(p) for p in prods],
                 "total": total,
@@ -1673,7 +1871,6 @@ class ProducersInterface:
 
             prod = Production(
                 show_id=data["show_id"],
-                title=data["title"],
                 venue_id=venue_id,
                 year=data.get("year"),
                 start_date=data.get("start_date"),
@@ -1692,6 +1889,8 @@ class ProducersInterface:
 
             # Optionally link a producer
             producer_id = data.get("producer_id")
+            show = session.get(Show, data["show_id"])
+            show_title = show.title if show else str(data["show_id"])
             if producer_id:
                 session.add(ProducerProduction(
                     producer_id=producer_id,
@@ -1701,11 +1900,11 @@ class ProducersInterface:
                 session.add(ChangeHistory(
                     entity_type="producer", entity_id=producer_id,
                     field_name="production_added", old_value=None,
-                    new_value=prod.title, changed_by=user_email,
+                    new_value=show_title, changed_by=user_email,
                 ))
 
             session.commit()
-            return {"id": prod.id, "title": prod.title}
+            return {"id": prod.id, "title": show_title}
 
     def update_production(self, production_id: int, data: dict, user_email: str) -> dict:
         """Update a production's details."""
@@ -1713,7 +1912,7 @@ class ProducersInterface:
             prod = session.get(Production, production_id)
             if not prod:
                 return {"error": "Production not found"}
-            for field in ["show_id", "title", "venue_id", "year", "start_date", "end_date",
+            for field in ["venue_id", "year", "start_date", "end_date",
                           "scale_id", "run_length", "description",
                           "production_type_id", "capitalization", "budget_tier_id", "recouped", "funding_type_id"]:
                 if field in data:
@@ -1745,11 +1944,14 @@ class ProducersInterface:
                 producer_id=producer_id, production_id=production_id, role_id=role_id
             )
             session.add(link)
-            prod = session.get(Production, production_id)
+            prod = session.query(Production).options(
+                joinedload(Production.show)
+            ).filter_by(id=production_id).first()
+            title = prod.show.title if prod and prod.show else str(production_id)
             session.add(ChangeHistory(
                 entity_type="producer", entity_id=producer_id,
                 field_name="production_added", old_value=None,
-                new_value=prod.title if prod else str(production_id),
+                new_value=title,
                 changed_by=user_email,
             ))
             session.commit()
@@ -1771,11 +1973,14 @@ class ProducersInterface:
             link = session.get(ProducerProduction, link_id)
             if not link:
                 return {"error": "Link not found"}
-            prod = session.get(Production, link.production_id)
+            prod = session.query(Production).options(
+                joinedload(Production.show)
+            ).filter_by(id=link.production_id).first()
+            title = prod.show.title if prod and prod.show else str(link.production_id)
             session.add(ChangeHistory(
                 entity_type="producer", entity_id=link.producer_id,
                 field_name="production_removed",
-                old_value=prod.title if prod else str(link.production_id),
+                old_value=title,
                 new_value=None, changed_by=user_email,
             ))
             session.delete(link)
@@ -1804,6 +2009,7 @@ class ProducersInterface:
                         "genre": s.genre,
                         "themes": s.themes,
                         "summary": s.summary,
+                        "plot_synopsis": s.plot_synopsis,
                         "work_origin": self._lookup_dict(s.work_origin) if hasattr(s, 'work_origin') else None,
                         "production_count": len(s.productions),
                     }
@@ -1845,7 +2051,7 @@ class ProducersInterface:
                             "role": self._lookup_dict(pp.role),
                         })
                 productions.append({
-                    "id": p.id, "title": p.title, "venue": venue_data,
+                    "id": p.id, "venue": venue_data,
                     "year": p.year, "scale": self._lookup_dict(p.scale),
                     "producers": producers_list,
                 })
@@ -1867,6 +2073,7 @@ class ProducersInterface:
                 "genre": show.genre,
                 "themes": show.themes,
                 "summary": show.summary,
+                "plot_synopsis": show.plot_synopsis,
                 "work_origin": self._lookup_dict(show.work_origin) if hasattr(show, 'work_origin') else None,
                 "created_at": str(show.created_at) if show.created_at else None,
                 "productions": productions,
@@ -1884,6 +2091,7 @@ class ProducersInterface:
                 genre=data.get("genre"),
                 themes=data.get("themes"),
                 summary=data.get("summary"),
+                plot_synopsis=data.get("plot_synopsis"),
                 work_origin_id=data.get("work_origin_id"),
             )
             session.add(show)
@@ -1896,7 +2104,7 @@ class ProducersInterface:
             show = session.get(Show, show_id)
             if not show:
                 return {"error": "Show not found"}
-            for field in ["title", "medium_id", "original_year", "description", "genre", "themes", "summary", "work_origin_id"]:
+            for field in ["title", "medium_id", "original_year", "description", "genre", "themes", "summary", "plot_synopsis", "work_origin_id"]:
                 if field in data:
                     setattr(show, field, data[field])
             session.commit()
@@ -1912,33 +2120,6 @@ class ProducersInterface:
             session.query(Show).filter_by(id=show_id).delete()
             session.commit()
             return {"deleted": True}
-
-    def add_production_to_show(self, show_id: int, production_id: int) -> dict:
-        """Link a production to a show by setting its show_id."""
-        with self._session_factory() as session:
-            production = session.get(Production, production_id)
-            if not production:
-                return {"error": "Production not found"}
-            show = session.get(Show, show_id)
-            if not show:
-                return {"error": "Show not found"}
-            if production.show_id == show_id:
-                return {"error": "Production is already linked to this show"}
-            production.show_id = show_id
-            session.commit()
-            return {"ok": True}
-
-    def remove_production_from_show(self, show_id: int, production_id: int) -> dict:
-        """Unlink a production from a show by clearing its show_id."""
-        with self._session_factory() as session:
-            production = session.get(Production, production_id)
-            if not production:
-                return {"error": "Production not found"}
-            if production.show_id != show_id:
-                return {"error": "Production is not linked to this show"}
-            production.show_id = None
-            session.commit()
-            return {"ok": True}
 
     # --- Producer ↔ Show (IP-level relationships) ---
 
@@ -2404,9 +2585,11 @@ class ProducersInterface:
     # --- Helpers ---
 
     def _production_detail(self, prod: Production) -> dict:
-        """Full detail for a production."""
+        """Full detail for a production. Title comes from the parent show."""
         show_data = None
+        title = None
         if prod.show:
+            title = prod.show.title
             show_data = {
                 "id": prod.show.id, "title": prod.show.title,
                 "medium": self._lookup_dict(prod.show.medium),
@@ -2431,7 +2614,7 @@ class ProducersInterface:
                         "role": self._lookup_dict(pp.role),
                     })
         return {
-            "id": prod.id, "title": prod.title, "show": show_data, "venue": venue_data,
+            "id": prod.id, "title": title, "show": show_data, "venue": venue_data,
             "year": prod.year,
             "start_date": str(prod.start_date) if prod.start_date else None,
             "end_date": str(prod.end_date) if prod.end_date else None,

@@ -446,6 +446,22 @@
 .btn-destructive:hover {
   background: #c08a8a;
 }
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--accent-warm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  padding: 0;
+}
+.btn-link:hover {
+  color: #d4a06a;
+}
 .btn-icon {
   width: 36px;
   height: 36px;

@@ -43,13 +43,17 @@ LLM APIs
         frontend/
             layout/       Nav bar, tool switcher, page wrapper
             auth/         Login page, OAuth flow, auth guards
-            components/   Reusable UI: Button, Badge, Modal, Alert, etc.
+            components/   Reusable UI: ActionMenu, Alert, Badge, Button, DataTable,
+                          Drawer, EmptyState, LocationAutocomplete, Modal, PlatformIcon,
+                          ProducerDrawer, SectionCard, SortHeader, Spinner, StatusIndicator,
+                          TableControls, Tabs
+            hooks/        useLookupValues
             pages/        Home, LoginPage
             styles/       base.css (imports components.css, layouts.css)
         backend/
             config.py     pydantic-settings
             db.py         SQLAlchemy engine/session/Base
-            mcp.py        FastMCP server instance
+            mcp.py        FastMCP server instance + web_search tool
             registry.py   Tool metadata for nav/home
             auth/         JWT, OAuth, middleware, routes
             ai/           Anthropic + Google AI clients
@@ -57,14 +61,15 @@ LLM APIs
             scheduler.py  APScheduler
     producers/
         frontend/
-            pages/        Dashboard, List, Detail, Add, Import, Discovery, AIQuery, Settings
+            pages/        36+ page components (see below)
             styles/       producers.css
+            components/   ProductionDrawer
             api.js        Fetch wrappers for /api/producers/*
         backend/
-            models.py     SQLAlchemy models
-            interface.py  Business logic + MCP tools
-            routes.py     FastAPI router
-            ai/           AI pipeline, prompts
+            models.py     SQLAlchemy models (28 tables)
+            interface.py  Business logic + 17 MCP tools
+            routes.py     FastAPI router (100+ endpoints)
+            ai.py         AI pipeline (LLM calls, research, discovery, dedup)
             jobs.py       Scheduled jobs
     skeleton_a/
         frontend/
@@ -75,6 +80,8 @@ LLM APIs
         backend/
             interface.py
 ```
+
+Producer frontend pages: ProducersPage (main entry with sidebar nav), Dashboard, ProducerList, ProducerDetail, AddProducer, ImportPage, DiscoveryQueue, AIQuery, AIConfig, Settings, OrganizationsPage/Detail/Edit, ShowsPage/Detail/Edit, ProductionsPage/Detail/Edit, VenuesPage/Detail/Edit, SocialPlatformsPage/Detail/Edit, TagsPage/Detail/Edit, SourcesPage/Detail/Edit, OptionsPage/Edit.
 
 ## Backend
 
@@ -117,7 +124,7 @@ Stores tool metadata (name, description, URL path) for the nav bar and home page
 
 ### Shared MCP Server — `shared/backend/mcp.py`
 
-A FastMCP instance that tools register their capabilities with. Mounted as an ASGI sub-app inside FastAPI at `/mcp`.
+A FastMCP instance that tools register their capabilities with. Mounted as an ASGI sub-app inside FastAPI at `/mcp`. Also registers a shared `web_search` tool (Gemini 3.1 Flash-Lite with Google Search) available to all LLM callers.
 
 **MCP is the single interface for all cross-tool access.** Every call goes through it:
 
@@ -317,7 +324,7 @@ result = await mcp_server.call_tool("other_tool_search", {"query": "..."})
 **From an LLM (via API):**
 ```python
 response = client.beta.messages.create(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-4-6",
     messages=[{"role": "user", "content": "..."}],
     mcp_servers=[{
         "type": "url",
@@ -398,7 +405,7 @@ while response.stop_reason == "tool_use":
 
 # CORRECT — one call, Claude handles tool use internally
 response = client.beta.messages.create(
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-4-6",
     messages=[...],
     mcp_servers=[{
         "type": "url",

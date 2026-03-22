@@ -48,6 +48,9 @@ from skeleton_a.backend.routes import create_skeleton_router
 from skeleton_b.backend.interface import SkeletonBInterface
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("google_genai").setLevel(logging.WARNING)
+logging.getLogger("mcp.server.lowlevel.server").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Generate the MCP ASGI app early so we can use its lifespan
@@ -103,6 +106,9 @@ producers_session_factory = create_session_factory(producers_engine)
 producers_interface = ProducersInterface(
     session_factory=producers_session_factory, mcp_server=mcp_server
 )
+# Initialize AI module with session factory so call_llm can read behaviors
+from producers.backend.ai import init as ai_init
+ai_init(producers_session_factory)
 registry.register(
     "producers",
     name="Producers",

@@ -10,7 +10,7 @@ export default function ShowEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
   const isNew = !id
-  const [form, setForm] = useState({ title: '', medium_id: '', original_year: '', description: '', genre: '', themes: '', summary: '', work_origin_id: '' })
+  const [form, setForm] = useState({ title: '', medium_id: '', original_year: '', description: '', genre: '', themes: '', summary: '', plot_synopsis: '', work_origin_id: '' })
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -31,6 +31,7 @@ export default function ShowEdit() {
           genre: data.genre || '',
           themes: data.themes || '',
           summary: data.summary || '',
+          plot_synopsis: data.plot_synopsis || '',
           work_origin_id: data.work_origin?.id || '',
         })
       })
@@ -55,6 +56,7 @@ export default function ShowEdit() {
         genre: form.genre.trim() || null,
         themes: form.themes.trim() || null,
         summary: form.summary.trim() || null,
+        plot_synopsis: form.plot_synopsis.trim() || null,
         work_origin_id: form.work_origin_id ? parseInt(form.work_origin_id, 10) : null,
       }
       if (isNew) {
@@ -170,6 +172,16 @@ export default function ShowEdit() {
             placeholder="Summary of the show..."
             value={form.summary}
             onChange={e => setForm(prev => ({ ...prev, summary: e.target.value }))}
+          />
+        </div>
+
+        <div className="form-field">
+          <label className="input-label">Plot Synopsis</label>
+          <textarea
+            className="textarea textarea-full"
+            placeholder="Plot synopsis..."
+            value={form.plot_synopsis}
+            onChange={e => setForm(prev => ({ ...prev, plot_synopsis: e.target.value }))}
           />
         </div>
 

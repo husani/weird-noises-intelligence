@@ -46,6 +46,7 @@ class Show(Base):
     genre = Column(Text, nullable=True)
     themes = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
+    plot_synopsis = Column(Text, nullable=True)
     work_origin_id = Column(Integer, ForeignKey("lookup_values.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -144,8 +145,7 @@ class Production(Base):
     __tablename__ = "productions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    show_id = Column(Integer, ForeignKey("shows.id", ondelete="CASCADE"), nullable=True)
-    title = Column(String, nullable=False, index=True)
+    show_id = Column(Integer, ForeignKey("shows.id", ondelete="CASCADE"), nullable=False)
     venue_id = Column(Integer, ForeignKey("venues.id"), nullable=True)
     year = Column(Integer, nullable=True)
     start_date = Column(Date, nullable=True)
@@ -440,7 +440,7 @@ class DiscoveryScan(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     focus_area = Column(Text, nullable=True)  # what this scan looked for
-    focus_type = Column(String, nullable=True)  # rotation, manual, gap_driven
+    focus_type_id = Column(Integer, ForeignKey("lookup_values.id"), nullable=True)
     intelligence_profile_snapshot = Column(Text, nullable=True)  # profile used for this scan
     calibration_snapshot = Column(Text, nullable=True)  # calibration used for this scan
     started_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -452,6 +452,7 @@ class DiscoveryScan(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    focus_type = relationship("LookupValue", foreign_keys=[focus_type_id])
     candidates = relationship("DiscoveryCandidate", back_populates="scan")
 
 
@@ -563,6 +564,22 @@ class ProducerIntel(Base):
     category = relationship("LookupValue", foreign_keys=[category_id])
 
 
+# --- AI Configuration ---
+
+class AIBehavior(Base):
+    """Configuration for an AI behavior — prompt templates and model selection."""
+    __tablename__ = "ai_behaviors"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False, unique=True, index=True)
+    display_label = Column(String, nullable=False)
+    system_prompt = Column(Text, nullable=False)
+    user_prompt = Column(Text, nullable=False)
+    model = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=_utcnow)
+
+
 # All models for create_tables
 ALL_MODELS = [
     Show,
@@ -592,4 +609,5 @@ ALL_MODELS = [
     ResearchSource,
     ProducerTrait,
     ProducerIntel,
+    AIBehavior,
 ]

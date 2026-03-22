@@ -69,8 +69,6 @@ export default function SocialPlatformsPage() {
       className: 'cell-muted',
     },
     { key: 'description', label: 'Description', className: 'cell-muted' },
-    { key: 'producer_count', label: 'Producers', number: true },
-    { key: 'organization_count', label: 'Organizations', number: true },
   ]
 
   return (

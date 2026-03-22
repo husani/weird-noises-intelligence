@@ -16,11 +16,11 @@ Tools connect to each other only when a real use case demands it. Integration is
 Each tool exposes its capabilities — what data it has, what queries it can answer, what actions it can perform — through a shared MCP (Model Context Protocol) server. When one tool needs something from another, it calls that tool's MCP tools. No tool ever touches another tool's database directly. The capabilities are the contract. Internally a tool can change however it wants as long as its capabilities still return what they promise.
 MCP is the single interface for all cross-tool access. Every call goes through MCP — there is one path, not two. The only difference is transport: LLMs reach MCP tools via the server's HTTP URL (passed as `mcp_servers` in the LLM API call), while code in the same process calls them directly on the server object. Same tools, same behavior, same contract regardless of caller. This is critical because every tool has AI features that need to reason across data from multiple tools, and pre-building bespoke data-gathering code for every possible AI query doesn't scale.
 A separate shared registry knows what tools exist — their names, descriptions, and URL paths. The registry serves the home page and nav bar. It does not handle capabilities — that's the MCP server's job.
-Example: Casting needs candidates for a role. It calls Talent's MCP tools to search with the role criteria and gets back matched dossiers. Casting never knows or cares how Talent stores its data. When Producers' LLM needs to reason about which shows fit a producer, it calls Shows' MCP tools to get slate data — the LLM discovers what it needs as it reasons, rather than a developer pre-building the data gathering.
-Some capabilities that seem like standalone tools are actually integration patterns. The Relationship Graph — "find me a path to Producer X through people we know" — isn't a tool with its own data. It's a cross-system query that fans out to Producers, Talent, Collaborators, and Shows. The intelligence lives in the query, not in a dedicated system.
+Example: Casting needs candidates for a role. It calls Talent's MCP tools to search with the role criteria and gets back matched dossiers. Casting never knows or cares how Talent stores its data. When Producers' LLM needs to reason about which shows fit a producer, it calls Slate's MCP tools to get slate data — the LLM discovers what it needs as it reasons, rather than a developer pre-building the data gathering.
+Some capabilities that seem like standalone tools are actually integration patterns. The Relationship Graph — "find me a path to Producer X through people we know" — isn't a tool with its own data. It's a cross-system query that fans out to Producers, Talent, Collaborators, and Slate. The intelligence lives in the query, not in a dedicated system.
 The test for whether something is a tool: does it own its own data and have its own purpose independent of everything else? If yes, it's a tool. If it only exists as a query across other tools, it's an integration pattern.
 Context has a unique role in this architecture. Every other tool generates conversations — meetings about producers, casting discussions, creative debates, budget reviews. Context captures all of it and makes it queryable. Any tool can ask Context for the conversational history around a topic, a person, or a project. Context doesn't push information to tools — they pull from it when they need it.
-**Medium-agnostic by default.** Although Intelligence was designed with theatre as the focus, most tools work across WN's full business — film, TV, and theatre — without changes. Radar watches cultural signals regardless of medium. Talent tracks performers who work across mediums. Shows already includes TV projects. Casting's workflow is the same across mediums, with union differences (AEA vs SAG-AFTRA) as configuration. Dramaturg analyzes scripts regardless of format — the team selects the medium before uploading, and the tool applies the right analytical framework. Audience and Collaborators are inherently medium-agnostic.
+**Medium-agnostic by default.** Although Intelligence was designed with theatre as the focus, most tools work across WN's full business — film, TV, and theatre — without changes. Radar watches cultural signals regardless of medium. Talent tracks performers who work across mediums. Slate already includes TV projects. Casting's workflow is the same across mediums, with union differences (AEA vs SAG-AFTRA) as configuration. Dramaturg analyzes scripts regardless of format — the team selects the medium before uploading, and the tool applies the right analytical framework. Audience and Collaborators are inherently medium-agnostic.
 The exception is Theatre Ops, which is theatre-specific — GM automation, AEA compliance, house seats, weekly operating budgets. TV/film production operations are a fundamentally different domain.
 # Technical Architecture
 
@@ -64,7 +64,7 @@ The exception is Theatre Ops, which is theatre-specific — GM automation, AEA c
             services.py
             models.py
             interface.py
-    shows/
+    slate/
         ...
     casting/
         ...
@@ -113,13 +113,13 @@ Source monitoring watches external sources for new data. When new data appears, 
 
 All three patterns work identically in development and production.
 
-**File storage.** Google Cloud Storage. One shared bucket, with each tool using path prefixes for separation (e.g. `shows/scripts/...`, `talent/headshots/...`). Each tool owns its own files the same way it owns its own database — the prefix is the boundary. Shows stores scripts, music, and visual identity assets. Talent stores headshots, reels, and resumes. Casting stores audition recordings and submission materials. Context stores raw transcript files. Collaborators stores portfolio materials. Funding stores offering documents and signed agreements. Theatre Ops stores venue contracts, insurance documents, and union agreements. Producers and Audience have minimal file storage needs. Dramaturg and Radar store no files — Dramaturg analyzes scripts that live in Shows, accessed through Shows' MCP tools.
+**File storage.** Google Cloud Storage. One shared bucket, with each tool using path prefixes for separation (e.g. `slate/scripts/...`, `talent/headshots/...`). Each tool owns its own files the same way it owns its own database — the prefix is the boundary. Slate stores scripts, music, and visual identity assets. Talent stores headshots, reels, and resumes. Casting stores audition recordings and submission materials. Context stores raw transcript files. Collaborators stores portfolio materials. Funding stores offering documents and signed agreements. Theatre Ops stores venue contracts, insurance documents, and union agreements. Producers and Audience have minimal file storage needs. Dramaturg and Radar store no files — Dramaturg analyzes scripts that live in Slate, accessed through Slate's MCP tools.
 
-Within its prefix, each tool organizes however makes sense for its domain — Shows by show, then type, then version. Talent by person. Context by date. Each tool decides its own structure.
+Within its prefix, each tool organizes however makes sense for its domain — Slate by show, then type, then version. Talent by person. Context by date. Each tool decides its own structure.
 
 The shared infrastructure in `shared/backend/` provides GCS client initialization and common utilities — upload, download, generate signed URLs for frontend access. The bucket is configured once via `GCS_BUCKET` in `.env`. Tools pass full paths including their prefix to the storage utilities.
 
-Cross-tool file access follows the same pattern as cross-tool data access. Dramaturg doesn't reach into Shows' paths. It calls Shows' MCP tools and gets back what it needs. The boundary is always the MCP tool.
+Cross-tool file access follows the same pattern as cross-tool data access. Dramaturg doesn't reach into Slate's paths. It calls Slate's MCP tools and gets back what it needs. The boundary is always the MCP tool.
 
 **Hosting.** Intelligence runs on a GCP Compute Engine VM. A long-running process that keeps the scheduler alive, maintains source monitors, and serves web requests.
 
@@ -132,7 +132,7 @@ Auth (Google OAuth, JWT sessions, middleware), layout (nav bar, tool switcher, p
 Shared infrastructure is complete when a tool can register itself, serve a frontend behind auth, connect to its own Postgres database, expose its capabilities as MCP tools callable by other tools and LLMs, call AI services, store files, and run background jobs — all within the architecture defined in the Technical Architecture section of this spec.
 **Phase 2: Remaining tools, in order.**
 2 Producers
-3 Shows
+3 Slate
 4 Talent
 5 Casting
 6 Radar
@@ -175,7 +175,7 @@ This is the layer no external research can provide — WN's own experience with 
 **Internal assessments.** Candid observations that accumulate over time. What's their actual taste beyond what their credits suggest? How do they work — hands-on or hands-off? Collaborative or controlling? What's their reputation among people WN trusts? Do they follow through? Are they someone WN wants to build with long-term? These assessments are private institutional knowledge that gets more valuable with every interaction.
 **Tags.** Ad-hoc grouping for whatever the team needs in the moment — "Met at NAMT 2025," "Interested in Moonshot," "Marc's contact," "New works focus," "Potential for Stable Geniuses."
 **Show matching.**
-The AI understands what's on WN's slate (from Shows — themes, genre, scale, development stage, creative team, structural profile from Dramaturg) and what each producer's taste and track record look like. It continuously evaluates fit between WN's shows and the producers in the database.
+The AI understands what's on WN's slate (from Slate — themes, genre, scale, development stage, creative team, structural profile from Dramaturg) and what each producer's taste and track record look like. It continuously evaluates fit between WN's shows and the producers in the database.
 Looking at a producer: "Which of our shows might interest them, and why?" The AI matches based on genre alignment, thematic overlap, scale fit, and the producer's demonstrated patterns. "Producer X has produced three intimate musicals with social themes — Moonshot is a strong fit because of [specific reasons]." "Producer Y typically works at a larger scale than Moonshot's current development stage, but her recent move to [organization] suggests she's expanding into smaller work."
 Looking at a show: "Which producers should we be talking to, and why?" The AI ranks the full database — including producers WN hasn't met yet — by fit with the specific show. The reasoning matters as much as the ranking. "These five producers are the strongest matches for Moonshot. Three of them WN has existing relationships with. Two are new — here's who they are and why they fit."
 Show matching pulls from Radar when relevant — "Producer X just produced a show that rode the same cultural wave Moonshot is positioned for. The timing alignment makes this worth pursuing now."
@@ -190,35 +190,35 @@ Multiple outreach campaigns can run simultaneously for different shows. The syst
 **AI querying.**
 "Who should we be talking to about Moonshot?" "Which producers have done Off-Broadway musicals in the last five years?" "Who have we lost touch with that we should reconnect with?" "What's our full relationship history with Producer X?" "Who's producing new work right now that we should know about?" "Find producers who've worked with [director WN is considering for a show]." "Who did Marc meet at that conference last month?" "Which producers in our database have never been pitched and might be a fit for something on our slate?" "What producers are connected to [venue WN is interested in]?"
 **What Producers exposes to other tools.**
-Shows asks: "which producers should we pitch this show to?" Producers returns matched producers with reasoning, including both existing relationships and new prospects.
+Slate asks: "which producers should we pitch this show to?" Producers returns matched producers with reasoning, including both existing relationships and new prospects.
 Collaborators asks: "does this producer have relationships with any of our collaborators?" Producers has the full network history to answer that — co-production credits, repeated working relationships, shared organizational affiliations.
 Funding asks: "is this funder also a producer we're tracking?" Producers provides the professional context around that person — their production history, their taste, the relationship status.
 Audience can provide engagement context — whether a producer has engagement history with WN beyond the professional relationship. Producers asks Audience, not the other way around.
 Context provides conversation history for any producer — every meeting where they were discussed, what was said, what was decided.
 Radar provides market context that enriches producer conversations — "Producer X's recent show rode the same cultural trend that Moonshot is positioned for."
 Status: specced at planning level.
-### Shows
+### Slate
 System of record for WN's own projects and their development history. The script is the source of truth — upload a script and the system derives everything else.
 **Core data:**
 A Show is the top-level entity with static identity: title, medium (musical/play), genre, logline, summary, rights status (original, optioned, public domain adaptation). Logline and summary can be LLM-generated from the script and human-refined.
 Script Versions live under each Show. Each version is an uploaded file with a version label, upload date, and change notes. LLM processing kicks off on upload — reads the script, extracts structured data, stores it tied to that version.
-**Music uploads.** For musicals, music is part of the script. Shows accepts music files alongside script documents — demo recordings, rehearsal tracks, piano/vocal scores, orchestrations. Music is tied to the script version it corresponds to. Multiple file types, multiple tracks per version. Not analyzed by AI currently, but stored, versioned, and available. Casting can pull relevant tracks as audition material. Dramaturg may eventually analyze musical content alongside the text.
+**Music uploads.** For musicals, music is part of the script. Slate accepts music files alongside script documents — demo recordings, rehearsal tracks, piano/vocal scores, orchestrations. Music is tied to the script version it corresponds to. Multiple file types, multiple tracks per version. Not analyzed by AI currently, but stored, versioned, and available. Casting can pull relevant tracks as audition material. Dramaturg may eventually analyze musical content alongside the text.
 Development Stage lives on the Show, not the script version. A show can have multiple script versions within the same stage. Stages: early development, internal read, workshop, staged reading, seeking production, in production, running, closed. (WN defines the actual stages.)
 Milestones are events in the show's life — "internal read on [date] with [these people]," "staged reading at [venue] on [date]," "submitted to [festival/program]." Each milestone can link to a script version, creative team at that point, and notes.
 Creative Team Attachments are per-show and time-aware. Role, person, status (interested, attached, confirmed, departed), dates.
 **Visual identity.**
 Each show has its own look and feel — logo, color palette, typography, imagery, mood boards, key art, visual references. This is the show's brand, separate from WN's brand. The system stores and versions these assets. They exist independently and inform everything outward-facing — pitches, campaign materials, social content, whatever needs to represent the show visually.
 **Pitches.**
-Shows owns pitch creation. A pitch is always about a show, regardless of who it's aimed at. Pitching Moonshot to a producer, an investor, a foundation, a festival — the subject is the same, the emphasis shifts.
+Slate owns pitch creation. A pitch is always about a show, regardless of who it's aimed at. Pitching Moonshot to a producer, an investor, a foundation, a festival — the subject is the same, the emphasis shifts.
 The AI generates pitches by pulling from wherever the relevant data lives. Show data — logline, summary, creative team, development history, structural analysis from Dramaturg. Cultural context from Radar — why this show matters right now. Audience data — proof of demand, who's engaging and why. Funding data — budget, capitalization status, financial projections. Producers data — who's already attached or interested.
-The team specifies the audience for the pitch — producer, investor, grant-maker, festival — and the AI tailors the emphasis accordingly. All pitch materials for a show live in Shows, in one place, regardless of who they were created for.
+The team specifies the audience for the pitch — producer, investor, grant-maker, festival — and the AI tailors the emphasis accordingly. All pitch materials for a show live in Slate, in one place, regardless of who they were created for.
 **LLM extraction on script upload:**
 Character breakdown (names, descriptions, age ranges, line/song count). Scene breakdown (locations, characters per scene). Song list with placement (musicals). Estimated runtime. Minimum cast size and doubling possibilities. Vocal ranges and dance requirements if indicated. Budget range estimate based on structural data (cast size, musicians, locations, musical vs play). Logline drafts. Summary. Comparables ("structurally similar to X, thematic overlap with Y"). Content advisories.
 Version diff on upload: compares new version to previous, produces change summary ("three scenes cut, second act opening rewritten, new character added"). Becomes part of the version record.
 **On-demand AI:**
 "Give me a pitch paragraph for this show." "Generate a one-pager." "What are the producing challenges?" "How has this script evolved across versions?" "Compare the structure of this show to [comparable]."
 Over time, budget estimates calibrate against what WN actually spent. Comparables sharpen as the system learns WN's taste.
-**What Shows exposes to other tools:**
+**What Slate exposes to other tools:**
 Producers asks: "what shows are in active development that might interest Producer X?" Casting asks: "what roles need to be cast for Show Y?" Funding asks: "what's the estimated budget?" Radar asks: "what themes and genres are on WN's slate?"
 Status: specced at planning level. Needs detailed data model and build spec.
 ### Talent
@@ -232,7 +232,7 @@ These have different confidence levels and the system should distinguish "we kno
 All roads lead to Talent. No matter how a person enters the system, the result is the same: a dossier gets built and they exist in Talent.
 **1. WN submission portal, no show attached.** Public-facing page on the WN site. "Interested in working with Weird Noises?" Name, headshot, social URL. Not tied to a specific role or show. The AI takes the URL and builds the dossier. This is the persistent talent pipeline — performers self-select into WN's world.
 **2. WN submission portal, show attached.** When casting is active for a specific show, the portal can accept submissions for specific roles. Person submits, dossier gets built, and they're tagged with the show and role. Casting picks that up later.
-**3. Bookmarklet.** The team's primary capture tool. A browser bookmarklet that works on any page — Actors Access, Instagram, BroadwayWorld, a random article, anywhere. Click it, and the current page gets sent to Talent. Talent builds the dossier from whatever URL was provided. The bookmarklet UI can optionally tag the person to a show and role — but the bookmarklet itself only talks to Talent. If Talent needs show/role data for the dropdown, Talent is what reaches into Shows. The bookmarklet doesn't know other tools exist.
+**3. Bookmarklet.** The team's primary capture tool. A browser bookmarklet that works on any page — Actors Access, Instagram, BroadwayWorld, a random article, anywhere. Click it, and the current page gets sent to Talent. Talent builds the dossier from whatever URL was provided. The bookmarklet UI can optionally tag the person to a show and role — but the bookmarklet itself only talks to Talent. If Talent needs show/role data for the dropdown, Talent is what reaches into Slate. The bookmarklet doesn't know other tools exist.
 Also serves as a duplicate check — if the person already exists in Talent, the bookmarklet can surface that before creating a new entry.
 **4. Manual add.** Directly within the Talent tool. Drop a URL or type a name. Same dossier-building process.
 **Actors Access and Talent:**
@@ -267,7 +267,7 @@ Workflow tool for filling roles on a specific show. Talent is who's out there. C
 **Actors Access and Casting:**
 WN posts breakdowns on AA because that's where performers and agents look. That's standard industry practice and there's no reason to change it. The WN site and direct agent outreach are additional distribution channels, not replacements. The difference from a traditional casting process is that AA is a distribution and discovery channel, not WN's workspace. Submissions come through AA, the team reviews them there, and people worth pursuing get pulled into Talent (via the bookmarklet). From that point forward, the work happens inside Casting — not in AA's interface.
 **The casting lifecycle:**
-**Breakdown.** A show (from Shows) has roles to fill. Character data from the script — name, description, age range, vocal range, dance requirements — becomes the starting point. The team refines it. Casting manages where it gets distributed.
+**Breakdown.** A show (from Slate) has roles to fill. Character data from the script — name, description, age range, vocal range, dance requirements — becomes the starting point. The team refines it. Casting manages where it gets distributed.
 **Candidate pool.** Casting queries Talent: "who fits this breakdown?" This includes people who submitted for the role (tagged in Talent) plus people the AI matched from the broader database. The team can also manually pull anyone from Talent into consideration for a role.
 **Review.** The team reviews candidates inside Casting. Each candidate's Talent dossier is right there. Decisions: pass, schedule audition, save for another role, flag for future. Every decision is recorded — who made it, notes, reasoning. All of this feeds back into Talent as interaction history.
 **Audition scheduling.** Time slots, room assignments, reader assignments, accompanist scheduling for musicals. Confirmations, reschedules.
@@ -285,9 +285,9 @@ Pattern recognition over time: "You've cast this type in this role across three 
 Schedule optimization: fitting audition logistics across rooms, readers, accompanists, and team calendars.
 **What Casting produces for other tools:**
 Talent gets enriched by every casting interaction — notes, outcomes, offers made and accepted/declined.
-Shows gets casting status — which roles are filled, in process, or open.
+Slate gets casting status — which roles are filled, in process, or open.
 **What Casting does NOT own:**
-People. Talent owns people. Casting is ephemeral per-show. When the show is cast, the process is done. But all data it generated lives on in Talent and Shows.
+People. Talent owns people. Casting is ephemeral per-show. When the show is cast, the process is done. But all data it generated lives on in Talent and Slate.
 Status: specced at planning level. Needs detailed data model and build spec.
 ### Radar
 Cultural monitoring system. Continuously watches the world and maps what it finds against WN's interests. This is not a tool any theatre company has. It turns cultural intuition into a systematic, compounding capability.
@@ -299,18 +299,18 @@ Cultural monitoring system. Continuously watches the world and maps what it find
 **Music and performance culture.** What sounds, styles, and aesthetics are resonating in music, performance art, drag, live entertainment. Theatre doesn't exist in a vacuum — the energy of a show's score and visual language connects to broader performance culture.
 **News and politics.** Cultural moments that create receptivity for certain stories. Social movements, political shifts, generational tensions, identity conversations. Not to chase headlines, but to understand the emotional environment audiences are living in.
 **What Radar does with what it watches:**
-**Signal mapping to slate.** The primary function. Radar knows what's on WN's slate (from Shows — themes, genres, subject matter, structural elements). It continuously maps external signals against that slate. "Interest in [theme] is spiking — that connects to [show] because [reason]." This isn't a daily alert firehose. It's a synthesized, prioritized briefing. The AI filters noise from signal.
+**Signal mapping to slate.** The primary function. Radar knows what's on WN's slate (from Slate — themes, genres, subject matter, structural elements). It continuously maps external signals against that slate. "Interest in [theme] is spiking — that connects to [show] because [reason]." This isn't a daily alert firehose. It's a synthesized, prioritized briefing. The AI filters noise from signal.
 **Timing intelligence.** Not just "is there appetite for this" but "is the appetite growing, peaking, or fading." A show that's perfect for a cultural moment needs to move while the moment is alive. Radar should have a sense of trajectory, not just snapshot.
 **White space identification.** "Here's a cultural appetite that nothing on your slate addresses." This is the development opportunity radar. It's not telling WN what to write — it's telling WN where the hunger is. Creative decisions remain human. But knowing where the unserved audiences are is strategic intelligence.
 **Competitive landscape.** "Three other new musicals in development have queer romance themes. Here's how they're positioned and how Moonshot is distinct." Or: "Nobody is developing anything in [space] despite strong cultural signals." Over time, Radar builds a map of the entire new work pipeline and WN's position within it.
-**Comparable identification for existing shows.** "This novel just broke out and shares DNA with [WN show]. Here's why that matters for your pitch to producers." Feeds into Producers and into Shows' comparable data.
+**Comparable identification for existing shows.** "This novel just broke out and shares DNA with [WN show]. Here's why that matters for your pitch to producers." Feeds into Producers and into Slate's comparable data.
 **How Radar delivers information:**
 This needs thought. A firehose of signals is useless. Radar should produce periodic synthesized briefings — maybe weekly, maybe triggered by significant signal changes. "Here's what moved this week and what it means for your slate." The team should also be able to query it: "What's the current cultural landscape for queer musicals?" "Is there appetite for horror-comedy in theatre right now?" "What's trending in the BookTok-to-adaptation pipeline?"
 **What Radar does NOT do:**
 It doesn't make creative decisions. It doesn't tell WN what to develop or how to develop it. It provides strategic context. The humans decide what to do with it.
 It doesn't do marketing. Audience and Marketing tools (when built) handle how WN talks to people. Radar is about understanding the landscape, not acting on it.
 **What Radar exposes to other tools:**
-Shows asks: "what's the current cultural relevance of this show's themes?" Radar returns a landscape assessment.
+Slate asks: "what's the current cultural relevance of this show's themes?" Radar returns a landscape assessment.
 Producers asks: "what market context should we include when pitching this show?" Radar returns talking points grounded in real data.
 Dramaturg might ask: "are there structural or tonal trends in what's resonating right now?" Radar returns patterns.
 **What makes Radar compound:**
@@ -332,7 +332,7 @@ Select the medium (musical, play, screenplay, teleplay). Upload a script. The AI
 **Producing considerations.** Cast size, set complexity, technical demands, band size, estimated runtime. Dramaturg frames these as creative considerations, not logistics — "14 locations implies either a unit set or a heavy fly budget" is a dramaturgical observation.
 **Potential concerns.** Observations, not prescriptions. "The protagonist disappears for 20 minutes in Act 2." "The B-plot resolves before the A-plot crisis." The team decides if they're actually problems.
 **Version comparison:**
-When a new draft is uploaded (via Shows), Dramaturg compares analyses across versions. Not what text changed — how the structure changed. "The pacing issue in Act 2 is tighter in this draft." "The new song shifts the emotional arc — here's how." Tracks how a show evolves structurally over time.
+When a new draft is uploaded (via Slate), Dramaturg compares analyses across versions. Not what text changed — how the structure changed. "The pacing issue in Act 2 is tighter in this draft." "The new song shifts the emotional arc — here's how." Tracks how a show evolves structurally over time.
 **On-demand queries:**
 "Is the Act 1 finale earning its climax?" "Compare our song placement to [show]." "What happens to the pacing if we cut Scene 4?" "Where are the best candidates for a new song in Act 2?" Thinking partner, not just report generator.
 **The learning layer:**
@@ -348,7 +348,7 @@ Musical, play, screenplay, teleplay each have different structural expectations.
 Write, generate, or rewrite. It analyzes. Creative work is human.
 Judge quality. "This is good" isn't useful. "This structural choice produces this effect" is.
 **What Dramaturg exposes to other tools:**
-Shows gets structural metadata — act/scene breakdown, character breakdown, song list, runtime.
+Slate gets structural metadata — act/scene breakdown, character breakdown, song list, runtime.
 Radar can ask: "does this show's thematic profile align with current cultural signals?"
 Producers can ask: "give me a structural pitch summary for this show."
 Status: specced at planning level. Needs detailed design on analytical frameworks per medium, the seeded reference system, and the learning/calibration mechanism.
@@ -377,7 +377,7 @@ Not just snapshots but trajectories over time. Who's actively engaged, who's dri
 Marketing execution. Doesn't send emails, run campaigns, manage ads. It's the knowledge layer. Marketing tools pull from it.
 **What Audience exposes to other tools:**
 **Person-level.** Any people-facing tool can ask Audience about a specific person — engagement history, trajectory, professional profile, communities, reach. Producers looking at a producer gets their full engagement context. Talent looking at a performer knows their relationship with WN. Casting considering an actor gets the whole picture.
-**Project-level.** Shows can ask for a portrait of a project's audience — who they are, what connects them, what channels drove them.
+**Project-level.** Slate can ask for a portrait of a project's audience — who they are, what connects them, what channels drove them.
 **Aggregate.** Funding can ask about donor patterns. Radar can cross-reference cultural signals against audience behavior. Producers can pull proof of audience demand — a real portrait of who the audience is and why they care.
 **Strategic.** Any tool doing outward-facing work can tap Audience's knowledge about where WN should be showing up — publications, festivals, communities, accounts that overlap with WN's actual audience.
 Status: specced at planning level.
@@ -395,19 +395,19 @@ For everyone — internal notes, tags, and fit assessments per show.
 **AI querying.**
 "Who's out there directing new musicals?" "Who's designed sets for intimate Off-Broadway musicals in the last three years?" "Find me choreographers who've worked with [director WN is considering]." "Who in our database has worked at [venue]?"
 "We're putting together a creative team for Moonshot — who should we be thinking about for director, and why?" The AI draws on credits, aesthetic match with the material, WN's internal notes, network overlap with other people attached to the project, and availability.
-**Relationship to Shows.**
-When a collaborator is attached to a show in Shows, that's reflected in Collaborators too. The collaborator's profile shows every WN project they've been involved with, in what capacity, and how it went. Shows owns the attachment (who's on this project). Collaborators owns the person (who is this person across all projects).
+**Relationship to Slate.**
+When a collaborator is attached to a show in Slate, that's reflected in Collaborators too. The collaborator's profile shows every WN project they've been involved with, in what capacity, and how it went. Slate owns the attachment (who's on this project). Collaborators owns the person (who is this person across all projects).
 **What Collaborators exposes to other tools.**
 Casting might ask: "has this actor worked with the director attached to this show?" Collaborators has the director's full network.
 Producers might ask: "does this producer have relationships with any of our collaborators?" Network overlap.
-Shows can enrich its creative team attachments with full profiles from Collaborators.
+Slate can enrich its creative team attachments with full profiles from Collaborators.
 Status: specced at planning level.
 
 ### Theatre Ops
 The operational backbone of producing a show. This is the only theatre-specific tool in Intelligence. Everything else works across mediums. If WN eventually needs film/TV production operations, that would be a separate tool.
 **Budgeting.**
 Every show has two distinct budgets. The capitalization budget covers the total cost to mount a production from development through opening night — a one-time fundraising target. The weekly operating budget covers the ongoing cost to run the show once it's open and determines how long a show can sustain before it needs to recoup or close. The system manages both.
-The AI generates initial budget drafts from show data. Shows provides cast size, musician count, number of locations, technical complexity. Theatre Ops applies industry-standard cost models and WN's own historical production data to produce a starting budget that the team refines. Budget models improve with each production WN mounts — the more shows that go through the system, the more accurate the initial drafts become.
+The AI generates initial budget drafts from show data. Slate provides cast size, musician count, number of locations, technical complexity. Theatre Ops applies industry-standard cost models and WN's own historical production data to produce a starting budget that the team refines. Budget models improve with each production WN mounts — the more shows that go through the system, the more accurate the initial drafts become.
 Once a production is underway, Theatre Ops tracks actuals against the budget. Where spending is over or under, what the burn rate looks like, and what the projected recoupment timeline is.
 **Union compliance.**
 Theatre involves multiple unions, each with its own contract structures, minimum rates, benefit contribution requirements, work rules, and reporting obligations. AEA for actors, IATSE for stagehands, wardrobe, hair, and makeup, SDC for directors and choreographers, USA for designers, Local 802 for musicians. The system knows the current agreements and continuously monitors compliance — are minimums being paid correctly, are benefit contributions calculated right, are work rule limits being respected for hours, breaks, and consecutive performance limits. It flags issues before they become grievances or penalties.
@@ -424,7 +424,7 @@ Rehearsal schedules, tech schedules, performance calendars. Coordinating availab
 **AI within Theatre Ops.**
 Budget generation from show data. Compliance monitoring across all unions. Payroll and royalty calculation. Schedule optimization within union constraints. Proactive alerts when something needs attention — a rehearsal schedule approaching work rule limits, benefit contributions coming due, spending trending over budget in a specific category. Over time, every production that runs through Theatre Ops makes the system's cost models, scheduling templates, and compliance patterns sharper for the next one.
 **What Theatre Ops exposes to other tools.**
-Shows gets production status and financial health for any active production.
+Slate gets production status and financial health for any active production.
 Funding gets budget data — how much needs to be raised, current capitalization status, weekly operating costs, and recoupment projections.
 Status: specced at planning level.
 
@@ -446,12 +446,12 @@ Some development opportunities exist for for-profit companies — residencies, c
 **Financial reporting.**
 Per-show funding status. Capitalization progress against target. Recoupment tracking for active productions. Investor reporting. Donor acknowledgment tracking for fiscal sponsorship campaigns.
 **What Funding asks other tools.**
-Shows: budget data to set capitalization targets. Pitch materials when needed for investor conversations.
+Slate: budget data to set capitalization targets. Pitch materials when needed for investor conversations.
 Producers: professional context on funders who are also producers.
 Audience: engagement context on funders who are also audience members.
 Radar: market context relevant to investment cases.
 **What Funding exposes to other tools.**
-Shows: how much has been raised for each project, how much is needed, current financial status.
+Slate: how much has been raised for each project, how much is needed, current financial status.
 Theatre Ops: capitalization status for recoupment projections.
 Producers: financial context on producers who are also investors.
 Status: specced at planning level.
@@ -467,11 +467,11 @@ Each meeting gets a clear summary — what was discussed, what was decided, what
 **Querying and search.**
 "What did we decide about the Act 2 opening?" "What did Marc say about the venue options?" "When did we first discuss [topic]?" "What's been said about Moonshot's casting in the last month?" Every conversation WN has ever had is searchable — not as raw transcripts but as understood, synthesized knowledge.
 **What Context exposes to other tools.**
-Any tool can ask Context for relevant conversation history. Producers looking at a producer can pull every meeting where that person was discussed. Shows can pull every conversation about a specific project. Casting can find every discussion about a specific role or performer. Funding can pull conversations about investor negotiations. The full conversational history of any topic, person, or project is available to whatever tool needs it.
+Any tool can ask Context for relevant conversation history. Producers looking at a producer can pull every meeting where that person was discussed. Slate can pull every conversation about a specific project. Casting can find every discussion about a specific role or performer. Funding can pull conversations about investor negotiations. The full conversational history of any topic, person, or project is available to whatever tool needs it.
 Status: specced at planning level.
 
 
 # Integration Patterns (Not Standalone Tools)
 ### Relationship Graph
-Cross-system query capability. "Find me a path to Producer X through people we know." Fans out to Producers, Talent, Collaborators, and Shows. The graph is the connections between systems, not a system itself. Any people-facing tool can invoke it.
+Cross-system query capability. "Find me a path to Producer X through people we know." Fans out to Producers, Talent, Collaborators, and Slate. The graph is the connections between systems, not a system itself. Any people-facing tool can invoke it.
 

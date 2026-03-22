@@ -2,8 +2,9 @@
 AI pipeline for Producers.
 
 Handles dossier research, follow-up extraction, relationship summary
-generation, and AI discovery. All functions are designed to be called
-from the interface or as background tasks.
+generation, AI discovery, AI query, and show research. All LLM calls
+go through `call_llm`, which reads behavior config (prompts, model)
+from the `ai_behaviors` table.
 """
 
 import json
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session, joinedload
 from difflib import SequenceMatcher
 
 from producers.backend.models import (
+    AIBehavior,
     Award,
     ChangeHistory,
     DiscoveryCalibration,
@@ -30,7 +32,7 @@ from producers.backend.models import (
     Producer,
     ProducerOrganization,
     ProducerProduction,
-    ProducerSettings,
+
     ProducerTag,
     Production,
     ResearchSource,
@@ -38,28 +40,18 @@ from producers.backend.models import (
     Tag,
     Venue,
 )
-from producers.backend.prompts import (
-    AI_DISCOVERY_SYSTEM,
-    AI_DISCOVERY_USER,
-    AI_QUERY_SYSTEM,
-    AI_QUERY_USER,
-    DISCOVERY_CALIBRATION_SYSTEM,
-    DISCOVERY_CALIBRATION_USER,
-    DOSSIER_RESEARCH_SYSTEM,
-    DOSSIER_RESEARCH_USER,
-    FOLLOW_UP_EXTRACTION_SYSTEM,
-    FOLLOW_UP_EXTRACTION_USER,
-    INTELLIGENCE_PROFILE_SYSTEM,
-    INTELLIGENCE_PROFILE_USER,
-    PROMPT_KEYS,
-    RELATIONSHIP_SUMMARY_SYSTEM,
-    RELATIONSHIP_SUMMARY_USER,
-    URL_EXTRACTION_SYSTEM,
-    URL_EXTRACTION_USER,
-)
 from shared.backend.ai.clients import get_anthropic_client, get_google_ai_client
 
 logger = logging.getLogger(__name__)
+
+# Module-level session factory — set by init() at startup
+_session_factory = None
+
+
+def init(session_factory):
+    """Initialize the AI module with a session factory. Called at app startup."""
+    global _session_factory
+    _session_factory = session_factory
 
 
 def _resolve_lookup_id(session, category: str, entity_type: str, value: str):
@@ -71,6 +63,220 @@ def _resolve_lookup_id(session, category: str, entity_type: str, value: str):
         category=category, entity_type=entity_type, value=value
     ).first()
     return lv.id if lv else None
+
+
+# --- Core LLM infrastructure ---
+
+# Available models for the AI Configuration UI dropdown
+MODEL_OPTIONS = {
+    "anthropic": [
+        {"id": "claude-opus-4-6", "label": "Claude Opus 4.6", "tier": "high"},
+        {"id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6", "tier": "mid"},
+        {"id": "claude-sonnet-4-5-20250929", "label": "Claude Sonnet 4.5", "tier": "mid"},
+        {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5", "tier": "low"},
+    ],
+    "google": [
+        {"id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro", "tier": "high"},
+        {"id": "gemini-3-flash-preview", "label": "Gemini 3 Flash", "tier": "mid"},
+        {"id": "gemini-3.1-flash-lite-preview", "label": "Gemini 3.1 Flash-Lite", "tier": "low"},
+        {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "tier": "high"},
+        {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "tier": "mid"},
+    ],
+}
+
+
+def _get_provider(model_id: str) -> str:
+    """Determine provider from model ID."""
+    if model_id.startswith("gemini-"):
+        return "google"
+    return "anthropic"
+
+
+async def call_llm(behavior: str, context: dict,
+                   use_mcp: bool = False,
+                   use_web_search: bool = False,
+                   response_schema=None) -> str:
+    """Call an LLM for a named behavior and return the text response.
+
+    Reads prompts and model from the ai_behaviors table, formats prompts
+    with the context dict, routes to the correct provider, and handles
+    MCP tools and web search as requested.
+
+    response_schema can be a BaseModel subclass for a single object, or
+    list[SomeModel] for an array of objects.
+    """
+    # Read behavior config from database
+    with _session_factory() as session:
+        behavior_row = session.query(AIBehavior).filter_by(name=behavior).first()
+        if not behavior_row:
+            raise ValueError(f"Unknown AI behavior: {behavior}")
+        system_prompt = behavior_row.system_prompt
+        user_prompt = behavior_row.user_prompt
+        model = behavior_row.model
+
+    # Format prompts with context variables
+    system = system_prompt.format(**context) if context else system_prompt
+    user = user_prompt.format(**context) if context else user_prompt
+
+    provider = _get_provider(model)
+
+    if provider == "google":
+        return await _call_gemini(model, system, user, use_mcp, use_web_search,
+                                  response_schema)
+    else:
+        return await _call_claude(model, system, user, use_mcp, use_web_search,
+                                  response_schema)
+
+
+async def _call_claude(model: str, system: str, user: str,
+                       use_mcp: bool = False,
+                       use_web_search: bool = False,
+                       response_schema=None) -> str:
+    """Call Claude and return the text response.
+
+    response_schema can be a BaseModel subclass or list[BaseModel].
+    """
+    from shared.backend.config import settings
+
+    client = get_anthropic_client()
+    kwargs = {
+        "model": model,
+        "max_tokens": 4096,
+        "system": system,
+        "messages": [{"role": "user", "content": user}],
+    }
+
+    tools = []
+    if use_web_search:
+        tools.append({"type": "web_search_20250305", "name": "web_search", "max_uses": 10})
+        kwargs["max_tokens"] = 16000
+
+    if use_mcp and "localhost" not in settings.app_domain:
+        mcp_url = f"{settings.app_domain}/mcp/mcp"
+        kwargs["mcp_servers"] = [{
+            "type": "url",
+            "url": mcp_url,
+            "name": "intelligence",
+            "authorization_token": settings.mcp_secret,
+        }]
+        tools.append({"type": "mcp_toolset", "mcp_server_name": "intelligence"})
+        kwargs["betas"] = kwargs.get("betas", []) + ["mcp-client-2025-11-20"]
+
+    if tools:
+        kwargs["tools"] = tools
+
+    if response_schema:
+        # Handle list[Model] or plain Model
+        origin = getattr(response_schema, "__origin__", None)
+        if origin is list:
+            item_schema = response_schema.__args__[0]
+            json_schema = {"type": "array", "items": item_schema.model_json_schema()}
+            schema_name = item_schema.__name__ + "List"
+        else:
+            json_schema = response_schema.model_json_schema()
+            schema_name = response_schema.__name__
+
+        def _clean_schema(s):
+            if isinstance(s, dict):
+                return {k: _clean_schema(v) for k, v in s.items() if k != "title"}
+            if isinstance(s, list):
+                return [_clean_schema(i) for i in s]
+            return s
+
+        json_schema = _clean_schema(json_schema)
+        kwargs.setdefault("betas", []).append("structured-outputs-2025-11-13")
+        kwargs["output_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": schema_name,
+                "schema": json_schema,
+            },
+        }
+        response = client.beta.messages.create(**kwargs)
+    else:
+        if "betas" in kwargs:
+            response = client.beta.messages.create(**kwargs)
+        else:
+            response = client.messages.create(**kwargs)
+
+    text_parts = []
+    for block in response.content:
+        if hasattr(block, "text"):
+            text_parts.append(block.text)
+    return "\n".join(text_parts)
+
+
+async def _call_gemini(model: str, system: str, user: str,
+                       use_mcp: bool = False,
+                       use_web_search: bool = False,
+                       response_schema=None) -> str:
+    """Call Gemini and return the text response.
+
+    response_schema can be a BaseModel subclass or list[BaseModel].
+    Gemini's structured output handles list types natively.
+    """
+    from google.genai import types
+
+    from shared.backend.config import settings
+    from shared.backend.mcp import mcp_server
+
+    client = get_google_ai_client()
+
+    config_kwargs = {"system_instruction": system}
+    tools = []
+
+    if use_web_search and not use_mcp:
+        tools.append(types.Tool(google_search=types.GoogleSearch()))
+
+    if use_mcp:
+        from fastmcp import Client
+
+        if settings.environment == "production":
+            mcp_client = Client(f"{settings.app_domain}/mcp/mcp")
+        else:
+            mcp_client = Client(mcp_server)
+
+        async with mcp_client:
+            tools.append(mcp_client.session)
+            if tools:
+                config_kwargs["tools"] = tools
+
+            config_kwargs["automatic_function_calling"] = (
+                types.AutomaticFunctionCallingConfig(maximum_remote_calls=50)
+            )
+
+            if response_schema:
+                config_kwargs["response_mime_type"] = "application/json"
+                config_kwargs["response_schema"] = response_schema
+
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=user,
+                config=types.GenerateContentConfig(**config_kwargs),
+            )
+
+            if response.candidates:
+                parts = []
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, "text") and part.text:
+                        parts.append(part.text)
+                return "\n".join(parts)
+            return response.text or ""
+
+    # Non-MCP Gemini call
+    if tools:
+        config_kwargs["tools"] = tools
+
+    if response_schema:
+        config_kwargs["response_mime_type"] = "application/json"
+        config_kwargs["response_schema"] = response_schema
+
+    response = await client.aio.models.generate_content(
+        model=model,
+        contents=user,
+        config=types.GenerateContentConfig(**config_kwargs),
+    )
+    return response.text or ""
 
 
 # --- Structured output schemas ---
@@ -160,178 +366,6 @@ class DiscoveryCandidateData(BaseModel):
     recent_productions: Optional[list[DiscoveryCandidateProduction]] = None
 
 
-# --- Model configuration ---
-
-# Available models grouped by provider
-MODEL_OPTIONS = {
-    "anthropic": [
-        {"id": "claude-opus-4-6", "label": "Claude Opus 4.6", "tier": "high"},
-        {"id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6", "tier": "mid"},
-        {"id": "claude-sonnet-4-5-20250929", "label": "Claude Sonnet 4.5", "tier": "mid"},
-        {"id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5", "tier": "low"},
-    ],
-    "google": [
-        {"id": "gemini-3.1-pro", "label": "Gemini 3.1 Pro", "tier": "high"},
-        {"id": "gemini-3-flash", "label": "Gemini 3 Flash", "tier": "mid"},
-        {"id": "gemini-3.1-flash-lite", "label": "Gemini 3.1 Flash-Lite", "tier": "low"},
-        {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "tier": "high"},
-        {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "tier": "mid"},
-    ],
-}
-
-# Default model per behavior — chosen based on task complexity and cost
-# Research/discovery need web search and thorough reasoning → Sonnet 4.6
-# Simple extraction tasks → Haiku (cheaper, faster)
-# User-facing tasks → Sonnet 4.6 (quality matters)
-DEFAULT_MODELS = {
-    "url_extraction": "claude-haiku-4-5-20251001",  # Simple extraction from page content
-    "dossier_research": "claude-sonnet-4-6",       # Web search + thorough analysis
-    "follow_up_extraction": "claude-haiku-4-5-20251001",  # Simple structured extraction
-    "relationship_summary": "claude-sonnet-4-6",    # Writing quality matters
-    "ai_discovery": "claude-sonnet-4-6",            # Web search + strategic reasoning
-    "ai_query": "claude-sonnet-4-6",                # User-facing, needs good reasoning
-}
-
-# Settings keys for model selection
-MODEL_SETTING_KEYS = {
-    behavior: f"model_{behavior}" for behavior in DEFAULT_MODELS
-}
-
-
-def _get_provider(model_id: str) -> str:
-    """Determine provider from model ID."""
-    if model_id.startswith("claude-"):
-        return "anthropic"
-    if model_id.startswith("gemini-"):
-        return "google"
-    return "anthropic"  # fallback
-
-
-def _get_prompt(session: Session, behavior: str, prompt_type: str, default: str) -> str:
-    """Get a prompt from settings (if customized) or return the default."""
-    key = PROMPT_KEYS.get(behavior, {}).get(prompt_type)
-    if not key:
-        return default
-    setting = session.query(ProducerSettings).filter_by(key=key).first()
-    if setting and setting.value:
-        return setting.value
-    return default
-
-
-def _get_model(session: Session, behavior: str) -> str:
-    """Get the configured model for a behavior, or the default."""
-    key = MODEL_SETTING_KEYS.get(behavior)
-    if key:
-        setting = session.query(ProducerSettings).filter_by(key=key).first()
-        if setting and setting.value:
-            return str(setting.value)
-    return DEFAULT_MODELS.get(behavior, "claude-sonnet-4-6")
-
-
-def _call_llm(model: str, system: str, user: str,
-              use_web_search: bool = False,
-              response_schema: type[BaseModel] | None = None,
-              response_list: bool = False) -> str:
-    """Call an LLM (Anthropic or Google) and return the text response.
-
-    Routes to the correct provider based on model ID prefix.
-    When response_schema is provided, uses native structured output.
-    When response_list is True, the schema is wrapped in a list.
-    """
-    provider = _get_provider(model)
-
-    if provider == "google":
-        return _call_gemini(model, system, user, use_web_search,
-                            response_schema, response_list)
-    else:
-        return _call_claude(model, system, user, use_web_search,
-                            response_schema, response_list)
-
-
-def _call_claude(model: str, system: str, user: str,
-                 use_web_search: bool = False,
-                 response_schema: type[BaseModel] | None = None,
-                 response_list: bool = False) -> str:
-    """Call Claude and return the text response. Uses structured output when schema provided."""
-    client = get_anthropic_client()
-    kwargs = {
-        "model": model,
-        "max_tokens": 4096,
-        "system": system,
-        "messages": [{"role": "user", "content": user}],
-    }
-    if use_web_search:
-        kwargs["tools"] = [{"type": "web_search_20250305", "name": "web_search", "max_uses": 10}]
-        kwargs["max_tokens"] = 16000
-
-    if response_schema:
-        schema = response_schema.model_json_schema()
-        if response_list:
-            json_schema = {
-                "type": "array",
-                "items": schema,
-            }
-        else:
-            json_schema = schema
-        # Remove pydantic metadata keys that Claude doesn't accept
-        def _clean_schema(s):
-            if isinstance(s, dict):
-                return {k: _clean_schema(v) for k, v in s.items() if k != "title"}
-            if isinstance(s, list):
-                return [_clean_schema(i) for i in s]
-            return s
-        json_schema = _clean_schema(json_schema)
-        kwargs["betas"] = ["structured-outputs-2025-11-13"]
-        kwargs["output_format"] = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": response_schema.__name__,
-                "schema": json_schema,
-            },
-        }
-        response = client.beta.messages.create(**kwargs)
-    else:
-        response = client.messages.create(**kwargs)
-
-    text_parts = []
-    for block in response.content:
-        if hasattr(block, "text"):
-            text_parts.append(block.text)
-    return "\n".join(text_parts)
-
-
-def _call_gemini(model: str, system: str, user: str,
-                 use_web_search: bool = False,
-                 response_schema: type[BaseModel] | None = None,
-                 response_list: bool = False) -> str:
-    """Call Gemini and return the text response. Uses structured output when schema provided."""
-    from google.genai import types
-
-    client = get_google_ai_client()
-
-    config_kwargs = {
-        "system_instruction": system,
-    }
-    tools = []
-    if use_web_search:
-        tools.append(types.Tool(google_search=types.GoogleSearch()))
-    if tools:
-        config_kwargs["tools"] = tools
-
-    if response_schema:
-        config_kwargs["response_mime_type"] = "application/json"
-        if response_list:
-            config_kwargs["response_schema"] = list[response_schema]
-        else:
-            config_kwargs["response_schema"] = response_schema
-
-    response = client.models.generate_content(
-        model=model,
-        contents=user,
-        config=types.GenerateContentConfig(**config_kwargs),
-    )
-    return response.text or ""
-    return None
 
 
 def _log_change(session: Session, entity_type: str, entity_id: int, field: str,
@@ -367,7 +401,7 @@ def _set_research_step(session: Session, producer, status: str, detail: str):
 # --- Discovery intelligence ---
 
 
-def generate_intelligence_profile(session: Session) -> IntelligenceProfile:
+async def generate_intelligence_profile(session: Session) -> IntelligenceProfile:
     """Generate a compact summary of the database's producer coverage.
 
     Used as context for discovery scans instead of dumping a name list.
@@ -418,23 +452,16 @@ def generate_intelligence_profile(session: Session) -> IntelligenceProfile:
     scale_sorted = sorted(scale_counts.items(), key=lambda x: -x[1])
     scale_summary = "\n".join(f"- {s}: {count}" for s, count in scale_sorted) or "No scale data."
 
-    # Call LLM to produce the narrative profile
-    system = _get_prompt(session, "intelligence_profile", "system", INTELLIGENCE_PROFILE_SYSTEM)
-    user_template = _get_prompt(session, "intelligence_profile", "user", INTELLIGENCE_PROFILE_USER)
-    user = user_template.format(
-        producer_count=producer_count,
-        org_summary=org_summary,
-        geographic_summary=geographic_summary,
-        aesthetic_summary=aesthetic_summary,
-        scale_summary=scale_summary,
-    )
-    model = _get_model(session, "intelligence_profile")
-
     try:
-        profile_text = _call_llm(model, system, user)
+        profile_text = await call_llm("intelligence_profile", {
+            "producer_count": producer_count,
+            "org_summary": org_summary,
+            "geographic_summary": geographic_summary,
+            "aesthetic_summary": aesthetic_summary,
+            "scale_summary": scale_summary,
+        })
     except Exception:
         logger.exception("Failed to generate intelligence profile via LLM")
-        # Fall back to raw data summary
         profile_text = f"Database: {producer_count} producers.\n\nOrganizations:\n{org_summary}\n\nGeography:\n{geographic_summary}\n\nGenres:\n{aesthetic_summary}\n\nScale:\n{scale_summary}"
 
     profile = IntelligenceProfile(
@@ -461,7 +488,7 @@ def get_current_intelligence_profile(session: Session) -> str:
     return "No intelligence profile generated yet. Database coverage is unknown — cast a wide net."
 
 
-def generate_calibration_summary(session: Session) -> DiscoveryCalibration | None:
+async def generate_calibration_summary(session: Session) -> DiscoveryCalibration | None:
     """Distill all dismissal patterns into a concise calibration summary."""
     dismissed = (session.query(DiscoveryCandidate)
                  .filter_by(status="dismissed")
@@ -476,13 +503,11 @@ def generate_calibration_summary(session: Session) -> DiscoveryCalibration | Non
         for d in dismissed
     )
 
-    system = _get_prompt(session, "discovery_calibration", "system", DISCOVERY_CALIBRATION_SYSTEM)
-    user_template = _get_prompt(session, "discovery_calibration", "user", DISCOVERY_CALIBRATION_USER)
-    user = user_template.format(total_count=total, dismissals_data=dismissals_data)
-    model = _get_model(session, "discovery_calibration")
-
     try:
-        calibration_text = _call_llm(model, system, user)
+        calibration_text = await call_llm("discovery_calibration", {
+            "total_count": total,
+            "dismissals_data": dismissals_data,
+        })
     except Exception:
         logger.exception("Failed to generate calibration summary")
         return None
@@ -507,7 +532,7 @@ def get_current_calibration(session: Session) -> str:
     return "\nNo calibration data yet — this is an early scan."
 
 
-def maybe_regenerate_calibration(session: Session):
+async def maybe_regenerate_calibration(session: Session):
     """Regenerate calibration if dismissals have accumulated since last generation."""
     current_dismissed = session.query(DiscoveryCandidate).filter_by(status="dismissed").count()
     latest = (session.query(DiscoveryCalibration)
@@ -516,7 +541,7 @@ def maybe_regenerate_calibration(session: Session):
     last_count = latest.dismissal_count if latest else 0
 
     if current_dismissed - last_count >= 10:
-        generate_calibration_summary(session)
+        await generate_calibration_summary(session)
 
 
 def _normalize_url(url: str | None) -> str | None:
@@ -615,7 +640,7 @@ def dedup_candidate(session: Session, candidate_data: dict) -> dict:
     return {"status": "potential_duplicate", "matches": matches}
 
 
-def run_dossier_research(session: Session, producer_id: int, is_refresh: bool = False):
+async def run_dossier_research(session: Session, producer_id: int, is_refresh: bool = False):
     """Run AI research to populate/refresh a producer's dossier fields.
 
     This is the core research pipeline — called at intake, on refresh,
@@ -631,6 +656,7 @@ def run_dossier_research(session: Session, producer_id: int, is_refresh: bool = 
 
     try:
         changed_by = "AI refresh" if is_refresh else "AI research"
+        fields_updated = 0
 
         # Build seed data from what we know
         _set_research_step(session, producer, "in_progress", "Gathering seed data from existing records")
@@ -659,15 +685,13 @@ def run_dossier_research(session: Session, producer_id: int, is_refresh: bool = 
 
         sources = _get_managed_sources(session)
 
-        system = _get_prompt(session, "dossier_research", "system", DOSSIER_RESEARCH_SYSTEM)
-        user_template = _get_prompt(session, "dossier_research", "user", DOSSIER_RESEARCH_USER)
-        user = user_template.format(name=full_name, seed_data=seed_data, sources=sources)
-        model = _get_model(session, "dossier_research")
-
         _set_research_step(session, producer, "in_progress",
                            f"Searching the web and industry sources for {full_name}")
-        response_text = _call_llm(model, system, user, use_web_search=True,
-                                  response_schema=DossierResearchResponse)
+        response_text = await call_llm("dossier_research", {
+            "name": full_name,
+            "seed_data": seed_data,
+            "sources": sources,
+        }, use_web_search=True, response_schema=DossierResearchResponse)
 
         _set_research_step(session, producer, "in_progress", "Parsing AI response")
         data = json.loads(response_text)
@@ -962,18 +986,15 @@ def _upsert_organization(session: Session, producer_id: int, org_data: dict, cha
         session.flush()
 
 
-def extract_follow_ups(session: Session, interaction_id: int, producer_id: int,
-                       producer_name: str, content: str, date: str, author: str):
+async def extract_follow_ups(session: Session, interaction_id: int, producer_id: int,
+                             producer_name: str, content: str, date: str, author: str):
     """Extract follow-up signals from an interaction's text."""
-    system = _get_prompt(session, "follow_up_extraction", "system", FOLLOW_UP_EXTRACTION_SYSTEM)
-    user_template = _get_prompt(session, "follow_up_extraction", "user", FOLLOW_UP_EXTRACTION_USER)
-    user = user_template.format(
-        producer_name=producer_name, date=date, author=author, content=content
-    )
-    model = _get_model(session, "follow_up_extraction")
-
-    response_text = _call_llm(model, system, user,
-                              response_schema=FollowUpSignalData, response_list=True)
+    response_text = await call_llm("follow_up_extraction", {
+        "producer_name": producer_name,
+        "date": date,
+        "author": author,
+        "content": content,
+    }, response_schema=list[FollowUpSignalData])
     signals = json.loads(response_text)
 
     if not signals or not isinstance(signals, list):
@@ -998,7 +1019,7 @@ def extract_follow_ups(session: Session, interaction_id: int, producer_id: int,
     session.flush()
 
 
-def regenerate_relationship_summary(session: Session, producer_id: int):
+async def regenerate_relationship_summary(session: Session, producer_id: int):
     # TODO: dead code pending pipeline redesign
     """Regenerate the natural language relationship summary for a producer."""
     from producers.backend.models import Interaction
@@ -1034,18 +1055,13 @@ def regenerate_relationship_summary(session: Session, producer_id: int):
 
     last_contact = producer.last_contact_date.strftime("%Y-%m-%d") if producer.last_contact_date else "Never"
 
-    system = _get_prompt(session, "relationship_summary", "system", RELATIONSHIP_SUMMARY_SYSTEM)
-    user_template = _get_prompt(session, "relationship_summary", "user", RELATIONSHIP_SUMMARY_USER)
-    user = user_template.format(
-        name=f"{producer.first_name} {producer.last_name}",
-        interaction_count=producer.interaction_count or 0,
-        last_contact=last_contact,
-        recent_interactions=interactions_text,
-        pending_followups=followups_text,
-    )
-    model = _get_model(session, "relationship_summary")
-
-    response_text = _call_llm(model, system, user)
+    response_text = await call_llm("relationship_summary", {
+        "name": f"{producer.first_name} {producer.last_name}",
+        "interaction_count": producer.interaction_count or 0,
+        "last_contact": last_contact,
+        "recent_interactions": interactions_text,
+        "pending_followups": followups_text,
+    })
     old_summary = producer.relationship_summary
     producer.relationship_summary = response_text.strip()
     _log_change(session, "producer", producer_id, "relationship_summary",
@@ -1137,7 +1153,7 @@ def get_relationship_state_label(producer: Producer, cold_threshold_days: int = 
     return "active"
 
 
-def extract_from_url(session: Session, url: str) -> dict | None:
+async def extract_from_url(url: str) -> dict | None:
     """Fetch a URL and extract producer identity using AI."""
     import httpx
 
@@ -1157,13 +1173,10 @@ def extract_from_url(session: Session, url: str) -> dict | None:
         logger.error("Failed to fetch URL %s: %s", url, e)
         return {"error": f"Could not fetch URL: {e}"}
 
-    system = _get_prompt(session, "url_extraction", "system", URL_EXTRACTION_SYSTEM)
-    user_template = _get_prompt(session, "url_extraction", "user", URL_EXTRACTION_USER)
-    user = user_template.format(url=url, content=text)
-    model = _get_model(session, "url_extraction")
-
-    response_text = _call_llm(model, system, user,
-                              response_schema=URLExtractionResponse)
+    response_text = await call_llm("url_extraction", {
+        "url": url,
+        "content": text,
+    }, response_schema=URLExtractionResponse)
     data = json.loads(response_text)
     if not data or not isinstance(data, dict):
         return {"error": "AI could not extract producer information from the page"}
@@ -1207,55 +1220,90 @@ def _build_query_context(session: Session) -> str:
     return "\n\n".join(context_parts)
 
 
-def run_ai_query(session: Session, query: str, mcp_server) -> str:
+async def run_ai_query(session: Session, query: str) -> str:
     """Run a natural language query against the producer database via LLM + MCP.
 
     AI query is for strategic analytical questions that require reasoning and
     synthesis — "Who should we talk to about Moonshot?", "Which producers have
     we lost touch with?", "Find producers whose aesthetic aligns with X".
     Simple search/filter belongs in the list view, not here.
+
+    Always includes DB context in the prompt so the LLM has data regardless of
+    whether MCP tools are available (Claude MCP requires a reachable URL, which
+    won't work in dev). MCP is requested so the LLM can also query live data
+    when available.
     """
-    from shared.backend.config import settings
-
-    model = _get_model(session, "ai_query")
-    system = _get_prompt(session, "ai_query", "system", AI_QUERY_SYSTEM)
-    user_template = _get_prompt(session, "ai_query", "user", AI_QUERY_USER)
-    user = user_template.format(query=query)
-
-    anti_hallucination = "\n\nIMPORTANT: Answer ONLY based on the actual data provided below. Do not invent, extrapolate, or hallucinate information. If you don't have data to answer a question, say so. Be specific — cite actual producer names, actual data fields, actual numbers from the database."
-
-    # MCP tool access is only available for Claude models on deployed servers
-    use_mcp = (
-        _get_provider(model) == "anthropic"
-        and "localhost" not in settings.app_domain
+    context = _build_query_context(session)
+    full_query = (
+        f"{context}\n\n"
+        "IMPORTANT: Answer ONLY based on the actual data provided above and any data "
+        "you retrieve via tools. Do not invent, extrapolate, or hallucinate information. "
+        "If you don't have data to answer a question, say so. Be specific — cite actual "
+        "producer names, actual data fields, actual numbers from the database.\n\n"
+        f"Question: {query}"
     )
 
-    if use_mcp:
-        # Claude on deployed server: use MCP tools for live data access
-        client = get_anthropic_client()
-        mcp_url = f"{settings.app_domain}/mcp/mcp"
-        response = client.beta.messages.create(
-            model=model,
-            max_tokens=4096,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-            mcp_servers=[{
-                "type": "url",
-                "url": mcp_url,
-                "name": "intelligence",
-                "authorization_token": settings.mcp_secret,
-            }],
-            tools=[{"type": "mcp_toolset", "mcp_server_name": "intelligence"}],
-            betas=["mcp-client-2025-11-20"],
+    return await call_llm("ai_query", {"query": full_query}, use_mcp=True)
+
+
+# --- Show Research (Gemini + MCP) ---
+
+async def run_show_research(show_id: int) -> str:
+    """Research a show using AI with MCP tools and web search.
+
+    The LLM reads lookup values, researches the show, creates productions,
+    links producers, and queues unknown producers as discovery candidates.
+    Creates a DiscoveryScan record so candidates are tracked in scan history.
+    """
+    from producers.backend.models import LookupValue
+
+    with _session_factory() as session:
+        show = session.query(Show).filter_by(id=show_id).first()
+        if not show:
+            raise ValueError(f"Show {show_id} not found")
+        title = show.title
+
+        # Create a scan record for tracking
+        focus_type = session.query(LookupValue).filter_by(
+            category="scan_focus_type", value="show_research"
+        ).first()
+        scan = DiscoveryScan(
+            focus_area=title,
+            focus_type_id=focus_type.id if focus_type else None,
+            status="running",
         )
-        text_parts = []
-        for block in response.content:
-            if hasattr(block, "text"):
-                text_parts.append(block.text)
-        return "\n".join(text_parts)
-    else:
-        # All other cases: build context from DB and call through unified router
-        context = _build_query_context(session)
-        enriched_system = system + anti_hallucination
-        enriched_user = f"{context}\n\nQuestion: {user}"
-        return _call_llm(model, enriched_system, enriched_user)
+        session.add(scan)
+        session.commit()
+        scan_id = scan.id
+
+    logger.info("Starting show research for show %d (%s), scan %d", show_id, title, scan_id)
+
+    try:
+        result = await call_llm("show_research", {
+            "show_id": show_id,
+            "title": title,
+            "scan_id": scan_id,
+        }, use_mcp=True, use_web_search=True)
+
+        with _session_factory() as session:
+            scan = session.get(DiscoveryScan, scan_id)
+            scan.status = "complete"
+            scan.completed_at = datetime.now(timezone.utc)
+            scan.candidates_found = (
+                session.query(DiscoveryCandidate)
+                .filter_by(scan_id=scan_id).count()
+            )
+            scan.candidates_after_dedup = scan.candidates_found
+            session.commit()
+
+        logger.info("Show research complete for show %d", show_id)
+        return result
+
+    except Exception:
+        with _session_factory() as session:
+            scan = session.get(DiscoveryScan, scan_id)
+            scan.status = "failed"
+            scan.completed_at = datetime.now(timezone.utc)
+            scan.error_detail = "Show research failed — check server logs."
+            session.commit()
+        raise

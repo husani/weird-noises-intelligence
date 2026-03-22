@@ -6,6 +6,7 @@ Scheduled jobs for Producers.
 - Intelligence profile: Regenerated before discovery scans.
 """
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -57,7 +58,7 @@ def dossier_refresh(session_factory):
     for pid in ids_to_refresh:
         try:
             with session_factory() as session:
-                run_dossier_research(session, pid, is_refresh=True)
+                asyncio.run(run_dossier_research(session, pid, is_refresh=True))
             refreshed += 1
         except Exception:
             logger.exception("Refresh failed for producer %d", pid)
@@ -78,9 +79,7 @@ def ai_discovery(session_factory, focus_area: str = None):
     """
     from producers.backend.ai import (
         DiscoveryCandidateData,
-        _call_llm,
-        _get_model,
-        _get_prompt,
+        call_llm,
         dedup_candidate,
         generate_intelligence_profile,
         get_current_calibration,
@@ -92,8 +91,8 @@ def ai_discovery(session_factory, focus_area: str = None):
         DiscoveryFocusArea,
         DiscoveryScan,
         IntelligenceProfile,
+        LookupValue,
     )
-    from producers.backend.prompts import AI_DISCOVERY_SYSTEM, AI_DISCOVERY_USER
 
     logger.info("Starting AI discovery scan")
 
@@ -101,11 +100,17 @@ def ai_discovery(session_factory, focus_area: str = None):
         # Create scan record
         scan = DiscoveryScan(status="running")
 
+        # Helper to resolve focus_type lookup value
+        def _focus_type_id(value):
+            lv = session.query(LookupValue).filter_by(
+                category="scan_focus_type", value=value
+            ).first()
+            return lv.id if lv else None
+
         # Determine focus area
-        focus_type = "manual"
         if focus_area:
             scan.focus_area = focus_area
-            scan.focus_type = "manual"
+            scan.focus_type_id = _focus_type_id("manual")
         else:
             # Pick next focus area in rotation (oldest last_used_at first)
             next_focus = (session.query(DiscoveryFocusArea)
@@ -114,22 +119,21 @@ def ai_discovery(session_factory, focus_area: str = None):
                          .first())
             if next_focus:
                 focus_area = f"{next_focus.name}: {next_focus.description or next_focus.name}"
-                focus_type = "rotation"
+                scan.focus_type_id = _focus_type_id("rotation")
                 next_focus.last_used_at = datetime.now(timezone.utc)
             else:
                 focus_area = ("General industry scan: look at recent Off-Broadway openings, "
                               "development announcements, festival programs, and co-producing "
                               "credits on shows that share DNA with WN's work.")
-                focus_type = "fallback"
+                scan.focus_type_id = _focus_type_id("fallback")
             scan.focus_area = focus_area
-            scan.focus_type = focus_type
 
         # Ensure intelligence profile is fresh (regenerate if none exists)
         latest_profile = (session.query(IntelligenceProfile)
                          .order_by(IntelligenceProfile.generated_at.desc())
                          .first())
         if not latest_profile:
-            generate_intelligence_profile(session)
+            asyncio.run(generate_intelligence_profile(session))
 
         intelligence_profile = get_current_intelligence_profile(session)
         calibration_summary = get_current_calibration(session)
@@ -139,23 +143,16 @@ def ai_discovery(session_factory, focus_area: str = None):
         session.add(scan)
         session.flush()  # get scan.id
 
-        # Build prompts
-        system_template = _get_prompt(session, "ai_discovery", "system", AI_DISCOVERY_SYSTEM)
-        user_template = _get_prompt(session, "ai_discovery", "user", AI_DISCOVERY_USER)
-
         slate_info = "Shows tool not yet built. Focus on general industry discovery."
 
-        system = system_template.format(calibration_summary=calibration_summary)
-        user = user_template.format(
-            focus_area=focus_area,
-            intelligence_profile=intelligence_profile,
-            slate_info=slate_info,
-        )
-        model = _get_model(session, "ai_discovery")
-
         try:
-            response = _call_llm(model, system, user, use_web_search=True,
-                                 response_schema=DiscoveryCandidateData, response_list=True)
+            response = asyncio.run(call_llm("ai_discovery", {
+                "calibration_summary": calibration_summary,
+                "focus_area": focus_area,
+                "intelligence_profile": intelligence_profile,
+                "slate_info": slate_info,
+            }, use_web_search=True,
+               response_schema=list[DiscoveryCandidateData]))
             candidates_raw = json.loads(response)
 
             if not candidates_raw or not isinstance(candidates_raw, list):
@@ -223,7 +220,7 @@ def ai_discovery(session_factory, focus_area: str = None):
             session.commit()
 
             # Check if calibration needs regeneration
-            maybe_regenerate_calibration(session)
+            asyncio.run(maybe_regenerate_calibration(session))
 
             logger.info("AI discovery complete. Found %d candidates, %d after dedup.",
                         scan.candidates_found, added)
@@ -242,4 +239,4 @@ def refresh_intelligence_profile(session_factory):
 
     logger.info("Refreshing intelligence profile")
     with session_factory() as session:
-        generate_intelligence_profile(session)
+        asyncio.run(generate_intelligence_profile(session))

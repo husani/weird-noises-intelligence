@@ -171,7 +171,8 @@ export default function ProductionDetail() {
         setError(result.error)
         setDeleteConfirm(false)
       } else {
-        navigate('/producers/productions')
+        const showId = production?.show?.id
+        navigate(showId ? `/producers/shows/${showId}` : '/producers/shows')
       }
     } catch (err) {
       setError(err.message)
@@ -232,14 +233,20 @@ export default function ProductionDetail() {
   return (
     <>
       <div className="breadcrumbs">
-        <Link to="/producers/productions" className="breadcrumb">Productions</Link>
+        <Link to="/producers/shows" className="breadcrumb">Shows</Link>
         <span className="breadcrumb-sep">&rsaquo;</span>
-        <span className="breadcrumb-current">{production.title}</span>
+        {production.show && (
+          <>
+            <Link to={`/producers/shows/${production.show.id}`} className="breadcrumb">{production.show.title}</Link>
+            <span className="breadcrumb-sep">&rsaquo;</span>
+          </>
+        )}
+        <span className="breadcrumb-current">{production.year ? `${production.year} Production` : 'Production'}</span>
       </div>
 
       <div className="page-header">
         <div className="page-title-row">
-          <h1 className="page-title">{production.title}</h1>
+          <h1 className="page-title">{production.title}{production.year ? ` (${production.year})` : ''}</h1>
           <ActionMenu items={[
             { label: 'Edit', icon: 'M11 1.5l2 2-7.5 7.5H3.5v-2L11 1.5z', onClick: () => navigate(`/producers/productions/${id}/edit`) },
             { divider: true },

@@ -33,3 +33,29 @@ mcp_server = FastMCP(
     name="Intelligence",
     instructions="MCP server for the Intelligence platform. Provides access to all tool capabilities.",
 )
+
+
+@mcp_server.tool
+async def web_search(query: str) -> str:
+    """Search the web and return a fact-dense summary with inline source citations.
+    Use this to look up factual information — production history, credits, venues,
+    dates, financial reporting, reviews, synopses, or any other publicly available data."""
+    from google.genai import types
+
+    from shared.backend.ai.clients import get_google_ai_client
+
+    client = get_google_ai_client()
+    response = await client.aio.models.generate_content(
+        model="gemini-3.1-flash-lite-preview",
+        contents=query,
+        config=types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())],
+            system_instruction=(
+                "You are a headless search utility. Execute a web search for the "
+                "provided query. Return a concise, fact-dense summary of the results. "
+                "You must include inline citations based on your grounding metadata. "
+                "Do not include conversational filler."
+            ),
+        ),
+    )
+    return response.text or ""

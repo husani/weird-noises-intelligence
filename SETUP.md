@@ -151,5 +151,5 @@ Or open `intelligence.code-workspace` in VS Code — it has auto-start tasks for
 | `GOOGLE_AI_API_KEY` | Set | Gemini AI |
 | `APP_DOMAIN` | Set (http://localhost:8005) | Auth redirects, MCP URL |
 | `ENVIRONMENT` | Set (development) | Cookie security |
-| `VITE_GOOGLE_MAPS_API_KEY` | Not set | Location autocomplete (frontend) |
+| `VITE_GOOGLE_MAPS_API_KEY` | Set | Location autocomplete (frontend) |
 | `ALLOWED_DOMAIN` | Set (husani.com) | Auth domain restriction |

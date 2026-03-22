@@ -67,7 +67,7 @@ Phase 1: Shared Infrastructure, as defined in `specs/1-shared-infra.md`. Everyth
 - Design system spec at `specs/mockups/design-system.html` is a reference document, never imported directly
 
 **React Components** (`shared/frontend/components/`)
-- Button, Badge, SectionCard, StatusIndicator, Modal, Alert, EmptyState, Spinner, Tabs
+- ActionMenu, Alert, Badge, Button, DataTable, Drawer, EmptyState, LocationAutocomplete, Modal, PlatformIcon, ProducerDrawer, SectionCard, SortHeader, Spinner, StatusIndicator, TableControls, Tabs
 
 **Auth Guard** (`shared/frontend/auth/AuthGuard.jsx`)
 - Calls `/api/auth/me` on mount, redirects to login on 401, provides `useAuth()` context
@@ -130,62 +130,106 @@ Built as defined in `specs/2-producers.md`. The first real tool on the Intellige
 
 ### Backend (`producers/backend/`)
 
-**Data Model** (`models.py`) — 21 tables:
-- `producers` — core record with identity, dossier fields, relationship state, research status
-- `productions` — separate entity, many-to-many with producers via `producer_productions` (with role)
-- `organizations` — separate entity, many-to-many with producers via `producer_organizations` (with role, dates)
+**Data Model** (`models.py`) — 28 tables:
+- `shows` — theatrical works at IP level (title, medium, genre, themes, summary, plot_synopsis, work_origin)
+- `producer_shows` — IP-level producer-show links with role
+- `producers` — core record with identity, dossier metadata, relationship state, research status
+- `productions` — specific mountings (show, venue, year, scale, budget, etc.)
+- `producer_productions` — production credits with role
+- `organizations` — producing companies, nonprofits, etc.
+- `producer_organizations` — org affiliations with role, dates, notes
+- `social_platforms` — platform definitions (LinkedIn, Instagram, etc.) with icons
+- `lookup_values` — soft enums by category/entity_type
+- `entity_social_links` — polymorphic social links (producer/org/venue)
+- `entity_emails` — polymorphic emails with type, source, confidence, is_primary
 - `venues` — separate entity, linked to productions
-- `awards` — attached to productions (not directly to producers)
+- `awards` — attached to producers, optionally linked to productions
 - `interactions` — timestamped touchpoints with WN team members
 - `follow_up_signals` — AI-extracted from interaction text, with due dates and resolved status
 - `tags` / `producer_tags` — ad-hoc labels, many-to-many
-- `producer_show_connections` — connections to WN shows (from interactions and manual entry)
-- `show_matching_results` — AI-assessed fit between producers and shows
 - `change_history` — field-level audit log for every change (who, when, old/new value)
-- `producer_settings` — tool-level configuration (refresh cadence, thresholds, prompts)
-- `discovery_candidates` — AI-discovered producers pending team review, with dedup status/matches and scan linkage
+- `producer_settings` — tool-level configuration (key/value JSONB)
+- `discovery_candidates` — AI-discovered producers pending team review, with dedup status/matches
 - `discovery_scans` — tracks each discovery run (focus, timing, candidate counts, status)
-- `discovery_focus_areas` — configurable areas for directed scans (name, description, rotation order)
-- `intelligence_profiles` — auto-generated database coverage summaries for discovery context
-- `discovery_calibrations` — distilled dismissal patterns for discovery calibration
+- `discovery_focus_areas` — configurable areas for directed scans
+- `intelligence_profiles` — auto-generated database coverage summaries
+- `discovery_calibrations` — distilled dismissal patterns
 - `research_sources` — managed source list the AI always checks
+- `producer_traits` — structured analytical observations (category, value, confidence)
+- `producer_intel` — structured intelligence observations (category, observation, confidence)
+- `ai_behaviors` — runtime-editable AI prompt configurations (name, system_prompt, user_prompt, model)
 
-**Interface** (`interface.py`) — Business logic + 8 MCP tools:
-1. `producers_search` — search by name, email, org, genres, themes, location, tags, state
-2. `producers_get_record` — full producer profile with all dossier fields
+**Interface** (`interface.py`) — Business logic + 17 MCP tools:
+
+*Producer reads:*
+1. `producers_search` — search by name, email, org, location, tags, state
+2. `producers_get_record` — full producer profile with identity, dossier metadata, tags, relationship state
 3. `producers_get_productions` — production history with venues, awards, co-producers
 4. `producers_get_organizations` — organizational affiliations with roles and dates
 5. `producers_get_interactions` — interaction history with follow-up signals
 6. `producers_get_relationship_state` — computed state label + pending follow-ups
-7. `producers_by_show` — producers connected to a specific WN show
-8. `producers_show_matches` — AI-assessed show matching results
 
-Plus route-facing methods: list, create, update, add interaction, tags, show connections, dashboard, discovery review, settings, import, change history, duplicate detection.
+*Lookup values:*
+7. `producers_get_lookup_values` — soft enum values by category and entity type
+
+*Show reads & writes:*
+8. `producers_get_show` — full show data with productions and producer links
+9. `producers_search_shows` — paginated title search
+10. `producers_update_show` — update show fields (genre, themes, summary, etc.)
+
+*Venue reads & writes:*
+11. `producers_search_venues` — paginated name search
+12. `producers_create_venue` — create venue with dedup guidance
+
+*Production writes:*
+13. `producers_create_production` — create production (show mounting)
+14. `producers_update_production` — update production fields
+
+*Links:*
+15. `producers_add_producer_to_show` — IP-level producer-show link
+16. `producers_add_producer_to_production` — production credit link
+
+*Discovery:*
+17. `producers_add_discovery_candidate` — add to review queue
+
+Plus route-facing methods: list, create, update, add interaction, tags, shows, productions, venues, organizations, dashboard, discovery review, settings, import, change history, duplicate detection, social platforms, lookup values, data sources, AI behaviors, batch operations, awards, traits, intel.
 
 **AI Pipeline** (`ai.py`) — All AI behaviors:
-- Dossier research — Claude with web search, fills structured fields from public sources, discovers email candidates with source/confidence
+- Core LLM infrastructure — `call_llm()` reads behavior config (prompts, model) from the `ai_behaviors` table, routes to Claude or Gemini, handles MCP tools, web search, and structured output
+- Dossier research — Claude or Gemini with web search, fills structured fields from public sources
 - Follow-up extraction — detects implied actions and timeframes from interaction text
-- Show connection detection — finds show references in interaction text
+- Show research — AI researches a show's production history via web search + MCP tools, creates/updates productions, venues, producer links, and show metadata
 - Relationship summary — natural language synthesis of current relationship state
-- Show matching — assesses producer-show fit based on creative/financial/career alignment
 - AI query — natural language interface to the database via LLM + MCP
 - Relationship state computation — derives state label from stored fields + current date
 - Intelligence profile generation — summarizes database coverage (orgs, geography, aesthetics, scale) for discovery context
 - Discovery calibration — distills dismissal patterns into calibration summary
-- Multi-signal dedup — code-based matching (LinkedIn, email, website, fuzzy name) against producers and dismissed candidates
+- Multi-signal dedup — code-based matching (email, name similarity) against producers and dismissed candidates
 
-**Prompts** (`prompts.py`) — System and user prompt templates for all 7 AI behaviors. Each is stored with a settings key so teams can customize prompts via the Settings page.
+**Prompts** — All prompt templates are stored in the `ai_behaviors` database table (not in a file). Each behavior has system_prompt, user_prompt, and model. Fully editable at runtime via the AI Configuration page.
 
-**Routes** (`routes.py`) — 30+ API endpoints under `/api/producers/*`:
+**Routes** (`routes.py`) — 100+ API endpoints under `/api/producers/*`:
 - CRUD for producers with background research on create
-- Interaction logging with background AI processing (follow-ups, show detection, summary)
+- Interaction logging with background AI processing (follow-ups, summary)
+- Audio transcription for interactions
 - Dashboard data aggregation
-- Discovery queue management
-- Settings management (cadence, thresholds, sources, tags)
+- Discovery queue management (candidates, scans, focus areas, profile, calibration)
+- Settings management (cadence, thresholds, AI behaviors, models)
 - Spreadsheet import with duplicate detection
 - AI querying
-- Manual dossier refresh
-- Show connections and matches
+- Manual dossier refresh (individual and batch)
+- Show CRUD with AI show research
+- Production CRUD with producer credits
+- Venue CRUD with email management
+- Organization CRUD with email and social link management
+- Tag management (CRUD, merge, batch)
+- Lookup value management (CRUD, reorder, delete protection)
+- Social platform management with entity linking
+- Data source management (CRUD, reorder)
+- Award management
+- Producer traits and intel management
+- Email management (polymorphic across entity types)
+- Job status reporting
 
 **Jobs** (`jobs.py`) — Scheduled background tasks:
 - `dossier_refresh` — daily at 3am UTC, checks per-producer cadence (monthly/biweekly)
@@ -194,17 +238,23 @@ Plus route-facing methods: list, create, update, add interaction, tags, show con
 
 ### Frontend (`producers/frontend/`)
 
-**Pages** — 8 views, all lazy-loaded with sub-routing:
-- **Dashboard** — stats grid, overdue follow-ups, research in progress, recent activity, AI updates
+**Pages** — 36+ page components, all lazy-loaded with sub-routing:
+- **Dashboard** — stats grid, overdue follow-ups, research in progress, recent activity
 - **Producer List** — searchable/filterable/sortable table with relationship state badges, pagination
 - **Producer Detail** — tabbed view (Dossier, Shows, Interactions, History, Identity) with editable fields
 - **Add Producer** — form with live duplicate detection, URL submission, initial tags
 - **Spreadsheet Import** — CSV upload with preview, quoted-field parsing, progress reporting
 - **Discovery Queue** — curatorial review with expandable cards, inline editing, email candidate selection, dedup warnings, scan history
 - **AI Query** — natural language search interface with conversation history
-- **Settings** — refresh cadence, discovery cadence, relationship thresholds, research sources, tag management
+- **AI Configuration** — workbench-style behavior editor with model selection and prompt editing
+- **Settings** — refresh cadence, thresholds, scheduled job status, available models
+- **Entity management** — full CRUD pages (list/detail/edit) for Organizations, Shows, Productions, Venues
+- **Data management** — full CRUD pages for Tags, Options (lookup values), Data Sources, Social Platforms
 
-**API Client** (`api.js`) — typed fetch wrappers for all 30+ endpoints.
+**API Client** (`api.js`) — typed fetch wrappers for all 100+ endpoints.
+
+**Components** (`producers/frontend/components/`)
+- ProductionDrawer — drawer showing production details
 
 ### Wiring (`app.py`)
 
@@ -245,9 +295,10 @@ Design decisions where the spec left room for interpretation are documented in `
 
 ### Verification
 
-- App boots with all 12 MCP tools (8 producers + 4 skeleton)
-- All 30+ API routes registered under `/api/producers/*`
+- App boots with all 22 MCP tools (17 producers + 1 shared web_search + 2 skeleton_a + 2 skeleton_b)
+- All 100+ API routes registered under `/api/producers/*`
 - 4 scheduled jobs active (skeleton heartbeat + dossier refresh + intelligence profile + AI discovery)
-- Frontend builds cleanly with all 8 lazy-loaded pages
-- `intelligence_producers` database with 17 tables created
+- Frontend builds cleanly with all 36+ lazy-loaded page components
+- `intelligence_producers` database with 28 tables created
 - 5 default research sources seeded (IBDB, Playbill, BroadwayWorld, LinkedIn, Broadway League)
+- All gap items from GAPS-REMAINING.md resolved

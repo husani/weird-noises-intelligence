@@ -72,10 +72,6 @@ export default function OrganizationsPage() {
       },
     },
     { key: 'description', label: 'Description', className: 'cell-muted' },
-    {
-      key: 'producer_count', label: 'Producers', number: true,
-      render: v => v > 0 ? <span className="cell-strong">{v}</span> : null,
-    },
   ]
 
   return (

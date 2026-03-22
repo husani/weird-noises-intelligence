@@ -38,6 +38,12 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'Discovery',
+    groups: [
+      { category: 'scan_focus_type', entity_type: 'discovery_scan', label: 'Scan Types' },
+    ],
+  },
+  {
     label: 'Email Types',
     groups: [
       { category: 'email_type', entity_type: 'producer', label: 'Producer' },
@@ -50,11 +56,6 @@ const NAV_SECTIONS = [
 const ALL_GROUPS = NAV_SECTIONS.flatMap(s => s.groups)
 
 function groupKey(g) { return `${g.category}:${g.entity_type}` }
-
-function truncate(str, len = 80) {
-  if (!str) return null
-  return str.length > len ? str.slice(0, len) + '...' : str
-}
 
 export default function OptionsPage() {
   const navigate = useNavigate()
@@ -158,7 +159,6 @@ export default function OptionsPage() {
     { key: 'value', label: 'Value', className: 'cell-muted' },
     {
       key: 'description', label: 'Description', className: 'cell-muted',
-      render: val => truncate(val),
     },
   ]
 

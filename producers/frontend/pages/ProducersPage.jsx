@@ -21,7 +21,6 @@ const Settings = lazy(() => import('./Settings'))
 const OrganizationsPage = lazy(() => import('./OrganizationsPage'))
 const OrganizationDetail = lazy(() => import('./OrganizationDetail'))
 const OrganizationEdit = lazy(() => import('./OrganizationEdit'))
-const ProductionsPage = lazy(() => import('./ProductionsPage'))
 const ProductionDetail = lazy(() => import('./ProductionDetail'))
 const ProductionEdit = lazy(() => import('./ProductionEdit'))
 const ShowsPage = lazy(() => import('./ShowsPage'))
@@ -185,7 +184,6 @@ function Sidebar({ onQuickAdd }) {
   const producersActive = /^\/producers\/(list|add|detail)/.test(pathname)
   const orgsActive = /^\/producers\/organizations/.test(pathname)
   const showsActive = /^\/producers\/shows/.test(pathname)
-  const productionsActive = /^\/producers\/productions/.test(pathname)
   const venuesActive = /^\/producers\/venues/.test(pathname)
   const platformsActive = /^\/producers\/social-platforms/.test(pathname)
   const tagsActive = /^\/producers\/tags/.test(pathname)
@@ -247,9 +245,6 @@ function Sidebar({ onQuickAdd }) {
           </NavLink>
           <NavLink to="/producers/shows" className={() => `sidebar-nav-link${showsActive ? ' active' : ''}`}>
             {icons.show} Shows
-          </NavLink>
-          <NavLink to="/producers/productions" className={() => `sidebar-nav-link${productionsActive ? ' active' : ''}`}>
-            {icons.theatre} Productions
           </NavLink>
           <NavLink to="/producers/venues" className={() => `sidebar-nav-link${venuesActive ? ' active' : ''}`}>
             {icons.venue} Venues
@@ -318,7 +313,6 @@ export default function ProducersPage() {
             <Route path="shows/new" element={<ShowEdit />} />
             <Route path="shows/:id" element={<ShowDetail />} />
             <Route path="shows/:id/edit" element={<ShowEdit />} />
-            <Route path="productions" element={<ProductionsPage />} />
             <Route path="productions/new" element={<ProductionEdit />} />
             <Route path="productions/:id" element={<ProductionDetail />} />
             <Route path="productions/:id/edit" element={<ProductionEdit />} />

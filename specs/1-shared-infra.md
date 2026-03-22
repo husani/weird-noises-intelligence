@@ -90,7 +90,7 @@ Maps URL paths to tool frontends. Each tool is lazy-loaded — the browser only 
 /producers/*         → Producers sub-routes
 /talent              → Talent frontend
 /talent/*            → Talent sub-routes
-/shows               → Shows frontend
+/slate               → Slate frontend
 ...etc
 ```
 
@@ -139,7 +139,7 @@ The shared MCP server is how tools expose their capabilities. Each tool register
 **How tools register capabilities:**
 Each tool defines its MCP tools in its `interface.py` using the `@mcp_server.tool` decorator and registers them on startup. The interface class takes `session_factory` and `mcp_server` in `__init__`, then registers MCP tools as closures that capture `self` — this is how they access the database. Tools that don't need a database (like skeleton_b) only take `mcp_server`.
 
-**Naming convention:** Every MCP tool name MUST be prefixed with the tool name and an underscore: `producers_search`, `talent_get_performer`, `shows_list_active`. All tools share one MCP server, so unprefixed names like `search` would collide.
+**Naming convention:** Every MCP tool name MUST be prefixed with the tool name and an underscore: `producers_search`, `talent_get_performer`, `slate_list_active`. All tools share one MCP server, so unprefixed names like `search` would collide.
 
 ```python
 # producers/backend/interface.py (conceptual)
@@ -169,14 +169,14 @@ class ProducersInterface:
 **How cross-tool calls work:**
 
 ```python
-# Code-to-code: Shows' backend getting producer data (in-process, no HTTP)
+# Code-to-code: Slate's backend getting producer data (in-process, no HTTP)
 result = await mcp_server.call_tool("producers_search", {"criteria": "off-broadway musicals"})
 
 # LLM: Producers' AI feature reasoning about show fit
 # Pass the MCP server URL and bearer token — the LLM handles the rest
 response = client.beta.messages.create(
-    model="claude-sonnet-4-20250514",
-    messages=[{"role": "user", "content": "Which shows fit this producer?"}],
+    model="claude-sonnet-4-6",
+    messages=[{"role": "user", "content": "Which slate shows fit this producer?"}],
     mcp_servers=[{
         "type": "url",
         "url": f"{settings.app_domain}/mcp/mcp",
@@ -188,7 +188,7 @@ response = client.beta.messages.create(
 )
 ```
 
-**What each tool exposes** grows naturally. When Producers is built, it registers its capabilities. When Shows is built later and needs producer data, the capabilities are already there. When a new AI feature needs data from three tools, the LLM already has access. No one goes back to add methods to a protocol class.
+**What each tool exposes** grows naturally. When Producers is built, it registers its capabilities. When Slate is built later and needs producer data, the capabilities are already there. When a new AI feature needs data from three tools, the LLM already has access. No one goes back to add methods to a protocol class.
 
 **The MCP server is not the tool registry.** The registry knows what tools exist (metadata for the UI). The MCP server knows what tools can do (capabilities for code and AI). Two separate concerns, two separate pieces of infrastructure.
 
@@ -208,9 +208,9 @@ Initialized Anthropic and Google AI clients, configured from `.env`. Each tool i
 
 `shared/backend/storage/`
 
-Google Cloud Storage. One shared bucket configured via `GCS_BUCKET` in `.env`. Each tool uses path prefixes for separation (e.g. `shows/scripts/...`, `talent/headshots/...`). Shared provides the GCS client and common utilities — upload, download, signed URLs for frontend access, delete. Tools pass full paths including their prefix to the storage utilities.
+Google Cloud Storage. One shared bucket configured via `GCS_BUCKET` in `.env`. Each tool uses path prefixes for separation (e.g. `slate/scripts/...`, `talent/headshots/...`). Shared provides the GCS client and common utilities — upload, download, signed URLs for frontend access, delete. Tools pass full paths including their prefix to the storage utilities.
 
-Cross-tool file access follows the same pattern as cross-tool data access. Dramaturg doesn't reach into Shows' paths. It calls Shows' MCP tools, and Shows returns a signed URL or the file data. The boundary is always the MCP tool.
+Cross-tool file access follows the same pattern as cross-tool data access. Dramaturg doesn't reach into Slate's paths. It calls Slate's MCP tools, and Slate returns a signed URL or the file data. The boundary is always the MCP tool.
 
 ## Background Processing
 

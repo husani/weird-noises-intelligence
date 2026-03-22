@@ -8,7 +8,9 @@ The master spec defines what Producers is at a planning level. This document is 
 
 ## Dependencies
 
-Producers assumes Shows is built and populated. Show matching — a core feature — works against real show data from Shows' MCP tools on day one. Producers does not maintain its own representation of WN's slate.
+Producers owns its own shows data model for tracking theatrical works in general — any show a producer has been involved with. The `shows`, `productions`, `venues`, and `producer_shows` tables all live in the `intelligence_producers` database. The `Show` model represents theatrical works at the IP level; `Production` represents specific mountings.
+
+This is distinct from WN's slate (the shows WN is developing or producing), which will be managed by the future **Slate** tool. When Slate is built, show matching — comparing a producer's profile against WN's own slate — will work against Slate's data via MCP. Until then, show matching is deferred.
 
 The bookmarklet is deferred. It's shared with Talent and will be built when Talent comes online. It is not part of this build.
 
@@ -22,7 +24,7 @@ What Producers owns. Its own database. The producer record is a lean identity re
 
 ### Producer Record
 
-**Identity.** Name (first, last), nickname, pronouns, email, phone, city, state/region, country, hometown (city, state, country), birthdate, college, spouse/partner, languages, seasonal location, photo URL, personal website, social links.
+**Identity.** Name (first, last), nickname, pronouns, phone, city, state/region, country, hometown (city, state, country), birthdate, college, spouse/partner, languages, seasonal location, photo URL, personal website. Emails and social links are stored in separate polymorphic tables (`entity_emails` and `entity_social_links`) shared across entity types (producers, organizations, venues).
 
 **Dossier metadata.** When research was last run, what sources were consulted, where there were gaps (sections where the AI found thin or no results). Visible on the detail page so the team knows how fresh and complete the dossier is.
 
@@ -50,7 +52,7 @@ A producer's affiliation with an organization has: role/title, start date, end d
 
 ### Shows
 
-A show is the IP-level representation of a theatrical work. A show has: title, medium (musical, play, etc.), original year, description, genre (prose), themes (prose), summary (prose), and work origin (original, adaptation, revival). Shows can have multiple productions and multiple producers attached at the IP level (distinct from production-level credits).
+A show is the IP-level representation of a theatrical work — any show a producer has been involved with, not limited to WN's slate. Owned by the Producers tool in its own database. A show has: title, medium (musical, play, etc.), original year, description, genre (prose), themes (prose), summary (prose), plot synopsis (prose), and work origin (original, adaptation, revival). Shows can have multiple productions and multiple producers attached at the IP level (distinct from production-level credits). Medium and work origin reference `lookup_values` by foreign key.
 
 ### Venues
 
@@ -58,7 +60,7 @@ A venue is its own entity. Venues appear across many productions. A venue has: n
 
 ### Awards
 
-Awards attach to productions, not directly to producers. An award has: name (Tony, Drama Desk, Outer Critics, Obie, Pulitzer, other), category, year, outcome (nominated, won).
+Awards attach to a producer, optionally linked to a specific production. An award has: award name, category, year, outcome (from lookup values — nominated, won). The producer_id is required; the production_id is optional.
 
 ### Interactions
 
@@ -70,21 +72,35 @@ Follow-up signals are extracted from the interaction text at save time by the AI
 
 Ad-hoc labels the team applies to producers. A tag is a string. A producer can have many tags. Tags are searchable and filterable.
 
-### Producer–Show Connections
+### Producer–Show Links
 
-A structured relationship between a producer and a WN show (from Shows), stored in Producers' database. Fields: producer, show (referenced by Shows' ID), connection type (pitched, interested, passed, attached, other), date, notes. A producer can have multiple connections to the same show as the relationship evolves.
+A junction table (`producer_shows`) linking a producer to a show at the IP level — rights, development, lead producing. Fields: producer, show, role (from lookup values, entity_type `producer_show`). This is distinct from production-level credits in `producer_productions`.
 
-Two creation paths:
-- **From interactions.** At save time, the AI detects show references in interaction text and creates or updates connections automatically. "Pitched her on Moonshot" creates a connection with type "pitched." "She's interested in Stable Geniuses" creates one with type "interested."
-- **Manual.** The team explicitly connects a producer to a show from the detail page.
+Managed from the show detail page and from the producer detail page. AI show research can also create these links automatically when researching a show's production history.
 
-These are connections that Producers knows about from its own data. Other tools may also have data about a producer's relationship to a show — for example, Shows stores its own pitch records. The complete picture of a producer's relationship to WN's shows comes from reading both Producers' data and other tools' data via MCP.
+### Emails
 
-### Show Matching Results
+Emails are stored in a polymorphic `entity_emails` table shared across entity types (producers, organizations, venues). Each email has: entity type, entity ID, email address, type (from lookup values — work, personal, agent, company, etc.), source (where the email was found), confidence (high/medium/low), and is_primary flag. A producer can have multiple emails with provenance tracking.
 
-Stored results of AI analysis comparing a producer's profile against WN's slate. For each producer-show pair: show reference, fit assessment, reasoning (why this show fits or doesn't), and when the match was last computed. This is a table, not a text blob. Results are tracked in change history like everything else. Editable — the team can annotate or override the AI's assessment.
+### Social Links
 
-Show matching runs when the producer's dossier research first completes, re-runs on every dossier refresh (scheduled or manual), and can be manually triggered from the detail page. When a new show is added to the slate, existing match results are flagged as potentially incomplete — "slate has changed since last match." The next refresh cycle picks it up, or the user can trigger a re-run.
+Social links are stored in a polymorphic `entity_social_links` table shared across entity types (producers, organizations, venues). Each link has: entity type, entity ID, platform (from `social_platforms` table), URL. The `social_platforms` table defines available platforms (LinkedIn, Instagram, etc.) with name, base URL, icon SVG, and sort order.
+
+### Lookup Values
+
+Soft enums stored in a shared `lookup_values` table. Each value has: category, entity_type, value, display_label, sort_order, description, CSS class. Categories include: org_type, venue_type, scale, production_type, medium, work_origin, budget_tier, funding_type, role (multiple entity types), outcome, scan_focus_type, trait_category, intel_category, email_type. Values are managed via the Options page — add, edit, reorder, delete (blocked if referenced).
+
+### Producer Traits
+
+Structured analytical observations about a producer, stored in `producer_traits`. Each trait has: producer reference, category (from lookup values — genres, themes, scale preference, etc.), a prose value, a confidence score (0-100), and a computed_at timestamp. Populated by the AI pipeline.
+
+### Producer Intel
+
+Structured intelligence observations, stored in `producer_intel`. Each record has: producer reference, category (from lookup values — career move, deal activity, public statement, etc.), observation, confidence score, optional source URL, and discovered_at timestamp. Populated by the AI pipeline.
+
+### AI Behaviors
+
+Runtime-editable AI prompt configurations stored in the `ai_behaviors` table. Each behavior has: name (unique, indexed), display label, system prompt, user prompt, model (any available Claude or Gemini model), created_at, updated_at. All AI behaviors (dossier research, follow-up extraction, show research, relationship summary, AI discovery, AI query, intelligence profile, discovery calibration) are configured here. Prompts contain template variables (e.g. `{name}`, `{seed_data}`) that are interpolated at runtime.
 
 ### Relationship State
 
@@ -98,7 +114,9 @@ Every field-level change is logged. What field changed, old value, new value, wh
 
 Every producer who enters the system gets a full dossier built by the AI. The research is fully autonomous — no review gate, no draft-and-approve step. The AI researches and populates the fields. If it gets something wrong, the team corrects it. The correction is tracked in change history.
 
-**Research engine.** Claude with web search. The AI works through a research framework: check the managed source list first, then search broadly. It's directed research — the AI knows what fields need to be populated and systematically finds the data for each.
+All AI behaviors (prompts and model selection) are stored in the `ai_behaviors` database table and are fully editable at runtime via the AI Configuration page. There is no `prompts.py` file — prompt templates live in the database.
+
+**Research engine.** Claude or Gemini with web search — model configurable per behavior. The AI works through a research framework: check the managed source list first, then search broadly. It's directed research — the AI knows what fields need to be populated and systematically finds the data for each.
 
 **Managed source list.** A configurable list of sources the AI always checks: IBDB, Playbill, BroadwayWorld, LinkedIn, company websites, and whatever else the team adds over time. This is "always check these," not "only check these." The AI uses additional sources it finds during research.
 
@@ -198,17 +216,17 @@ Recomputed whenever interactions change. The state label is derived from the sto
 
 On the detail page, the relationship summary field provides the full natural language picture — stored, not generated on the fly. See Relationship Summary in the data model.
 
-## Show Matching
+## Show Matching (Deferred)
 
-Producers' LLM calls Shows' MCP tools to get slate data (titles, themes, genres, development stage, structural profile) and reasons about fit with the producer's structured data — creative taste, financial profile, production history, career trajectory.
+Show matching — comparing a producer's profile against WN's own slate — requires the **Slate** tool to exist. When Slate is built, Producers' LLM will call Slate's MCP tools to get slate data and reason about fit with the producer's structured data.
 
-Results are structured records stored in the database — not generated on the fly. See Show Matching Results in the data model for storage, timing, and refresh behavior. The detail page reads stored results on page load. The page never waits for AI.
+Until Slate exists, Producers tracks a producer's involvement with theatrical works generally (via its own Shows model) but does not assess fit against WN's development slate.
 
 ## What Producers Consumes from Other Tools
 
-The producer detail page assembles the complete picture of a producer from multiple sources. Producers' own database provides the dossier, interactions, tags, show matching results, relationship state. Other tools provide additional context via code-to-code MCP calls. Each section lights up as the relevant tool comes online. Nothing is broken when a tool doesn't exist yet — those sections simply aren't rendered.
+The producer detail page assembles the complete picture of a producer from multiple sources. Producers' own database provides the dossier, interactions, tags, relationship state, and show/production history. Other tools provide additional context via code-to-code MCP calls. Each section lights up as the relevant tool comes online. Nothing is broken when a tool doesn't exist yet — those sections simply aren't rendered.
 
-**From Shows.** Pitch history — which of WN's shows has this producer been pitched, when, what happened. Shows owns this data in its database. Producers reads it via MCP. Slate data for show matching — the LLM reads show data via MCP during show matching analysis.
+**From Slate (when built).** Pitch history — which of WN's shows has this producer been pitched, when, what happened. Slate owns this data in its database. Producers reads it via MCP. Show matching — the LLM reads Slate data via MCP during show matching analysis.
 
 **From Context (when built).** Conversation history — every meeting where this producer was discussed, what was said, what was decided. Surfaces automatically without the team logging it manually.
 
@@ -220,11 +238,11 @@ The producer detail page assembles the complete picture of a producer from multi
 
 ## What Producers Does NOT Own
 
-**Pitching.** Shows owns pitch creation and pitch records. A pitch is always about a show. Shows stores who was pitched, when, what happened. Producers reads this via MCP to show pitch history on the producer detail page.
+**Pitching.** Slate owns pitch creation and pitch records. A pitch is always about a WN show. Slate stores who was pitched, when, what happened. Producers reads this via MCP to show pitch history on the producer detail page.
 
-**Outreach campaigns.** The main spec describes campaigns ("we're submitting Moonshot to these 15 producers"). This is not a feature in Producers. The aggregate view — "show me everyone we've pitched Moonshot to" — is a query that reads from both Producers' connection data and Shows' pitch records.
+**Outreach campaigns.** The main spec describes campaigns ("we're submitting Moonshot to these 15 producers"). This is not a feature in Producers. The aggregate view — "show me everyone we've pitched Moonshot to" — is a query that reads from both Producers' show data and Slate's pitch records.
 
-**Show data.** Producers consumes show data from Shows' MCP tools. It does not store or maintain any representation of WN's slate.
+**WN's slate.** Producers tracks theatrical works generally (any show a producer has been involved with) but does not maintain WN's own development slate. That's Slate's domain.
 
 ## Data Population
 
@@ -242,33 +260,74 @@ How data gets into Producers' database. AI is one population method among severa
 
 ## MCP Tools
 
-What Producers exposes to other tools and LLMs. All eight are read operations returning structured data from Producers' database. No MCP tool makes an LLM call internally.
+What Producers exposes to other tools and LLMs. 17 tools covering reads, writes, and lookups. No MCP tool makes an LLM call internally.
 
 Tool descriptions must enumerate what data is included so that LLMs can discover the right tool for their needs.
 
+### Producer Reads
+
 **1. `producers_search`**
-Search producers by criteria. Searchable by: name, email, organization, genres, themes, scale preference, financial profile attributes, location, tags, relationship state, production history attributes (venue, scale, year range). Also handles identity matching — exact lookup by name or email for tools like Funding checking whether a funder is a tracked producer.
+Search producers by criteria. Searchable by: first/last name, email, organization, location, tags, relationship state, production history attributes. Also handles identity matching — exact lookup by name or email.
 
 **2. `producers_get_record`**
-Full profile for a single producer. Returns: identity (name, email, phone, location, photo, website, social links), creative taste (genres, themes, scale preference, aesthetic sensibility), financial profile (lead vs co-producer, capitalization range, funding approach, summary), career trajectory, current activity, press and public presence, network summary (frequent collaborators, co-producers, key relationships), awards summary, relationship summary, dossier metadata (last research date, sources, gaps), intake source, tags.
+Full profile for a single producer. Returns: identity (first_name, last_name, phone, location, photo, website, social links, birthdate, pronouns, nickname, college, hometown, spouse/partner, languages, seasonal location), dossier metadata, intake source, tags, relationship state.
 
 **3. `producers_get_productions`**
-A producer's production history. Returns: list of productions with title, venue (name, type, location), year/run period, producer role (lead/co/associate/executive), scale, run length, outcome, awards tied to each production, co-producers on each production.
+A producer's production history. Returns: list of productions with title, venue (name, type, city/state/country), year/run period, producer role, scale, run length, outcome, awards, and co-producers on each production.
 
 **4. `producers_get_organizations`**
 A producer's organizational affiliations. Returns: list of organizations with name, type, role/title held, start date, end date, notes.
 
 **5. `producers_get_interactions`**
-WN's interaction history with a producer. Returns: chronological list of interactions with date, text, author, and any follow-up signals (implied action, timeframe, resolved/unresolved status).
+WN's interaction history with a producer. Returns: chronological list of interactions with date, text, author, and any follow-up signals.
 
 **6. `producers_get_relationship_state`**
-The relationship state for a producer. Returns: last contact date, interaction count, interaction frequency, pending follow-ups (with timeframes and overdue status), computed state label (no contact, new, active, waiting, overdue, gone cold).
+The relationship state for a producer. Returns: last contact date, interaction count, interaction frequency, pending follow-ups, computed state label (no_contact, new, active, waiting, overdue, gone_cold).
 
-**7. `producers_by_show`**
-Producers connected to a specific WN show from Producers' own data — connections created from interactions and manual entry. Returns: list of producers with their connection type (pitched, interested, passed, attached), date, notes, and current relationship state. Takes a show ID as input. The complete picture of all producers connected to a show may require also reading from Shows' data.
+### Lookup Values
 
-**8. `producers_show_matches`**
-AI-assessed show matching results for a producer. Returns: list of show matches with show reference, fit assessment, reasoning, and when the match was last computed. Takes a producer ID as input. Can also be queried by show ID to get all producers who match a specific show.
+**7. `producers_get_lookup_values`**
+Get all lookup values for a category and entity type. Returns id, value, display_label, description, and css_class. Categories include: scale, medium, work_origin, production_type, budget_tier, funding_type, venue_type, role (multiple entity types), scan_focus_type, etc.
+
+### Show Reads & Writes
+
+**8. `producers_get_show`**
+Get a show with all its data. Returns: title, medium, original_year, description, genre, themes, summary, plot_synopsis, work_origin, productions (with venue, scale, producer credits), and producer_shows (IP-level relationships with roles).
+
+**9. `producers_search_shows`**
+Search shows by title. Returns paginated list with id, title, medium, original_year, description, genre, themes, summary, plot_synopsis, work_origin.
+
+**10. `producers_update_show`**
+Update a show's fields (genre, themes, summary, plot_synopsis, work_origin_id, medium_id, original_year, description). Only provided fields are updated.
+
+### Venue Reads & Writes
+
+**11. `producers_search_venues`**
+Search venues by name. Returns paginated list with id, name, venue_type, city, state_region, country, capacity, description.
+
+**12. `producers_create_venue`**
+Create a new venue. Callers should search for existing venues first to avoid duplicates.
+
+### Production Writes
+
+**13. `producers_create_production`**
+Create a new production of a show (a specific mounting at a venue in a given year). Uses lookup value IDs for scale, production_type, budget_tier, funding_type.
+
+**14. `producers_update_production`**
+Update an existing production's fields. Only provided fields are updated.
+
+### Producer-Show & Producer-Production Links
+
+**15. `producers_add_producer_to_show`**
+Link a producer to a show at the IP level (rights, development, lead producing). Uses lookup value role IDs for the `producer_show` entity type.
+
+**16. `producers_add_producer_to_production`**
+Link a producer to a specific production with a credit role. Uses lookup value role IDs for the `producer_production` entity type.
+
+### Discovery
+
+**17. `producers_add_discovery_candidate`**
+Add a producer to the discovery review queue. Used when the AI finds a producer credit for someone not already in the database. The team reviews and decides whether to confirm.
 
 ## Frontend
 
@@ -289,50 +348,43 @@ Quick Add (create a producer) is always available at the top of the sidebar.
 
 ### Pages and Views
 
-**Dashboard.** The default view when opening Producers. Surfaces what needs attention: overdue follow-ups, producers recently added with research still in progress, AI discovery candidates waiting for review, recent interaction activity across the team, significant changes found during dossier refreshes ("Sarah Chen just announced a new production," "Producer X changed organizations"), and show matching results that changed on the last refresh ("New match: Producer X now fits Moonshot"). The dashboard is the system telling you what changed and what needs action.
+Producers has 36+ page component files organized into these views:
 
-**Producer list.** All producers, searchable, filterable, sortable. Each row shows: name, current org affiliation, relationship state indicator with recency ("Active — 3 days ago," "No contact"), tags, last updated timestamp. Producers with pending follow-ups that are due or overdue are surfaced prominently. Multi-select supports batch actions including batch refresh.
+**Dashboard.** The default view when opening Producers. Surfaces what needs attention: overdue follow-ups, producers recently added with research still in progress, AI discovery candidates waiting for review, recent interaction activity across the team.
 
-**Producer detail.** The complete picture of a producer, assembled from Producers' own database and from other tools via MCP.
+**Producer list.** All producers, searchable, filterable, sortable. Each row shows: name, current org affiliation, relationship state indicator with recency, tags, last updated timestamp. Multi-select supports batch actions including batch refresh and batch tagging.
 
-Page sections in priority order — what matters most is at the top:
-1. Dossier sections — creative taste, financial profile, career trajectory, current activity, press presence, network, awards. Rendered from structured fields with design treatment per section, not text blobs. Every field is editable by the team — edits are tracked in change history. Each section shows when it was last updated and by whom (AI refresh or human edit).
-2. Show matching — which of WN's shows fit this producer and why. Stored results, not generated on page load. Shows when last computed. Flagged if the slate has changed since last match. Manual re-run available.
-3. Relationship state — compact indicator, pending follow-ups, overdue alerts. Relationship summary — the stored natural language synthesis of where things stand.
-4. Producer-show connections and pitch history — connections from Producers' own data (manual and AI-detected from interactions) plus pitch history read from Shows via MCP. Unified view, multiple sources. Manually create new connections from the detail page (pick show, pick connection type, add notes).
-5. Interaction log — chronological list, scrollable. The "add interaction" field lives here. When Context exists, conversation history from meetings surfaces here alongside manual interactions.
-6. Engagement context — read from Audience via MCP when Audience exists. Not rendered until then.
-7. Market context — read from Radar via MCP when Radar exists. Not rendered until then.
-8. Dossier metadata — sources consulted, gaps where research found thin results.
-9. Change history — accessible but not primary. What changed, when, who.
-10. Tags — visible and editable.
+**Producer detail.** The complete picture of a producer. Tabbed view with sections: Dossier (traits, intel), Shows (IP-level links), Interactions (with follow-up signals), History (change history), Identity (personal details, emails, social links). Every field is editable by the team — edits tracked in change history. Manual refresh available to trigger immediate re-research.
 
-Manual refresh is available from the detail page — trigger an immediate re-research for this producer.
+**Add producer.** A form with two paths that converge. Enter a name and whatever you know (org, email, notes, tags), or paste a URL and let the AI extract identity. Duplicate candidates surface live as the name is typed. On submit, the record exists immediately and research runs async.
 
-**Add producer.** A form with two paths that converge. Enter a name and whatever you know (org, email, notes), or paste a URL and let the AI handle it. Duplicate candidates surface live as the name is typed — see Duplicate Detection under Intake. On submit, the record exists immediately and research runs async.
+**Spreadsheet import.** Upload flow: choose CSV file, preview with duplicate candidates flagged, confirm. Progress view showing research status for each imported record.
 
-**Spreadsheet import.** Upload flow: choose file, column mapping preview with duplicate candidates flagged, confirm. Progress view showing research status for each imported record.
+**AI discovery queue.** Two tabs: Review Queue (pending candidates with expandable cards, inline editing, email selection, dedup warnings) and Scan History (past scans with stats). Actions: confirm (adds to database, triggers research) or dismiss with reason.
 
-**AI discovery queue.** A dedicated view showing producers the system found. Each entry: who, why (reasoning), source. Actions: confirm (adds to database, triggers research) or dismiss.
+**AI querying.** Natural language interface for querying across the producer database via LLM with MCP access. Conversation history display.
 
-**AI querying.** Natural language interface for querying across the producer database. The behavior: ask a question, get results from the database via LLM with MCP access. The design system provides the component patterns.
+**Entity management pages** (full CRUD with list, detail, and edit views):
+- **Organizations** — Organization list, detail, edit. Includes email and social link management.
+- **Shows** — Show list, detail, edit. Includes producer-show links and AI show research trigger.
+- **Productions** — Production list, detail, edit. Includes producer-production credits, venue linking.
+- **Venues** — Venue list, detail, edit. Includes email management and production linking.
 
-**Tags.** View all tags, rename (updates across all producers), merge duplicates, delete. Its own page under Data.
+**Data management pages:**
+- **Tags** — View all tags, rename, merge duplicates, delete. Detail and edit views.
+- **Options** — Manage lookup values by category/entity_type. Grouped sidebar navigation. Full CRUD with reorder and delete protection. Detail and edit views.
+- **Data Sources** — Managed source list for the research pipeline. Add, edit, reorder, delete. Detail and edit views.
+- **Social Platforms** — Manage available social platforms (LinkedIn, Instagram, etc.) with icons, base URLs, and entity links. Detail and edit views.
 
-**Options.** Manage the dropdown values used across the tool — producer roles, show roles, scale, medium, org types, venue types, award outcomes, and email types. Grouped sidebar navigation organizes the 10 category/entity-type pairs into three sections (Roles, Classifications, Email Types). Full CRUD: add, edit (value, display label, badge color), reorder, and delete (blocked if the value is referenced by any records). Backed by the `LookupValue` model. Its own page under Data.
+**AI Configuration.** Workbench-style page with a sidebar listing all AI behaviors from the `ai_behaviors` table. For each behavior: model selection (from available Anthropic and Google models) and prompt editing. System prompt and user prompt template, both fully editable. User prompt templates contain variables (e.g. `{name}`, `{seed_data}`, `{fields}`) replaced at runtime.
 
-**Data Sources.** The managed source list — add, remove, reorder sources the research pipeline always checks when building or refreshing dossiers (IBDB, Playbill, BroadwayWorld, LinkedIn, etc.). This is a floor — the AI also uses its own judgment about where to look beyond the list. Its own page under Data.
-
-**AI Configuration.** Workbench-style page with a sidebar listing all AI behaviors. For each behavior: model selection (from available Anthropic and Google models, with defaults and reset) and prompt editing. Every AI behavior in Producers (dossier research, follow-up extraction, producer-show connection detection, show matching, relationship summary, AI discovery, AI querying) has a system prompt and a user prompt template. Both are fully viewable and editable. User prompt templates contain variables (e.g. `{name}`, `{seed_data}`, `{fields}`) that are replaced at runtime — available variables are documented alongside each template. Its own page under Advanced.
-
-**Settings.** Two sections:
-
-*Thresholds.* Contact health (gone cold threshold) and research cadence (baseline refresh interval, active relationship refresh, active relationship window, discovery scan interval). All configurable in days.
-
-*Scheduled jobs.* When each scheduled job (discovery, refresh) last ran, when it runs next, results from the last cycle. Refresh All Producers button triggers a full re-research across the entire database.
+**Settings.** Three sections:
+- *Thresholds* — Contact health (gone cold threshold) and research cadence (baseline refresh interval, active relationship refresh, active relationship window, discovery scan interval). All configurable in days.
+- *Scheduled jobs* — When each scheduled job last ran, when it runs next. Refresh All Producers button triggers a full re-research.
+- *Available models* — Shows all configured AI model options.
 
 ## Scheduled Jobs
 
-**AI discovery.** Default weekly, configurable in settings. The LLM monitors industry sources and identifies producers WN should know about — using WN's slate from Shows, existing producer data, and dismissal patterns to reason about relevance. Results go to the discovery queue.
+**AI discovery.** Default weekly, configurable in settings. The LLM monitors industry sources and identifies producers WN should know about — using existing producer data, the intelligence profile, calibration, and dismissal patterns to reason about relevance. Results go to the discovery queue.
 
 **Dossier refresh.** Default monthly for all producers, biweekly for active relationships (configurable in settings). Re-researches by checking sources for changes and updating fields where data has changed. Show matching re-runs as part of each refresh. Changes logged in change history.

@@ -301,7 +301,9 @@ function ScanDetailModal({ scanId, onClose }) {
           </div>
           <div className="disc-modal-meta-item">
             <span className="disc-modal-meta-label">Type</span>
-            <span className="capitalize">{detail.focus_type || 'auto'}</span>
+            {detail.focus_type
+              ? <span className={`badge ${detail.focus_type.css_class}`}>{detail.focus_type.display_label}</span>
+              : <span className="cell-muted">auto</span>}
           </div>
           {durationStr && (
             <div className="disc-modal-meta-item">

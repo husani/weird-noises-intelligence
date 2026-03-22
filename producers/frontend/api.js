@@ -160,7 +160,10 @@ export const aiQuery = (query) => request('/query', {
 
 // Settings
 export const getModelSettings = () => request('/settings/models')
-export const getPrompts = () => request('/settings/prompts')
+export const getAIBehaviors = () => request('/settings/ai-behaviors')
+export const updateAIBehavior = (id, data) => request(`/settings/ai-behaviors/${id}`, {
+  method: 'PUT', body: JSON.stringify(data),
+})
 export const getSettings = () => request('/settings')
 export const updateSetting = (key, value) => request('/settings', {
   method: 'PUT', body: JSON.stringify({ key, value }),
@@ -218,16 +221,14 @@ export const updateShow = (id, data) => request(`/shows/${id}`, {
   method: 'PUT', body: JSON.stringify(data),
 })
 export const deleteShow = (id) => request(`/shows/${id}`, { method: 'DELETE' })
+export const researchShow = (id) => request(`/shows/${id}/research`, { method: 'POST' })
 export const addProducerToShow = (showId, data) => request(`/shows/${showId}/producers`, {
   method: 'POST', body: JSON.stringify(data),
 })
 export const removeProducerFromShow = (showId, linkId) => request(`/shows/${showId}/producers/${linkId}`, {
   method: 'DELETE',
 })
-export const addShowProduction = (showId, productionId) => request(`/shows/${showId}/productions/${productionId}`, { method: 'POST' })
-export const removeShowProduction = (showId, productionId) => request(`/shows/${showId}/productions/${productionId}`, { method: 'DELETE' })
-
-// Productions CRUD
+// Productions
 export const listAllProductions = (params = {}) => {
   const qs = new URLSearchParams(params).toString()
   return request(`/productions${qs ? `?${qs}` : ''}`)

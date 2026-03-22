@@ -203,6 +203,7 @@ class CreateShowRequest(BaseModel):
     genre: Optional[str] = None
     themes: Optional[str] = None
     summary: Optional[str] = None
+    plot_synopsis: Optional[str] = None
     work_origin_id: Optional[int] = None
 
 
@@ -214,6 +215,7 @@ class UpdateShowRequest(BaseModel):
     genre: Optional[str] = None
     themes: Optional[str] = None
     summary: Optional[str] = None
+    plot_synopsis: Optional[str] = None
     work_origin_id: Optional[int] = None
 
 
@@ -224,7 +226,6 @@ class AddProducerShowRequest(BaseModel):
 
 class CreateProductionRequest(BaseModel):
     show_id: int
-    title: str
     venue_id: Optional[int] = None
     venue_name: Optional[str] = None
     venue_type_id: Optional[int] = None
@@ -244,8 +245,6 @@ class CreateProductionRequest(BaseModel):
 
 
 class UpdateProductionRequest(BaseModel):
-    show_id: Optional[int] = None
-    title: Optional[str] = None
     venue_id: Optional[int] = None
     year: Optional[int] = None
     start_date: Optional[str] = None
@@ -427,14 +426,13 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
         return interface.delete_tag(tag_id)
 
     @router.post("/extract-url")
-    def extract_url(req: dict, user: dict = Depends(get_current_user)):
+    async def extract_url(req: dict, user: dict = Depends(get_current_user)):
         """Extract producer identity from a URL using AI."""
         url = req.get("url", "")
         if not url:
             return {"error": "URL is required"}
         from producers.backend.ai import extract_from_url
-        with session_factory() as session:
-            return extract_from_url(session, url)
+        return await extract_from_url(url)
 
     @router.post("/check-duplicates")
     def check_duplicates(req: DuplicateCheckRequest,
@@ -454,10 +452,10 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
         return result
 
     @router.post("/query")
-    def ai_query(req: AIQueryRequest, user: dict = Depends(get_current_user)):
+    async def ai_query(req: AIQueryRequest, user: dict = Depends(get_current_user)):
         from producers.backend.ai import run_ai_query
         with session_factory() as session:
-            return {"result": run_ai_query(session, req.query, mcp_server)}
+            return {"result": await run_ai_query(session, req.query)}
 
     # --- Discovery ---
 
@@ -556,10 +554,11 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
     @router.post("/discovery/regenerate-calibration")
     def regenerate_calibration(background_tasks: BackgroundTasks,
                                user: dict = Depends(get_current_user)):
+        import asyncio
         from producers.backend.ai import generate_calibration_summary
         def _regen(sf):
             with sf() as session:
-                generate_calibration_summary(session)
+                asyncio.run(generate_calibration_summary(session))
         background_tasks.add_task(_regen, session_factory)
         return {"triggered": True}
 
@@ -574,48 +573,47 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
                        user: dict = Depends(get_current_user)):
         return interface.update_setting(req.key, req.value)
 
-    @router.get("/settings/prompts")
-    def get_prompts(user: dict = Depends(get_current_user)):
-        from producers.backend.prompts import (
-            PROMPT_KEYS,
-            DOSSIER_RESEARCH_SYSTEM, DOSSIER_RESEARCH_USER,
-            FOLLOW_UP_EXTRACTION_SYSTEM, FOLLOW_UP_EXTRACTION_USER,
-            RELATIONSHIP_SUMMARY_SYSTEM, RELATIONSHIP_SUMMARY_USER,
-            AI_DISCOVERY_SYSTEM, AI_DISCOVERY_USER,
-            AI_QUERY_SYSTEM, AI_QUERY_USER,
-        )
-        defaults = {
-            "dossier_research": {"system": DOSSIER_RESEARCH_SYSTEM, "user": DOSSIER_RESEARCH_USER},
-            "follow_up_extraction": {"system": FOLLOW_UP_EXTRACTION_SYSTEM, "user": FOLLOW_UP_EXTRACTION_USER},
-            "relationship_summary": {"system": RELATIONSHIP_SUMMARY_SYSTEM, "user": RELATIONSHIP_SUMMARY_USER},
-            "ai_discovery": {"system": AI_DISCOVERY_SYSTEM, "user": AI_DISCOVERY_USER},
-            "ai_query": {"system": AI_QUERY_SYSTEM, "user": AI_QUERY_USER},
-        }
-        # Document available variables per prompt template
-        variables = {
-            "dossier_research": {"user": ["{name}", "{seed_data}", "{sources}"]},
-            "follow_up_extraction": {"user": ["{producer_name}", "{date}", "{author}", "{content}"]},
-            "relationship_summary": {"user": ["{name}", "{interaction_count}", "{last_contact}", "{recent_interactions}", "{pending_followups}"]},
-            "ai_discovery": {"system": ["{calibration_summary}"], "user": ["{focus_area}", "{intelligence_profile}", "{slate_info}"]},
-            "intelligence_profile": {"user": ["{producer_count}", "{org_summary}", "{geographic_summary}", "{aesthetic_summary}", "{scale_summary}"]},
-            "discovery_calibration": {"user": ["{total_count}", "{dismissals_data}"]},
-            "ai_query": {"user": ["{query}"]},
-        }
-        current_settings = interface.get_settings()
-        result = []
-        for behavior, keys in PROMPT_KEYS.items():
-            result.append({
-                "behavior": behavior,
-                "label": behavior.replace("_", " ").title(),
-                "system_key": keys["system"],
-                "user_key": keys["user"],
-                "system_default": defaults.get(behavior, {}).get("system", ""),
-                "user_default": defaults.get(behavior, {}).get("user", ""),
-                "system_current": current_settings.get(keys["system"]),
-                "user_current": current_settings.get(keys["user"]),
-                "variables": variables.get(behavior, {}),
-            })
-        return result
+    @router.get("/settings/ai-behaviors")
+    def get_ai_behaviors(user: dict = Depends(get_current_user)):
+        """Get all AI behavior configurations from the ai_behaviors table."""
+        from producers.backend.models import AIBehavior
+        with session_factory() as session:
+            behaviors = session.query(AIBehavior).order_by(AIBehavior.name).all()
+            return [
+                {
+                    "id": b.id,
+                    "name": b.name,
+                    "display_label": b.display_label,
+                    "system_prompt": b.system_prompt,
+                    "user_prompt": b.user_prompt,
+                    "model": b.model,
+                    "updated_at": b.updated_at.isoformat() if b.updated_at else None,
+                }
+                for b in behaviors
+            ]
+
+    @router.put("/settings/ai-behaviors/{behavior_id}")
+    def update_ai_behavior(behavior_id: int, req: dict, user: dict = Depends(get_current_user)):
+        """Update an AI behavior's prompts or model."""
+        from producers.backend.models import AIBehavior
+        with session_factory() as session:
+            behavior = session.get(AIBehavior, behavior_id)
+            if not behavior:
+                from fastapi import HTTPException
+                raise HTTPException(status_code=404, detail="Behavior not found")
+            for field in ("system_prompt", "user_prompt", "model"):
+                if field in req:
+                    setattr(behavior, field, req[field])
+            session.commit()
+            return {
+                "id": behavior.id,
+                "name": behavior.name,
+                "display_label": behavior.display_label,
+                "system_prompt": behavior.system_prompt,
+                "user_prompt": behavior.user_prompt,
+                "model": behavior.model,
+                "updated_at": behavior.updated_at.isoformat() if behavior.updated_at else None,
+            }
 
     # --- Batch operations ---
 
@@ -797,16 +795,6 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
     def delete_show(show_id: int, user: dict = Depends(get_current_user)):
         return interface.delete_show(show_id)
 
-    @router.post("/shows/{show_id}/productions/{production_id}")
-    def add_production_to_show(show_id: int, production_id: int,
-                                user: dict = Depends(get_current_user)):
-        return interface.add_production_to_show(show_id, production_id)
-
-    @router.delete("/shows/{show_id}/productions/{production_id}")
-    def remove_production_from_show(show_id: int, production_id: int,
-                                     user: dict = Depends(get_current_user)):
-        return interface.remove_production_from_show(show_id, production_id)
-
     @router.post("/shows/{show_id}/producers")
     def add_producer_to_show(show_id: int, req: AddProducerShowRequest,
                               user: dict = Depends(get_current_user)):
@@ -816,6 +804,16 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
     def remove_producer_from_show(show_id: int, link_id: int,
                                    user: dict = Depends(get_current_user)):
         return interface.remove_producer_show(link_id, user["email"])
+
+    @router.post("/shows/{show_id}/research")
+    async def research_show(show_id: int, user: dict = Depends(get_current_user)):
+        from producers.backend.ai import run_show_research
+        try:
+            result = await run_show_research(show_id)
+            return {"status": "complete", "result": result}
+        except Exception as e:
+            logger.exception("Show research failed for show %d", show_id)
+            return {"status": "error", "error": str(e)}
 
     # --- Productions ---
 
@@ -1027,21 +1025,23 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
 
     @router.get("/settings/models")
     def get_model_settings(user: dict = Depends(get_current_user)):
-        """Get available models per provider and current selections per behavior."""
-        from producers.backend.ai import DEFAULT_MODELS, MODEL_OPTIONS, MODEL_SETTING_KEYS
-        current_settings = interface.get_settings()
-        behaviors = []
-        for behavior, default_model in DEFAULT_MODELS.items():
-            setting_key = MODEL_SETTING_KEYS[behavior]
-            current = current_settings.get(setting_key)
-            behaviors.append({
-                "behavior": behavior,
-                "label": behavior.replace("_", " ").title(),
-                "setting_key": setting_key,
-                "default": default_model,
-                "current": current or default_model,
-            })
-        return {"options": MODEL_OPTIONS, "behaviors": behaviors}
+        """Get available models per provider and current model per behavior."""
+        from producers.backend.ai import MODEL_OPTIONS
+        from producers.backend.models import AIBehavior
+        with session_factory() as session:
+            behaviors = session.query(AIBehavior).order_by(AIBehavior.name).all()
+            return {
+                "options": MODEL_OPTIONS,
+                "behaviors": [
+                    {
+                        "id": b.id,
+                        "behavior": b.name,
+                        "label": b.display_label,
+                        "model": b.model,
+                    }
+                    for b in behaviors
+                ],
+            }
 
     @router.get("/data-sources")
     def list_sources(user: dict = Depends(get_current_user)):
@@ -1255,14 +1255,16 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
 
 def _run_research(session_factory, producer_id: int, is_refresh: bool = False):
     """Run dossier research as a background task."""
+    import asyncio
     from producers.backend.ai import run_dossier_research
     with session_factory() as session:
-        run_dossier_research(session, producer_id, is_refresh=is_refresh)
+        asyncio.run(run_dossier_research(session, producer_id, is_refresh=is_refresh))
 
 
 def _process_interaction(session_factory, interaction_id: int, producer_id: int,
                          content: str, author: str):
     """Process an interaction after save — extract follow-ups, regenerate summary."""
+    import asyncio
     from datetime import datetime, timezone
 
     from producers.backend.ai import (
@@ -1280,8 +1282,8 @@ def _process_interaction(session_factory, interaction_id: int, producer_id: int,
 
         try:
             producer_name = f"{producer.first_name} {producer.last_name}"
-            extract_follow_ups(session, interaction_id, producer_id,
-                               producer_name, content, date_str, author)
+            asyncio.run(extract_follow_ups(session, interaction_id, producer_id,
+                                           producer_name, content, date_str, author))
         except Exception:
             logger.exception("Failed to extract follow-ups for interaction %d", interaction_id)
 

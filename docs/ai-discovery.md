@@ -92,7 +92,7 @@ Review queue: team confirms or dismisses each candidate
 
 **Prompt:** `ai_discovery` behavior
 - System (`prompt_ai_discovery_system`): WN context, discovery criteria (champions new work, shared aesthetic, strategically positioned, emerging, complementary capabilities), what NOT to suggest, `{calibration_summary}` injected at the end
-- User (`prompt_ai_discovery_user`): Variables `{focus_area}`, `{intelligence_profile}`, `{slate_info}` (currently stubbed until Shows tool exists)
+- User (`prompt_ai_discovery_user`): Variables `{focus_area}`, `{intelligence_profile}`, `{slate_info}` (currently stubbed until Slate tool exists)
 
 **LLM call:** Web search enabled (Claude or Gemini), structured output via `DiscoveryCandidateData` schema, returns array of candidates.
 
@@ -224,27 +224,30 @@ Each scan creates a `DiscoveryScan` record tracking:
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/api/producers/discovery/candidates?status=pending` | List candidates by status |
-| `PUT` | `/api/producers/discovery/candidates/{id}/review` | Confirm or dismiss a candidate |
+| `GET` | `/api/producers/discovery` | List candidates (filter by status) |
+| `POST` | `/api/producers/discovery/{id}/review` | Confirm or dismiss a candidate |
 | `POST` | `/api/producers/discovery/trigger` | Trigger a manual scan (optional `focus` param) |
-| `GET` | `/api/producers/discovery/scans` | Scan history with pagination |
+| `GET` | `/api/producers/discovery/schedule` | Get discovery schedule info |
+| `GET` | `/api/producers/discovery/scans` | Scan history |
 | `GET` | `/api/producers/discovery/scans/{id}` | Scan detail with candidates |
 | `GET` | `/api/producers/discovery/focus-areas` | List configured focus areas |
 | `POST` | `/api/producers/discovery/focus-areas` | Create a focus area |
 | `PUT` | `/api/producers/discovery/focus-areas/{id}` | Update a focus area |
 | `DELETE` | `/api/producers/discovery/focus-areas/{id}` | Delete a focus area |
+| `GET` | `/api/producers/discovery/profile` | Get current intelligence profile |
 | `POST` | `/api/producers/discovery/regenerate-profile` | Manually regenerate intelligence profile |
+| `GET` | `/api/producers/discovery/calibration` | Get current calibration |
 | `POST` | `/api/producers/discovery/regenerate-calibration` | Manually regenerate calibration |
 
 ## Prompt Reference
 
-All prompts are editable at runtime via the AI Configuration page. Defaults live in `producers/backend/prompts.py`.
+All prompts are stored in the `ai_behaviors` database table and are editable at runtime via the AI Configuration page. Each behavior has a system prompt, user prompt, and model selection.
 
-| Behavior | Setting Keys | Used During |
-|----------|-------------|-------------|
-| `ai_discovery` | `prompt_ai_discovery_system`, `prompt_ai_discovery_user` | The scan itself — finding candidates |
-| `intelligence_profile` | `prompt_intelligence_profile_system`, `prompt_intelligence_profile_user` | Pre-scan — summarizing database coverage |
-| `discovery_calibration` | `prompt_discovery_calibration_system`, `prompt_discovery_calibration_user` | Post-review — distilling dismissal patterns |
+| Behavior | Used During |
+|----------|-------------|
+| `ai_discovery` | The scan itself — finding candidates |
+| `intelligence_profile` | Pre-scan — summarizing database coverage |
+| `discovery_calibration` | Post-review — distilling dismissal patterns |
 
 The `ai_discovery` system prompt includes `{calibration_summary}` which is injected from the latest calibration. The user prompt includes `{intelligence_profile}` from the latest profile and `{focus_area}` from the selected focus.
 
@@ -257,34 +260,30 @@ When a discovery candidate is confirmed (or a producer is added by any other mea
 | Field | Type | Description |
 |-------|------|-------------|
 | `first_name`, `last_name` | String | Required. Indexed for search. |
-| `email` | String | Primary email. Unique constraint. |
 | `phone` | String | Phone number. |
 | `city`, `state_region`, `country` | String | Location. |
 | `website` | String | Personal or company URL. |
 | `photo_url` | String | Headshot/avatar URL. |
-| `social_links` | JSONB | Array of `{platform, url}` — LinkedIn, Instagram, etc. |
-| `email_candidates` | JSONB | Array of `{email, source, confidence}` — all discovered emails with provenance. Confidence is high/medium/low. |
+| `birthdate` | Date | Date of birth. |
+| `pronouns` | String | Preferred pronouns. |
+| `nickname` | String | Commonly used name. |
+| `college` | String | Educational background. |
+| `hometown`, `hometown_state`, `hometown_country` | String | Place of origin. |
+| `spouse_partner` | String | Spouse or partner name. |
+| `languages` | String | Languages spoken. |
+| `seasonal_location` | String | Alternate location (e.g. summer home). |
+
+Emails are stored in the polymorphic `entity_emails` table (type, source, confidence, is_primary). Social links are stored in the polymorphic `entity_social_links` table (platform, url). Both tables are shared across entity types (producers, organizations, venues).
 
 ### AI-Written Dossier
 
-Populated by dossier research (`dossier_research` prompt behavior). Refreshed periodically based on the configured cadence.
+Analytical data lives in two satellite tables rather than on the producer record:
 
-| Field | Description |
-|-------|-------------|
-| `genres` | Array of genres they work in (e.g., musical theatre, drama, comedy). |
-| `themes` | Array of recurring themes in their work. |
-| `scale_preference` | intimate / mid-size / large-scale / mixed. |
-| `aesthetic_sensibility` | Prose analysis of their creative taste — what patterns emerge across their productions. |
-| `lead_vs_co_producer` | lead / co-producer / both. |
-| `typical_capitalization_range` | Description of typical deal sizes. |
-| `funding_approach` | individual investors / institutional / mixed. |
-| `financial_profile_summary` | Prose analysis of their financial approach. |
-| `career_trajectory_summary` | Prose analysis of career direction — scaling up, shifting genres, etc. |
-| `current_activity` | Prose on current and announced projects. Refreshed more frequently. |
-| `press_presence` | Prose on press coverage, interviews, public statements. |
-| `awards_summary` | Prose on industry recognition and what it signals. |
-| `network_summary` | Prose on frequent collaborators — co-producers, directors, writers, casting directors. |
-| `relationship_summary` | Prose summary of WN's relationship with this producer. Regenerated when interactions change (uses `relationship_summary` prompt behavior). |
+**Producer Traits** (`producer_traits`): Structured analytical observations. Each trait has: producer reference, category (from lookup values — genres, themes, scale preference, lead vs co-producer, capitalization range, funding approach, etc.), a prose value, a confidence score (0-100), and a computed_at timestamp.
+
+**Producer Intel** (`producer_intel`): Intelligence observations. Each record has: producer reference, category (from lookup values — career move, deal activity, public statement, industry recognition, relationship signal, project announcement), observation, confidence score, optional source URL, and discovered_at timestamp.
+
+Both are populated and refreshed by the AI pipeline using the `dossier_research` behavior.
 
 ### Dossier Metadata
 
@@ -319,21 +318,19 @@ Computed fields, recomputed when interactions change. Not manually entered.
 
 Each of these is a separate table linked via foreign keys or junction tables.
 
-**Productions** (many-to-many via `producer_productions`): Theatre productions this producer has worked on. Each link has a `role` (lead producer, co-producer, associate, executive). Productions are their own entity with title, venue, year, dates, scale, run length, and outcome notes.
+**Productions** (many-to-many via `producer_productions`): Theatre productions this producer has worked on. Each link has a `role` (from lookup values). Productions are their own entity with show, venue, year, dates, scale, run length, budget tier, funding type, capitalization, recouped status.
 
-**Organizations** (many-to-many via `producer_organizations`): Producing offices, non-profits, commercial companies, development programs. Each link has role title, start/end dates, and notes. Organizations are their own entity with name, type, website, location, description, and social links.
+**Shows** (many-to-many via `producer_shows`): IP-level links to theatrical works. Each link has a role (from lookup values). Shows are their own entity with title, medium, genre, themes, summary, plot synopsis, work origin.
+
+**Organizations** (many-to-many via `producer_organizations`): Producing offices, non-profits, commercial companies, development programs. Each link has role title, start/end dates, and notes. Organizations are their own entity with name, type, website, location, description, emails, and social links.
 
 **Tags** (many-to-many via `producer_tags`): User-defined tags for categorization.
 
-**Awards** (one-to-many): Award name, category, year, outcome (nominated/won). Optionally linked to a specific production.
+**Awards** (one-to-many): Award name, category, year, outcome (from lookup values). Optionally linked to a specific production.
 
-**Interactions** (one-to-many): Timestamped touchpoints between WN and the producer. Each has date, content (notes), author (team member), and optional audio URL. Interactions trigger AI extraction of follow-up signals and show connection detection.
+**Interactions** (one-to-many): Timestamped touchpoints between WN and the producer. Each has date, content (notes), author (team member), and optional audio URL. Interactions trigger AI extraction of follow-up signals.
 
-**Follow-up Signals** (one-to-many, linked to interactions): AI-extracted from interaction text using `follow_up_extraction` prompt behavior. Each has implied action, timeframe, due date, and resolved status.
-
-**Show Connections** (one-to-many): Links to WN shows with connection type (pitched, interested, passed, attached, other). Detected by AI from interaction text using `show_connection_detection` prompt behavior, or added manually.
-
-**Show Matching Results** (one-to-many): AI-assessed fit between this producer and each WN show — strong/moderate/weak/not a fit, with reasoning. Generated using `show_matching` prompt behavior. Includes a `team_notes` field for manual annotation.
+**Follow-up Signals** (one-to-many, linked to interactions): AI-extracted from interaction text using `follow_up_extraction` behavior. Each has implied action, timeframe, due date, and resolved status.
 
 ### Change History
 

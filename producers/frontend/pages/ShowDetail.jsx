@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { getShow, deleteShow, listProducers, addProducerToShow, removeProducerFromShow, addShowProduction, removeShowProduction, listAllProductions } from '@producers/api'
+import { getShow, deleteShow, deleteProduction, listProducers, addProducerToShow, removeProducerFromShow, removeProducerFromProduction, addProducerToProduction, researchShow } from '@producers/api'
 import { ActionMenu, Alert, DataTable, EmptyState, Modal, ProducerDrawer } from '@shared/components'
 import ProductionDrawer from '@producers/components/ProductionDrawer'
 import { useLookupValues } from '@shared/hooks/useLookupValues'
@@ -69,71 +69,6 @@ function ProducerSearch({ value, onChange, excludeIds }) {
   )
 }
 
-/* ── Production search typeahead ── */
-
-function ProductionSearch({ value, onChange, excludeIds }) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-  const debounceRef = useRef(null)
-
-  useEffect(() => {
-    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  useEffect(() => {
-    if (!query.trim()) { setResults([]); setOpen(false); return }
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      listAllProductions({ search: query, limit: 8 })
-        .then(d => {
-          const filtered = (d.productions || []).filter(p => !excludeIds.includes(p.id))
-          setResults(filtered)
-          setOpen(filtered.length > 0)
-        })
-        .catch(() => {})
-    }, 250)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [query, excludeIds])
-
-  if (value) {
-    return (
-      <div className="producer-search-selected">
-        <span className="cell-strong">{value.title}{value.year ? ` (${value.year})` : ''}</span>
-        <button type="button" className="producer-search-clear" onClick={() => { onChange(null); setQuery('') }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l8 8M12 4l-8 8" /></svg>
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div ref={ref} className="producer-search">
-      <input
-        className="input input-full"
-        placeholder="Search by title..."
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        onFocus={() => results.length > 0 && setOpen(true)}
-      />
-      {open && results.length > 0 && (
-        <div className="producer-search-dropdown">
-          {results.map(p => (
-            <div key={p.id} className="producer-search-option" onClick={() => { onChange(p); setOpen(false); setQuery('') }}>
-              <span className="cell-strong">{p.title}</span>
-              {p.year && <span className="cell-muted"> ({p.year})</span>}
-              {p.scale && <span className="cell-muted"> — {p.scale.display_label}</span>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /* ── Main page ── */
 
 export default function ShowDetail() {
@@ -151,17 +86,22 @@ export default function ShowDetail() {
   const [removeConfirm, setRemoveConfirm] = useState(null)
   const [drawerId, setDrawerId] = useState(null)
   const [productionDrawerId, setProductionDrawerId] = useState(null)
-  const [addProdModal, setAddProdModal] = useState(false)
-  const [addProdSelection, setAddProdSelection] = useState(null)
-  const [addProdSaving, setAddProdSaving] = useState(false)
-  const [addProdError, setAddProdError] = useState(null)
-  const [removeProdConfirm, setRemoveProdConfirm] = useState(null)
+  const [deleteProdConfirm, setDeleteProdConfirm] = useState(null)
   const [prodPage, setProdPage] = useState(1)
   const [prodLimit, setProdLimit] = useState(25)
   const [psPage, setPsPage] = useState(1)
   const [psLimit, setPsLimit] = useState(25)
+  const [addProdModal, setAddProdModal] = useState(false)
+  const [addProdProducer, setAddProdProducer] = useState(null)
+  const [addProdProductionId, setAddProdProductionId] = useState('')
+  const [addProdRoleId, setAddProdRoleId] = useState('')
+  const [addProdSaving, setAddProdSaving] = useState(false)
+  const [addProdError, setAddProdError] = useState(null)
+  const [researching, setResearching] = useState(false)
+  const [synopsisExpanded, setSynopsisExpanded] = useState(false)
 
   const { values: showRoleValues } = useLookupValues('role', 'producer_show')
+  const { values: prodRoleValues } = useLookupValues('role', 'producer_production')
 
   function load() {
     setLoading(true)
@@ -176,6 +116,20 @@ export default function ShowDetail() {
   }
 
   useEffect(() => { load() }, [id])
+
+  async function handleResearch() {
+    setResearching(true)
+    setError(null)
+    try {
+      const result = await researchShow(id)
+      if (result.status === 'error') setError(result.error)
+      else load()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setResearching(false)
+    }
+  }
 
   async function handleDelete() {
     try {
@@ -213,7 +167,11 @@ export default function ShowDetail() {
   async function handleRemoveProducer() {
     if (!removeConfirm) return
     try {
-      await removeProducerFromShow(parseInt(id), removeConfirm.id)
+      if (removeConfirm.source === 'show') {
+        await removeProducerFromShow(parseInt(id), removeConfirm.link_id)
+      } else {
+        await removeProducerFromProduction(removeConfirm.production_id, removeConfirm.link_id)
+      }
       setRemoveConfirm(null)
       load()
     } catch (err) {
@@ -222,31 +180,34 @@ export default function ShowDetail() {
     }
   }
 
-  async function handleAddProduction(e) {
+  async function handleAddProducerToProduction(e) {
     e.preventDefault()
-    if (!addProdSelection) return
+    if (!addProdProducer || !addProdProductionId) return
     setAddProdSaving(true)
     setAddProdError(null)
     try {
-      const result = await addShowProduction(parseInt(id), addProdSelection.id)
+      const result = await addProducerToProduction(parseInt(addProdProductionId), {
+        producer_id: addProdProducer.id,
+        role_id: addProdRoleId ? parseInt(addProdRoleId, 10) : null,
+      })
       if (result.error) { setAddProdError(result.error); setAddProdSaving(false) }
-      else { setAddProdModal(false); setAddProdSelection(null); setAddProdSaving(false); load() }
+      else { setAddProdModal(false); setAddProdProducer(null); setAddProdProductionId(''); setAddProdRoleId(''); setAddProdSaving(false); load() }
     } catch (err) {
       setAddProdError(err.message)
       setAddProdSaving(false)
     }
   }
 
-  async function handleRemoveProduction() {
-    if (!removeProdConfirm) return
+  async function handleDeleteProduction() {
+    if (!deleteProdConfirm) return
     try {
-      const result = await removeShowProduction(parseInt(id), removeProdConfirm.id)
+      const result = await deleteProduction(deleteProdConfirm.id)
       if (result.error) setError(result.error)
-      setRemoveProdConfirm(null)
+      setDeleteProdConfirm(null)
       load()
     } catch (err) {
       setError(err.message)
-      setRemoveProdConfirm(null)
+      setDeleteProdConfirm(null)
     }
   }
 
@@ -261,20 +222,57 @@ export default function ShowDetail() {
   if (!show) return null
 
   const productions = show.productions || []
-  const existingProductionIds = productions.map(p => p.id)
   const producerShows = show.producer_shows || []
   const existingProducerIds = producerShows.map(ps => ps.producer_id)
+
+  // Build unified producers list from both IP-level and production-level relationships
+  const allProducers = (() => {
+    const rows = []
+    // IP-level (ProducerShow)
+    for (const ps of producerShows) {
+      rows.push({
+        _key: `show-${ps.id}`,
+        link_id: ps.id,
+        producer_id: ps.producer_id,
+        first_name: ps.first_name,
+        last_name: ps.last_name,
+        role: ps.role,
+        source: 'show',
+        source_label: 'Show',
+        production_id: null,
+      })
+    }
+    // Production-level (ProducerProduction)
+    for (const prod of productions) {
+      for (const pp of (prod.producers || [])) {
+        const detail = [prod.year, prod.scale?.display_label, prod.venue?.name].filter(Boolean).join(' · ')
+        rows.push({
+          _key: `prod-${pp.link_id}`,
+          link_id: pp.link_id,
+          producer_id: pp.producer_id,
+          first_name: pp.first_name,
+          last_name: pp.last_name,
+          role: pp.role,
+          source: 'production',
+          source_label: detail ? `Production · ${detail}` : 'Production',
+          production_id: prod.id,
+        })
+      }
+    }
+    return rows
+  })()
 
   const PRODUCTION_COLUMNS = [
     {
       key: '_actions', label: '', sortable: false, className: 'th-actions',
       render: (_, row) => (
         <ActionMenu items={[
-          { label: 'Remove', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4', destructive: true, onClick: () => setRemoveProdConfirm(row) },
+          { label: 'Edit', icon: 'M11 1.5l2 2-7.5 7.5H3.5v-2L11 1.5z', onClick: () => navigate(`/producers/productions/${row.id}/edit`) },
+          { divider: true },
+          { label: 'Delete', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4', destructive: true, onClick: () => setDeleteProdConfirm(row) },
         ]} />
       ),
     },
-    { key: 'title', label: 'Title', strong: true },
     { key: 'year', label: 'Year' },
     {
       key: 'scale', label: 'Scale',
@@ -292,12 +290,14 @@ export default function ShowDetail() {
     },
   ]
 
-  const PRODUCER_SHOW_COLUMNS = [
+  const PRODUCER_COLUMNS = [
     {
       key: '_actions', label: '', sortable: false, className: 'th-actions',
       render: (_, row) => (
         <ActionMenu items={[
-          { label: 'Remove', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4', destructive: true, onClick: () => setRemoveConfirm(row) },
+          { label: row.source === 'show' ? 'Remove from show' : 'Remove from production',
+            icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4',
+            destructive: true, onClick: () => setRemoveConfirm(row) },
         ]} />
       ),
     },
@@ -311,6 +311,12 @@ export default function ShowDetail() {
         ? <span className={`badge ${v.css_class}`}>{v.display_label}</span>
         : null,
     },
+    {
+      key: 'source_label', label: 'Relationship',
+      render: (v, row) => row.source === 'show'
+        ? <span className="badge badge-warm">Show</span>
+        : <span className="badge badge-blue">{v}</span>,
+    },
   ]
 
   return (
@@ -321,14 +327,24 @@ export default function ShowDetail() {
         <span className="breadcrumb-current">{show.title}</span>
       </div>
 
-      <div className="page-header">
-        <div className="page-title-row">
-          <h1 className="page-title">{show.title}</h1>
-          <ActionMenu items={[
-            { label: 'Edit', icon: 'M11 1.5l2 2-7.5 7.5H3.5v-2L11 1.5z', onClick: () => navigate(`/producers/shows/${id}/edit`) },
-            { divider: true },
-            { label: 'Delete', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4', destructive: true, onClick: () => setDeleteConfirm(true) },
-          ]} />
+      <div className="page-topbar">
+        <div className="page-header">
+          <div className="page-title-row">
+            <h1 className="page-title">{show.title}</h1>
+            <ActionMenu items={[
+              { label: 'Edit', icon: 'M11 1.5l2 2-7.5 7.5H3.5v-2L11 1.5z', onClick: () => navigate(`/producers/shows/${id}/edit`) },
+              { divider: true },
+              { label: 'Delete', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4', destructive: true, onClick: () => setDeleteConfirm(true) },
+            ]} />
+          </div>
+        </div>
+        <div className="page-topbar-actions">
+          <button className="btn btn-secondary btn-refresh" onClick={handleResearch} disabled={researching}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="7" cy="7" r="5" /><path d="M11 11l3.5 3.5" />
+            </svg>
+            {researching ? 'Researching...' : 'Research'}
+          </button>
         </div>
       </div>
 
@@ -361,6 +377,16 @@ export default function ShowDetail() {
                 ? <span className={`badge ${show.work_origin.css_class}`}>{show.work_origin.display_label}</span>
                 : <div className="cell-muted">&mdash;</div>}
             </div>
+
+            <div className="sidebar-field">
+              <div className="type-label">Genre</div>
+              <div className="prose">{show.genre || <span className="cell-muted">&mdash;</span>}</div>
+            </div>
+
+            <div className="sidebar-field">
+              <div className="type-label">Themes</div>
+              <div className="prose">{show.themes || <span className="cell-muted">&mdash;</span>}</div>
+            </div>
           </div>
         </div>
 
@@ -368,27 +394,50 @@ export default function ShowDetail() {
           <div className="type-label">Description</div>
           <div className="prose">{show.description || <span className="cell-muted">&mdash;</span>}</div>
 
-          {show.genre && (
-            <>
-              <div className="type-label mt-16">Genre</div>
-              <div className="prose">{show.genre}</div>
-            </>
-          )}
+          <div className="type-label mt-16">Summary</div>
+          <div className="prose">{show.summary || <span className="cell-muted">&mdash;</span>}</div>
 
-          {show.themes && (
-            <>
-              <div className="type-label mt-16">Themes</div>
-              <div className="prose">{show.themes}</div>
-            </>
-          )}
-
-          {show.summary && (
-            <>
-              <div className="type-label mt-16">Summary</div>
-              <div className="prose">{show.summary}</div>
-            </>
+          <div className="type-label mt-16">Plot Synopsis</div>
+          {show.plot_synopsis ? (
+            <div className="prose">
+              {synopsisExpanded || show.plot_synopsis.length <= 300
+                ? show.plot_synopsis
+                : show.plot_synopsis.slice(0, 300) + '...'}
+              {show.plot_synopsis.length > 300 && (
+                <button className="btn-link ml-8" onClick={() => setSynopsisExpanded(!synopsisExpanded)}>
+                  {synopsisExpanded ? 'Show less' : 'Read more'}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="prose"><span className="cell-muted">&mdash;</span></div>
           )}
         </div>
+      </div>
+
+      <div className="section-card mt-32">
+        <div className="section-card-header">
+          <h3 className="section-card-title">Producers</h3>
+          <span className="section-card-meta">
+            {allProducers.length} total
+            <span className="link ml-12" onClick={() => setAddModal(true)}>+ Add to show</span>
+            <span className="link ml-12" onClick={() => setAddProdModal(true)}>+ Add to production</span>
+          </span>
+        </div>
+
+        <DataTable
+          data={allProducers}
+          columns={PRODUCER_COLUMNS}
+          rowKey="_key"
+          onRowClick={row => setDrawerId(row.producer_id)}
+          pagination={{ total: allProducers.length, page: psPage, limit: psLimit, onPageChange: setPsPage, onLimitChange: setPsLimit }}
+          emptyState={
+            <EmptyState
+              title="No producers"
+              description="No producers are connected to this show or its productions yet."
+            />
+          }
+        />
       </div>
 
       <div className="section-card mt-32">
@@ -396,7 +445,7 @@ export default function ShowDetail() {
           <h3 className="section-card-title">Productions of {show.title}</h3>
           <span className="section-card-meta">
             {productions.length} total
-            <span className="link" style={{ marginLeft: 12, cursor: 'pointer' }} onClick={() => setAddProdModal(true)}>+ Add</span>
+            <Link to={`/producers/productions/new?show_id=${id}`} className="link ml-12">+ Add</Link>
           </span>
         </div>
 
@@ -409,29 +458,6 @@ export default function ShowDetail() {
             <EmptyState
               title="No productions"
               description="No productions of this show have been recorded yet."
-            />
-          }
-        />
-      </div>
-
-      <div className="section-card mt-32">
-        <div className="section-card-header">
-          <h3 className="section-card-title">Producers attached to {show.title}</h3>
-          <span className="section-card-meta">
-            {producerShows.length} total
-            <span className="link" style={{ marginLeft: 12, cursor: 'pointer' }} onClick={() => setAddModal(true)}>+ Add</span>
-          </span>
-        </div>
-
-        <DataTable
-          data={producerShows}
-          columns={PRODUCER_SHOW_COLUMNS}
-          onRowClick={row => setDrawerId(row.producer_id)}
-          pagination={{ total: producerShows.length, page: psPage, limit: psLimit, onPageChange: setPsPage, onLimitChange: setPsLimit }}
-          emptyState={
-            <EmptyState
-              title="No producers"
-              description="No producers are attached to this show yet."
             />
           }
         />
@@ -454,7 +480,7 @@ export default function ShowDetail() {
 
       {/* Add producer modal */}
       {addModal && (
-        <Modal title="Add Producer Relationship" onClose={() => { setAddModal(false); setAddProducer(null); setAddRoleId(''); setAddError(null) }}
+        <Modal title="Add Producer to Show" onClose={() => { setAddModal(false); setAddProducer(null); setAddRoleId(''); setAddError(null) }}
           footer={<>
             <button className="btn btn-ghost" onClick={() => { setAddModal(false); setAddProducer(null); setAddRoleId(''); setAddError(null) }}>Cancel</button>
             <button className="btn btn-primary" disabled={addSaving || !addProducer} onClick={handleAddProducer}>
@@ -481,34 +507,58 @@ export default function ShowDetail() {
         </Modal>
       )}
 
-      {/* Add production modal */}
+      {/* Add producer to production modal */}
       {addProdModal && (
-        <Modal title="Add Production" onClose={() => { setAddProdModal(false); setAddProdSelection(null); setAddProdError(null) }}
+        <Modal title="Add Producer to Production" onClose={() => { setAddProdModal(false); setAddProdProducer(null); setAddProdProductionId(''); setAddProdRoleId(''); setAddProdError(null) }}
           footer={<>
-            <button className="btn btn-ghost" onClick={() => { setAddProdModal(false); setAddProdSelection(null); setAddProdError(null) }}>Cancel</button>
-            <button className="btn btn-primary" disabled={addProdSaving || !addProdSelection} onClick={handleAddProduction}>
+            <button className="btn btn-ghost" onClick={() => { setAddProdModal(false); setAddProdProducer(null); setAddProdProductionId(''); setAddProdRoleId(''); setAddProdError(null) }}>Cancel</button>
+            <button className="btn btn-primary" disabled={addProdSaving || !addProdProducer || !addProdProductionId} onClick={handleAddProducerToProduction}>
               {addProdSaving ? 'Adding...' : 'Add'}
             </button>
           </>}>
           {addProdError && <Alert variant="error" title={addProdError} />}
-          <form onSubmit={handleAddProduction}>
+          <form onSubmit={handleAddProducerToProduction}>
             <div className="form-field">
               <label className="input-label">Production</label>
-              <ProductionSearch value={addProdSelection} onChange={setAddProdSelection} excludeIds={existingProductionIds} />
+              <div className="select-wrapper">
+                <select className="select" value={addProdProductionId} onChange={e => setAddProdProductionId(e.target.value)}>
+                  <option value="">Select production...</option>
+                  {productions.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {[p.year, p.venue?.name, p.scale?.display_label].filter(Boolean).join(' · ') || `Production #${p.id}`}
+                    </option>
+                  ))}
+                </select>
+                <svg className="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5" /></svg>
+              </div>
+            </div>
+            <div className="form-field">
+              <label className="input-label">Producer</label>
+              <ProducerSearch value={addProdProducer} onChange={setAddProdProducer} excludeIds={[]} />
+            </div>
+            <div className="form-field">
+              <label className="input-label">Role</label>
+              <div className="select-wrapper">
+                <select className="select" value={addProdRoleId} onChange={e => setAddProdRoleId(e.target.value)}>
+                  <option value="">Select role...</option>
+                  {prodRoleValues.map(r => <option key={r.id} value={r.id}>{r.display_label}</option>)}
+                </select>
+                <svg className="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5" /></svg>
+              </div>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* Remove production confirmation */}
-      {removeProdConfirm && (
-        <Modal title="Remove production?" onClose={() => setRemoveProdConfirm(null)}
+      {/* Delete production confirmation */}
+      {deleteProdConfirm && (
+        <Modal title="Delete Production" onClose={() => setDeleteProdConfirm(null)}
           footer={<>
-            <button className="btn btn-ghost" onClick={() => setRemoveProdConfirm(null)}>Cancel</button>
-            <button className="btn btn-destructive" onClick={handleRemoveProduction}>Remove</button>
+            <button className="btn btn-ghost" onClick={() => setDeleteProdConfirm(null)}>Cancel</button>
+            <button className="btn btn-destructive" onClick={handleDeleteProduction}>Delete</button>
           </>}>
           <p className="confirm-body">
-            Remove <strong>{removeProdConfirm.title}</strong> from {show.title}? This only removes the link — the production record is not deleted.
+            Permanently delete this {deleteProdConfirm.year ? deleteProdConfirm.year + ' ' : ''}production of <strong>{show.title}</strong>? This cannot be undone.
           </p>
         </Modal>
       )}
@@ -531,7 +581,10 @@ export default function ShowDetail() {
             <button className="btn btn-destructive" onClick={handleRemoveProducer}>Remove</button>
           </>}>
           <p className="confirm-body">
-            Remove <strong>{removeConfirm.first_name} {removeConfirm.last_name}</strong> from {show.title}? This only removes the IP-level relationship — production credits are not affected.
+            {removeConfirm.source === 'show'
+              ? <>Remove <strong>{removeConfirm.first_name} {removeConfirm.last_name}</strong> from {show.title}? This only removes the IP-level relationship — production credits are not affected.</>
+              : <>Remove <strong>{removeConfirm.first_name} {removeConfirm.last_name}</strong> from the {removeConfirm.source_label} production?</>
+            }
           </p>
         </Modal>
       )}

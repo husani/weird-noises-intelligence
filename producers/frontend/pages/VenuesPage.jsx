@@ -78,7 +78,6 @@ export default function VenuesPage() {
     },
     { key: 'capacity', label: 'Capacity', number: true },
     { key: 'description', label: 'Description', className: 'cell-muted' },
-    { key: 'production_count', label: 'Productions', number: true },
   ]
 
   return (

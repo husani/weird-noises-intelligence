@@ -1,50 +1,32 @@
 import React, { useEffect, useState } from 'react'
 import {
-  getSettings, updateSetting,
-  getPrompts, getModelSettings,
+  getAIBehaviors, updateAIBehavior, getModelSettings,
 } from '@producers/api'
 
-function PromptSection({ label, promptKey, currentText, defaultText, variables, onSave }) {
+function PromptEditor({ label, value, onSave }) {
   const [editing, setEditing] = useState(false)
   const [editVal, setEditVal] = useState('')
-  const isCustom = currentText != null
 
   function handleEdit() {
-    setEditVal(currentText ?? defaultText)
+    setEditVal(value || '')
     setEditing(true)
   }
 
   function handleSave() {
-    onSave(promptKey, editVal)
-    setEditing(false)
-  }
-
-  function handleReset() {
-    onSave(promptKey, null)
+    onSave(editVal)
     setEditing(false)
   }
 
   return (
     <div className="ai-prompt-section">
       <div className="ai-prompt-header">
-        <div className="ai-prompt-label">
-          {label}
-          {isCustom && <span className="ai-customized-badge">customized</span>}
-        </div>
+        <div className="ai-prompt-label">{label}</div>
         <div className="ai-prompt-actions">
-          {isCustom && !editing && (
-            <button className="btn btn-ghost btn-sm" onClick={handleReset}>Reset to default</button>
-          )}
           {!editing && (
             <button className="btn btn-ghost btn-sm" onClick={handleEdit}>Edit</button>
           )}
         </div>
       </div>
-      {variables && variables.length > 0 && (
-        <div className="ai-var-ref">
-          {variables.map(v => <code key={v} className="ai-var-tag">{v}</code>)}
-        </div>
-      )}
       {editing ? (
         <>
           <textarea
@@ -60,7 +42,7 @@ function PromptSection({ label, promptKey, currentText, defaultText, variables, 
         </>
       ) : (
         <div className="ai-prompt-preview">
-          {currentText ?? defaultText}
+          {value || '(empty)'}
         </div>
       )}
     </div>
@@ -68,22 +50,21 @@ function PromptSection({ label, promptKey, currentText, defaultText, variables, 
 }
 
 export default function AIConfig() {
-  const [prompts, setPrompts] = useState([])
-  const [modelData, setModelData] = useState({ options: {}, behaviors: [] })
-  const [settings, setSettings] = useState({})
+  const [behaviors, setBehaviors] = useState([])
+  const [modelOptions, setModelOptions] = useState({})
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [promptTab, setPromptTab] = useState('system')
   const [pendingModel, setPendingModel] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   function loadAll() {
     setLoading(true)
-    Promise.all([getPrompts(), getModelSettings(), getSettings()])
-      .then(([p, m, s]) => {
-        setPrompts(p)
-        setModelData(m)
-        setSettings(s)
-        if (!selected && p.length > 0) setSelected(p[0].behavior)
+    Promise.all([getAIBehaviors(), getModelSettings()])
+      .then(([b, m]) => {
+        setBehaviors(b)
+        setModelOptions(m.options || {})
+        if (!selected && b.length > 0) setSelected(b[0].name)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -91,26 +72,40 @@ export default function AIConfig() {
 
   useEffect(() => { loadAll() }, [])
 
-  async function handleSave(key, value) {
-    await updateSetting(key, value)
-    loadAll()
+  async function handleSavePrompt(field, value) {
+    const behavior = behaviors.find(b => b.name === selected)
+    if (!behavior) return
+    setSaving(true)
+    try {
+      await updateAIBehavior(behavior.id, { [field]: value })
+      loadAll()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleSaveModel(modelId) {
+    const behavior = behaviors.find(b => b.name === selected)
+    if (!behavior) return
+    setSaving(true)
+    try {
+      await updateAIBehavior(behavior.id, { model: modelId })
+      setPendingModel(null)
+      loadAll()
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) {
     return <div className="disc-center"><div className="loading-spinner" /></div>
   }
 
-  const modelByBehavior = {}
-  for (const b of modelData.behaviors) {
-    modelByBehavior[b.behavior] = b
-  }
-
   const allModels = [].concat(
-    ...(Object.values(modelData.options).map(models => models || []))
+    ...(Object.values(modelOptions).map(models => models || []))
   )
 
-  const selectedPrompt = prompts.find(p => p.behavior === selected)
-  const selectedModel = modelByBehavior[selected]
+  const selectedBehavior = behaviors.find(b => b.name === selected)
 
   function getModelLabel(modelId) {
     const m = allModels.find(m => m.id === modelId)
@@ -128,73 +123,57 @@ export default function AIConfig() {
 
       <div className="ai-workbench">
         <div className="ai-workbench-nav">
-          {prompts.map(p => {
-            const mb = modelByBehavior[p.behavior]
-            return (
-              <button
-                key={p.behavior}
-                className={`ai-workbench-nav-item${selected === p.behavior ? ' selected' : ''}`}
-                onClick={() => { setSelected(p.behavior); setPendingModel(null) }}
-              >
-                <div className="ai-nav-item-top">
-                  <span className="ai-nav-item-name">{p.label}</span>
-                </div>
-                <span className="ai-model-tag">
-                  {mb ? getModelLabel(mb.current) : '\u2014'}
-                </span>
-              </button>
-            )
-          })}
+          {behaviors.map(b => (
+            <button
+              key={b.name}
+              className={`ai-workbench-nav-item${selected === b.name ? ' selected' : ''}`}
+              onClick={() => { setSelected(b.name); setPendingModel(null); setPromptTab('system') }}
+            >
+              <div className="ai-nav-item-top">
+                <span className="ai-nav-item-name">{b.display_label}</span>
+              </div>
+              <span className="ai-model-tag">
+                {getModelLabel(b.model)}
+              </span>
+            </button>
+          ))}
         </div>
 
         <div className="ai-workbench-editor">
-          {selectedPrompt && (
+          {selectedBehavior && (
             <>
               <div className="ai-editor-header">
-                <h2 className="ai-editor-title">{selectedPrompt.label}</h2>
-                {selectedModel && (() => {
-                  const displayModel = pendingModel ?? selectedModel.current
-                  const hasChange = pendingModel != null && pendingModel !== selectedModel.current
-                  return (
-                    <div className="ai-editor-model-controls">
-                      <div className="select-wrapper">
-                        <select
-                          className="select"
-                          value={displayModel}
-                          onChange={e => setPendingModel(e.target.value)}
-                        >
-                          {Object.entries(modelData.options).map(([provider, models]) => (
-                            <optgroup key={provider} label={provider === 'anthropic' ? 'Anthropic' : 'Google'}>
-                              {models.map(m => (
-                                <option key={m.id} value={m.id}>
-                                  {m.label}{m.id === selectedModel.default ? ' (default)' : ''}
-                                </option>
-                              ))}
-                            </optgroup>
+                <h2 className="ai-editor-title">{selectedBehavior.display_label}</h2>
+                <div className="ai-editor-model-controls">
+                  <div className="select-wrapper">
+                    <select
+                      className="select"
+                      value={pendingModel ?? selectedBehavior.model}
+                      onChange={e => setPendingModel(e.target.value)}
+                    >
+                      {Object.entries(modelOptions).map(([provider, models]) => (
+                        <optgroup key={provider} label={provider === 'anthropic' ? 'Anthropic' : 'Google'}>
+                          {(models || []).map(m => (
+                            <option key={m.id} value={m.id}>{m.label}</option>
                           ))}
-                        </select>
-                        <svg className="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5" /></svg>
-                      </div>
-                      {hasChange ? (
-                        <>
-                          <button className="btn btn-primary btn-sm"
-                            onClick={() => { handleSave(selectedModel.setting_key, pendingModel); setPendingModel(null) }}>
-                            Save
-                          </button>
-                          <button className="btn btn-ghost btn-sm"
-                            onClick={() => setPendingModel(null)}>
-                            Cancel
-                          </button>
-                        </>
-                      ) : selectedModel.current !== selectedModel.default ? (
-                        <button className="btn btn-ghost btn-sm"
-                          onClick={() => { handleSave(selectedModel.setting_key, null); setPendingModel(null) }}>
-                          Reset
-                        </button>
-                      ) : null}
-                    </div>
-                  )
-                })()}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <svg className="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5" /></svg>
+                  </div>
+                  {pendingModel && pendingModel !== selectedBehavior.model && (
+                    <>
+                      <button className="btn btn-primary btn-sm" disabled={saving}
+                        onClick={() => handleSaveModel(pendingModel)}>
+                        Save
+                      </button>
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => setPendingModel(null)}>
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="tab-bar mb-24">
@@ -213,23 +192,17 @@ export default function AIConfig() {
               </div>
 
               {promptTab === 'system' && (
-                <PromptSection
+                <PromptEditor
                   label="System Prompt"
-                  promptKey={selectedPrompt.system_key}
-                  currentText={selectedPrompt.system_current}
-                  defaultText={selectedPrompt.system_default}
-                  variables={(selectedPrompt.variables || {}).system}
-                  onSave={handleSave}
+                  value={selectedBehavior.system_prompt}
+                  onSave={(val) => handleSavePrompt('system_prompt', val)}
                 />
               )}
               {promptTab === 'user' && (
-                <PromptSection
+                <PromptEditor
                   label="User Prompt Template"
-                  promptKey={selectedPrompt.user_key}
-                  currentText={selectedPrompt.user_current}
-                  defaultText={selectedPrompt.user_default}
-                  variables={(selectedPrompt.variables || {}).user}
-                  onSave={handleSave}
+                  value={selectedBehavior.user_prompt}
+                  onSave={(val) => handleSavePrompt('user_prompt', val)}
                 />
               )}
             </>

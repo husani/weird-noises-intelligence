@@ -19,7 +19,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from shared.backend.db import create_engine_for, create_session_factory
-from producers.backend.models import SocialPlatform, LookupValue
+from producers.backend.models import AIBehavior, SocialPlatform, LookupValue
 
 DATA_FILE = Path(__file__).parent / "seed_data.yml"
 
@@ -76,6 +76,28 @@ def seed_lookup_values(session, lookup_data, force=False):
     return count
 
 
+def seed_ai_behaviors(session, behaviors, force=False):
+    """Seed AI behaviors from YAML data."""
+    if not force and session.query(AIBehavior).count() > 0:
+        print("  AI behaviors: already seeded, skipping (use --force to re-seed)")
+        return 0
+
+    if force:
+        session.query(AIBehavior).delete()
+
+    count = 0
+    for b in behaviors:
+        session.add(AIBehavior(
+            name=b["name"],
+            display_label=b["display_label"],
+            system_prompt=b["system_prompt"],
+            user_prompt=b["user_prompt"],
+            model=b["model"],
+        ))
+        count += 1
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(description="Seed reference data into the database")
     parser.add_argument("--force", action="store_true", help="Delete existing data and re-seed")
@@ -96,6 +118,10 @@ def main():
         lookup_count = seed_lookup_values(session, data["lookup_values"], force=args.force)
         if lookup_count:
             print(f"  Lookup values: {lookup_count} inserted")
+
+        behavior_count = seed_ai_behaviors(session, data["ai_behaviors"], force=args.force)
+        if behavior_count:
+            print(f"  AI behaviors: {behavior_count} inserted")
 
         session.commit()
 
