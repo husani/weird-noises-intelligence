@@ -917,36 +917,6 @@
     100% { background-position: -200% 0; }
   }
 
-  /* ============ DROPDOWN / SELECT ============ */
-  .select-wrapper {
-    position: relative;
-    max-width: 360px;
-  }
-  .select {
-    appearance: none;
-    width: 100%;
-    padding: 10px 40px 10px 16px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    font-family: var(--font-body);
-    font-size: 1rem;
-    font-weight: 300;
-    outline: none;
-    cursor: pointer;
-    transition: border-color 0.25s;
-  }
-  .select:focus { border-color: rgba(196, 145, 90, 0.3); }
-  .select-arrow {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-tertiary);
-    pointer-events: none;
-  }
-
   /* ============ TEXTAREA ============ */
   .textarea {
     width: 100%;
@@ -1186,11 +1156,7 @@
     align-items: center;
     gap: 8px;
   }
-  .table-controls-left .select {
-    padding: 6px 32px 6px 10px;
-    font-size: 0.875rem;
-    max-width: 80px;
-  }
+  .table-controls-left .dropdown-select { max-width: 80px; }
   .table-pagination {
     display: flex;
     align-items: center;
@@ -1898,7 +1864,6 @@
 
   /* ============ FOCUS STATES ============ */
   .input:focus-visible,
-  .select:focus-visible,
   .textarea:focus-visible,
   .query-input:focus-visible {
     outline: 2px solid rgba(196, 145, 90, 0.4);
@@ -2590,6 +2555,142 @@
     color: var(--accent-warm);
   }
 
+  /* ============ DROPDOWN SELECT ============ */
+  .dropdown-select {
+    position: relative;
+    max-width: 360px;
+  }
+  .dropdown-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 300;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.25s;
+  }
+  .dropdown-select-trigger:hover { border-color: var(--border-strong); }
+  .dropdown-select-trigger:focus,
+  .dropdown-select.open .dropdown-select-trigger {
+    border-color: rgba(196, 145, 90, 0.3);
+  }
+  .dropdown-select-trigger:focus-visible {
+    outline: 2px solid rgba(196, 145, 90, 0.4);
+    outline-offset: 2px;
+  }
+  .dropdown-select-value {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dropdown-select-placeholder {
+    color: var(--text-tertiary);
+  }
+  .dropdown-select-arrow {
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+    margin-left: 8px;
+    transition: transform var(--transition-standard);
+  }
+  .dropdown-select.open .dropdown-select-arrow {
+    transform: rotate(180deg);
+  }
+  .dropdown-select-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    padding: 4px;
+    z-index: 100;
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-hover) transparent;
+  }
+  .dropdown-select-search {
+    position: sticky;
+    top: 0;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    background: var(--bg-elevated);
+  }
+  .dropdown-select-search-input {
+    width: 100%;
+    padding: 7px 12px 7px 32px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 300;
+    outline: none;
+    transition: border-color 0.25s;
+  }
+  .dropdown-select-search-input::placeholder { color: var(--text-tertiary); }
+  .dropdown-select-search-input:focus { border-color: rgba(196, 145, 90, 0.3); }
+  .dropdown-select-search-icon {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-tertiary);
+    pointer-events: none;
+  }
+  .dropdown-select-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    font-size: 0.9375rem;
+    font-weight: 300;
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-micro);
+  }
+  .dropdown-select-option:hover,
+  .dropdown-select-option.highlighted {
+    background: var(--bg-hover);
+  }
+  .dropdown-select-option-selected {
+    color: var(--accent-warm);
+  }
+  .dropdown-select-check {
+    width: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--accent-warm);
+  }
+  .dropdown-select-check-empty {
+    width: 16px;
+    flex-shrink: 0;
+  }
+  .dropdown-select-no-results {
+    padding: 12px 14px;
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+    text-align: center;
+  }
+  .dropdown-select-panel.collapsed { display: none; }
+
   /* ============ RESPONSIVE ============ */
   @media (max-width: 768px) {
     body { padding: 24px 16px 80px; }
@@ -2670,6 +2771,7 @@
       <div><span style="color: var(--text-primary); font-weight: 400;">Modal</span> — focused overlay for quick actions</div>
       <div><span style="color: var(--text-primary); font-weight: 400;">Forms</span> — selects, textareas, toggles, errors</div>
       <div><span style="color: var(--text-primary); font-weight: 400;">Structural Layout</span> — field stack, section stack, form actions</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Dropdown Select</span> — styled select replacing native &lt;select&gt;</div>
       <div><span style="color: var(--text-primary); font-weight: 400;">Empty States</span> — no data / no results</div>
       <div><span style="color: var(--text-primary); font-weight: 400;">Loading States</span> — spinner, skeleton shimmer</div>
       <div><span style="color: var(--text-primary); font-weight: 400;">Edit States</span> — hover-to-edit, inline editing</div>
@@ -3519,31 +3621,21 @@
 
     <div style="margin-bottom: 24px;">
       <label class="input-label">Medium</label>
-      <div class="select-wrapper">
-        <select class="select">
-          <option>Musical</option>
-          <option>Play</option>
-          <option>Screenplay</option>
-          <option>Teleplay</option>
-        </select>
-        <svg class="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+      <div class="dropdown-select">
+        <button class="dropdown-select-trigger" type="button">
+          <span class="dropdown-select-value">Musical</span>
+          <svg class="dropdown-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+        </button>
       </div>
     </div>
 
     <div style="margin-bottom: 24px;">
       <label class="input-label">Development Stage</label>
-      <div class="select-wrapper">
-        <select class="select">
-          <option>Early Development</option>
-          <option>Internal Read</option>
-          <option>Workshop</option>
-          <option>Staged Reading</option>
-          <option>Seeking Production</option>
-          <option>In Production</option>
-          <option>Running</option>
-          <option>Closed</option>
-        </select>
-        <svg class="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+      <div class="dropdown-select">
+        <button class="dropdown-select-trigger" type="button">
+          <span class="dropdown-select-value">Workshop</span>
+          <svg class="dropdown-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+        </button>
       </div>
     </div>
 
@@ -3580,13 +3672,11 @@
         </div>
         <div>
           <label class="input-label">Medium</label>
-          <div class="select-wrapper">
-            <select class="select">
-              <option>Musical</option>
-              <option>Play</option>
-              <option>Screenplay</option>
-            </select>
-            <svg class="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+          <div class="dropdown-select">
+            <button class="dropdown-select-trigger" type="button">
+              <span class="dropdown-select-value">Musical</span>
+              <svg class="dropdown-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+            </button>
           </div>
         </div>
         <div>
@@ -3636,6 +3726,121 @@
         <button class="btn btn-ghost">Cancel</button>
         <button class="btn btn-secondary">Save Draft</button>
         <button class="btn btn-primary">Publish</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- DROPDOWN SELECT -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Dropdown Select</h2>
+  <p class="ref-section-desc">Custom select that replaces native &lt;select&gt; elements. The native option list renders as a light system popup that breaks the dark theme. This component matches the native select's appearance when closed but opens a styled dropdown panel. Keyboard navigable: arrow keys to move, enter to select, escape to close.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Closed — with placeholder</div>
+    <div class="showcase" style="max-width: 480px;">
+      <div class="dropdown-select">
+        <button class="dropdown-select-trigger" type="button">
+          <span class="dropdown-select-value dropdown-select-placeholder">Select medium...</span>
+          <svg class="dropdown-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Closed — with value selected</div>
+    <div class="showcase" style="max-width: 480px;">
+      <div class="dropdown-select">
+        <button class="dropdown-select-trigger" type="button">
+          <span class="dropdown-select-value">Musical</span>
+          <svg class="dropdown-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Open — with options, one selected</div>
+    <div class="showcase" style="max-width: 480px; min-height: 280px;">
+      <div class="dropdown-select open">
+        <button class="dropdown-select-trigger" type="button">
+          <span class="dropdown-select-value">Musical</span>
+          <svg class="dropdown-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+        </button>
+        <div class="dropdown-select-panel">
+          <div class="dropdown-select-option dropdown-select-option-selected">
+            <svg class="dropdown-select-check" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7.5l3 3 5-6"/></svg>
+            Musical
+          </div>
+          <div class="dropdown-select-option">
+            <div class="dropdown-select-check-empty"></div>
+            Play
+          </div>
+          <div class="dropdown-select-option">
+            <div class="dropdown-select-check-empty"></div>
+            Screenplay
+          </div>
+          <div class="dropdown-select-option">
+            <div class="dropdown-select-check-empty"></div>
+            Teleplay
+          </div>
+          <div class="dropdown-select-option highlighted">
+            <div class="dropdown-select-check-empty"></div>
+            Limited Series
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Open — with search filter (for long option lists)</div>
+    <div class="showcase" style="max-width: 480px; min-height: 340px;">
+      <div class="dropdown-select open">
+        <button class="dropdown-select-trigger" type="button">
+          <span class="dropdown-select-value dropdown-select-placeholder">All states...</span>
+          <svg class="dropdown-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+        </button>
+        <div class="dropdown-select-panel">
+          <div class="dropdown-select-search">
+            <svg class="dropdown-select-search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="4"/><path d="M9 9l3 3"/></svg>
+            <input type="text" class="dropdown-select-search-input" placeholder="Filter..." value="work">
+          </div>
+          <div class="dropdown-select-option">
+            <div class="dropdown-select-check-empty"></div>
+            Workshop
+          </div>
+          <div class="dropdown-select-option highlighted">
+            <div class="dropdown-select-check-empty"></div>
+            Seeking Work
+          </div>
+          <div class="dropdown-select-option">
+            <div class="dropdown-select-check-empty"></div>
+            Reworking
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Open — no results from filter</div>
+    <div class="showcase" style="max-width: 480px; min-height: 160px;">
+      <div class="dropdown-select open">
+        <button class="dropdown-select-trigger" type="button">
+          <span class="dropdown-select-value dropdown-select-placeholder">Select venue...</span>
+          <svg class="dropdown-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+        </button>
+        <div class="dropdown-select-panel">
+          <div class="dropdown-select-search">
+            <svg class="dropdown-select-search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="4"/><path d="M9 9l3 3"/></svg>
+            <input type="text" class="dropdown-select-search-input" placeholder="Filter..." value="zzzzz">
+          </div>
+          <div class="dropdown-select-no-results">No matching options</div>
+        </div>
       </div>
     </div>
   </div>
@@ -3866,13 +4071,11 @@
     <div class="table-controls">
       <div class="table-controls-left">
         <span>Show</span>
-        <div class="select-wrapper" style="max-width: 80px;">
-          <select class="select" style="padding: 6px 32px 6px 10px; font-size: 0.875rem;">
-            <option>10</option>
-            <option>25</option>
-            <option>50</option>
-          </select>
-          <svg class="select-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+        <div class="dropdown-select" style="max-width: 80px;">
+          <button class="dropdown-select-trigger" type="button" style="padding: 6px 10px; font-size: 0.875rem;">
+            <span class="dropdown-select-value">10</span>
+            <svg class="dropdown-select-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5l3 3 3-3"/></svg>
+          </button>
         </div>
         <span>per page</span>
         <span style="margin-left: 12px; color: var(--text-tertiary);">1–10 of 47</span>
