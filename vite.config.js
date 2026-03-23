@@ -9,6 +9,7 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, 'shared/frontend'),
       '@producers': path.resolve(__dirname, 'producers/frontend'),
       '@skeleton': path.resolve(__dirname, 'skeleton_a/frontend'),
+      '@slate': path.resolve(__dirname, 'slate/frontend'),
     },
   },
   server: {

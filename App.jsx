@@ -6,6 +6,7 @@ import Layout from '@shared/layout/Layout'
 const Home = lazy(() => import('@shared/pages/Home'))
 const SkeletonTool = lazy(() => import('@skeleton/SkeletonPage'))
 const ProducersTool = lazy(() => import('@producers/pages/ProducersPage'))
+const SlateTool = lazy(() => import('@slate/pages/SlatePage'))
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/skeleton/*" element={<SkeletonTool />} />
             <Route path="/producers/*" element={<ProducersTool />} />
+            <Route path="/slate/*" element={<SlateTool />} />
           </Routes>
         </Suspense>
       </Layout>

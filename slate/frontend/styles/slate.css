@@ -1,0 +1,239 @@
+/* ================================================================
+   Slate — Tool-specific styles
+   Only what's genuinely unique to Slate. All shared visual patterns
+   come from the design system via shared/frontend/styles/.
+
+   Classes not in the design system spec:
+   - .slate-form-grid: 2-column form layout (Overview identity section)
+   - .slate-filter-row: horizontal search + filter controls
+   - .slate-dashboard-row: flex row for dashboard show entries
+   - .slate-actions: inline action button row
+   ================================================================ */
+
+/* Override shared .page max-width inside sidebar layout */
+.sidebar-layout .main-content .page {
+  max-width: none;
+}
+
+/* Text utilities */
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary  { color: var(--text-tertiary); }
+.text-rose      { color: var(--accent-rose); }
+.no-underline   { text-decoration: none; }
+
+/* Page loading */
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+/* Clickable table rows */
+.data-table tbody tr.clickable {
+  cursor: pointer;
+}
+.data-table tbody tr.clickable:hover td {
+  background: var(--bg-surface);
+}
+
+/* 2-column form layout — used on Overview identity section for side-by-side dropdowns */
+.slate-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.slate-form-grid .full-width {
+  grid-column: 1 / -1;
+}
+
+/* Filter row for search + dropdowns */
+.slate-filter-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+.slate-filter-row .input {
+  flex: 1;
+}
+.slate-filter-row .select-wrapper {
+  max-width: 200px;
+}
+
+/* Dashboard two-column layout */
+.dash-columns {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 24px;
+  align-items: start;
+}
+.dash-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.dash-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .dash-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dashboard project cards */
+.slate-project-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color var(--transition-micro);
+}
+.slate-project-card:hover {
+  border-color: var(--border-strong);
+}
+.slate-project-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.slate-project-card-badges {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.slate-project-card .prose {
+  margin-bottom: 12px;
+}
+.slate-project-card-footer {
+  display: flex;
+  gap: 20px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* Badge row — inline badges below a title */
+.slate-badge-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* Full-width button (sidebar) */
+.btn-full {
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Inline actions row */
+.slate-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Options workbench — two-panel layout for lookup value management */
+.options-workbench {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  min-height: 480px;
+}
+.options-workbench-nav {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 12px 8px;
+  overflow-y: auto;
+}
+.options-workbench-nav > div + div {
+  margin-top: 16px;
+}
+.options-nav-section {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  padding: 4px 12px 6px;
+}
+.options-nav-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-micro), color var(--transition-micro);
+}
+.options-nav-item:hover {
+  background: var(--bg-hover);
+}
+.options-nav-item.selected {
+  background: var(--accent-warm-subtle);
+  border-left-color: var(--accent-warm);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.options-workbench-content {
+  flex: 1;
+  padding: 24px 28px;
+  min-width: 0;
+}
+.options-content-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  margin-bottom: 20px;
+}
+
+/* Badge picker — used on OptionEdit page */
+.options-badge-picker {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.options-badge-swatch {
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color var(--transition-micro);
+  min-width: 44px;
+  text-align: center;
+}
+.options-badge-swatch.selected {
+  border-color: var(--text-primary);
+}
+.options-badge-swatch:hover:not(.selected) {
+  border-color: var(--text-tertiary);
+}
+.options-badge-none {
+  background: var(--bg-surface);
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}

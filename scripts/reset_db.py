@@ -17,12 +17,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import text
 
 from shared.backend.db import Base, create_engine_for
-from scripts.setup_db import TOOLS, main as setup_main
+from scripts.setup_db import TOOLS, ensure_databases, main as setup_main
 from scripts.seed_data import main as seed_main
+from scripts.seed_slate_data import main as seed_slate_main
 
 
 def drop_all_tables():
     """Drop all tables in every tool database by dropping the public schema."""
+    ensure_databases()
+    print()
     for db_name, _ in TOOLS:
         print(f"Dropping all tables in {db_name}...")
         engine = create_engine_for(db_name)
@@ -41,6 +44,9 @@ def main():
     orig_argv = sys.argv
     sys.argv = ["seed_data.py", "--force"]
     seed_main()
+    print()
+    sys.argv = ["seed_slate_data.py", "--force"]
+    seed_slate_main()
     sys.argv = orig_argv
 
 

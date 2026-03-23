@@ -1,0 +1,289 @@
+lookup_values:
+  medium:
+    entity_type: show
+    values:
+      - value: musical
+        display_label: Musical
+        description: A theatrical work with integrated songs and music
+        css_class: badge-warm
+      - value: play
+        display_label: Play
+        description: A theatrical work without integrated musical score
+        css_class: badge-sage
+      - value: screenplay
+        display_label: Screenplay
+        description: A script written for film
+        css_class: badge-blue
+      - value: teleplay
+        display_label: Teleplay
+        description: A script written for television
+        css_class: badge-lavender
+      - value: feature_film
+        display_label: Feature Film
+        description: A full-length film project
+        css_class: badge-blue
+      - value: short_film
+        display_label: Short Film
+        description: A short-form film project
+        css_class: badge-teal
+      - value: limited_series
+        display_label: Limited Series
+        description: A self-contained television series with a predetermined number of episodes
+        css_class: badge-lavender
+
+  development_stage:
+    entity_type: show
+    values:
+      - value: early_development
+        display_label: Early Development
+        description: Initial concept and early writing phase
+        css_class: badge-neutral
+      - value: internal_read
+        display_label: Internal Read
+        description: Internal team read-through
+        css_class: badge-neutral
+      - value: workshop
+        display_label: Workshop
+        description: Active workshop and development process
+        css_class: badge-warm
+      - value: staged_reading
+        display_label: Staged Reading
+        description: Formal staged reading with actors
+        css_class: badge-warm
+      - value: table_read
+        display_label: Table Read
+        description: Seated read-through with actors and creative team
+        css_class: badge-warm
+      - value: seeking_production
+        display_label: Seeking Production
+        description: Ready for production, seeking producing partners
+        css_class: badge-sage
+      - value: in_pre_production
+        display_label: In Pre-Production
+        description: Pre-production planning underway
+        css_class: badge-blue
+      - value: in_production
+        display_label: In Production
+        description: Currently in active production
+        css_class: badge-blue
+      - value: running
+        display_label: Running
+        description: Currently running (theatre)
+        css_class: badge-sage
+      - value: in_post_production
+        display_label: In Post-Production
+        description: Post-production phase (film/TV)
+        css_class: badge-blue
+      - value: released
+        display_label: Released
+        description: Released or premiered
+        css_class: badge-sage
+      - value: closed
+        display_label: Closed
+        description: Production has closed
+        css_class: badge-neutral
+
+  rights_status:
+    entity_type: show
+    values:
+      - value: original
+        display_label: Original
+        description: An original work created by WN
+        css_class: badge-warm
+      - value: optioned
+        display_label: Optioned
+        description: Rights optioned from another party
+        css_class: badge-blue
+      - value: public_domain_adaptation
+        display_label: Public Domain Adaptation
+        description: Adapted from public domain source material
+        css_class: badge-sage
+
+  track_type:
+    entity_type: music_file
+    values:
+      - value: demo_recording
+        display_label: Demo Recording
+        description: Demo recording of a song or musical number
+      - value: rehearsal_track
+        display_label: Rehearsal Track
+        description: Track for rehearsal use
+      - value: piano_vocal_score
+        display_label: Piano/Vocal Score
+        description: Piano and vocal arrangement
+      - value: orchestration
+        display_label: Orchestration
+        description: Full orchestral arrangement
+      - value: score
+        display_label: Score
+        description: Film/TV score track
+      - value: temp_track
+        display_label: Temp Track
+        description: Temporary track for reference
+      - value: other
+        display_label: Other
+        description: Other music file type
+
+  data_type:
+    entity_type: show_data
+    values:
+      - value: character_breakdown
+        display_label: Character Breakdown
+      - value: scene_breakdown
+        display_label: Scene Breakdown
+      - value: song_list
+        display_label: Song List
+      - value: runtime_estimate
+        display_label: Runtime Estimate
+      - value: cast_requirements
+        display_label: Cast Requirements
+      - value: budget_estimate
+        display_label: Budget Estimate
+      - value: logline_draft
+        display_label: Logline Draft
+      - value: summary_draft
+        display_label: Summary Draft
+      - value: comparables
+        display_label: Comparables
+      - value: content_advisories
+        display_label: Content Advisories
+      - value: version_diff
+        display_label: Version Diff
+      - value: emotional_arc
+        display_label: Emotional Arc
+      - value: music_analysis
+        display_label: Music Analysis
+      - value: visual_analysis
+        display_label: Visual Analysis
+
+  milestone_type:
+    entity_type: milestone
+    values:
+      - value: internal_read
+        display_label: Internal Read
+        description: Internal team read-through
+        css_class: badge-neutral
+      - value: workshop
+        display_label: Workshop
+        description: Development workshop
+        css_class: badge-warm
+      - value: staged_reading
+        display_label: Staged Reading
+        description: Formal staged reading
+        css_class: badge-warm
+      - value: table_read
+        display_label: Table Read
+        description: Table read with actors
+        css_class: badge-warm
+      - value: showcase
+        display_label: Showcase
+        description: Showcase presentation
+        css_class: badge-sage
+      - value: submission
+        display_label: Submission
+        description: Submission to festival, theatre, or program
+        css_class: badge-blue
+      - value: festival
+        display_label: Festival
+        description: Festival presentation or participation
+        css_class: badge-sage
+      - value: pitch_meeting
+        display_label: Pitch Meeting
+        description: Pitch meeting with producers, investors, or partners
+        css_class: badge-lavender
+      - value: location_scout
+        display_label: Location Scout
+        description: Location scouting (film/TV)
+        css_class: badge-blue
+      - value: shoot_day
+        display_label: Shoot Day
+        description: Production shoot day (film/TV)
+        css_class: badge-blue
+      - value: screening
+        display_label: Screening
+        description: Film/TV screening
+        css_class: badge-sage
+      - value: other
+        display_label: Other
+        description: Other milestone type
+        css_class: badge-neutral
+
+  asset_type:
+    entity_type: visual_asset
+    values:
+      - value: logo
+        display_label: Logo
+        description: Show logo or wordmark
+      - value: key_art
+        display_label: Key Art
+        description: Primary promotional artwork
+      - value: mood_board
+        display_label: Mood Board
+        description: Visual mood and tone references
+      - value: color_palette
+        display_label: Color Palette
+        description: Color palette reference
+      - value: typography
+        display_label: Typography
+        description: Typography samples and references
+      - value: reference_image
+        display_label: Reference Image
+        description: Visual reference or inspiration image
+      - value: other
+        display_label: Other
+        description: Other visual asset type
+
+  audience_type:
+    entity_type: pitch
+    values:
+      - value: producer
+        display_label: Producer
+        description: Pitch tailored for producing partners
+        css_class: badge-warm
+      - value: investor
+        display_label: Investor
+        description: Pitch tailored for investors
+        css_class: badge-sage
+      - value: grant_maker
+        display_label: Grant Maker
+        description: Pitch tailored for grant organizations
+        css_class: badge-blue
+      - value: festival
+        display_label: Festival
+        description: Pitch tailored for festival submissions
+        css_class: badge-lavender
+      - value: general
+        display_label: General
+        description: General-purpose pitch
+        css_class: badge-neutral
+
+  pitch_status:
+    entity_type: pitch
+    values:
+      - value: draft
+        display_label: Draft
+        description: Work in progress
+        css_class: badge-neutral
+      - value: final
+        display_label: Final
+        description: Finalized and ready to use
+        css_class: badge-sage
+
+  material_type:
+    entity_type: pitch_material
+    values:
+      - value: one_pager
+        display_label: One-Pager
+        description: Single-page pitch document
+      - value: deck
+        display_label: Deck
+        description: Pitch deck presentation
+      - value: budget_summary
+        display_label: Budget Summary
+        description: Budget overview document
+      - value: timeline
+        display_label: Timeline
+        description: Development or production timeline
+      - value: other
+        display_label: Other
+        description: Other pitch material

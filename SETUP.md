@@ -78,14 +78,15 @@ The current `.env` has an empty `DB_PASSWORD` which works with Homebrew's defaul
 
 ## Database Setup
 
-The app assumes the database is ready. Use the scripts in `scripts/` to manage it:
+`setup_db.py` creates both the PostgreSQL databases and the tables inside them — no manual `createdb` commands needed. Just run the scripts:
 
 ```bash
 cd ~/Projects/weird-noises/intelligence
 
-# First time — create tables and seed reference data:
-poetry run python scripts/setup_db.py     # create tables from models
-poetry run python scripts/seed_data.py    # seed lookup values, social platforms
+# First time — create databases, tables, and seed reference data:
+poetry run python scripts/setup_db.py     # create databases + tables
+poetry run python scripts/seed_data.py    # seed Producers lookup values, social platforms
+poetry run python scripts/seed_slate_data.py  # seed Slate lookup values
 
 # After model changes — drop everything and rebuild:
 poetry run python scripts/reset_db.py     # drop, create, seed (all-in-one)

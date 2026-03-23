@@ -100,6 +100,8 @@ PostgreSQL, one database per tool. Shared utilities:
 - `create_engine_for("db_name")` — returns a SQLAlchemy engine
 - `create_session_factory(engine)` — returns a bound sessionmaker
 - `create_tables(engine, [Model1, Model2])` — creates only the specified tables
+
+`scripts/setup_db.py` creates databases and tables for all tools. It creates the PostgreSQL database itself if it doesn't exist — no manual `createdb` commands needed. When adding a new tool, add its database and models to setup_db.py.
 - `Base` — shared declarative base for all models
 
 Each tool defines its own models inheriting from `Base` and gets its own database. The `create_tables` function is scoped to specific models so tool A's tables never leak into tool B's database.
@@ -304,13 +306,20 @@ registry.register(
 app.include_router(create_my_tool_router(interface))
 ```
 
-### 4. Create the Database
+### 4. Register the Database
 
-```bash
-psql -U $DB_USER -c "CREATE DATABASE intelligence_<tool_name>;"
+Add your tool's database and models to `scripts/setup_db.py`:
+
+```python
+from <tool_name>.backend.models import ALL_MODELS as TOOL_MODELS
+
+TOOLS = [
+    ...
+    ("intelligence_<tool_name>", TOOL_MODELS),
+]
 ```
 
-(`DB_USER` is in `.env` — check there for the value.)
+Then run `poetry run python scripts/setup_db.py` — it creates the database if it doesn't exist and creates all tables. No manual database creation needed.
 
 ### 5. Using Other Tools' MCP Capabilities
 

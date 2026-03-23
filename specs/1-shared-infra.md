@@ -27,6 +27,7 @@ PostgreSQL, single instance, separate database per tool. The shared layer provid
 - A session factory tied to an engine.
 - A declarative base class that all tool models inherit from. Each tool defines its own models using this base.
 - A function that creates all tables for a given engine and set of models.
+- Database creation is handled by `scripts/setup_db.py`, which creates the PostgreSQL database itself if it doesn't exist (not just the tables inside it). No manual `createdb` commands — the setup script handles everything.
 
 ```python
 # talent/backend/models.py

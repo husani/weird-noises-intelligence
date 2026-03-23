@@ -1032,6 +1032,24 @@
     margin-top: 6px;
   }
 
+  /* ============ STRUCTURAL LAYOUT ============ */
+  .field-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .section-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+
   /* ============ FILE UPLOAD ============ */
   .file-upload {
     border: 2px dashed var(--border-strong);
@@ -2032,6 +2050,546 @@
     font-weight: 300;
   }
 
+  /* ============ ENTITY NAVIGATION BAR ============ */
+  .entity-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+  .entity-nav-back {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: color var(--transition-micro);
+    text-decoration: none;
+    white-space: nowrap;
+    padding-right: 12px;
+    margin-right: 4px;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .entity-nav-back:hover { color: var(--text-secondary); }
+  .entity-nav-identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .entity-nav-title {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+  .entity-nav-links {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex: 1;
+  }
+  .entity-nav-links::-webkit-scrollbar { display: none; }
+  .entity-nav-link {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: color var(--transition-micro), background var(--transition-micro);
+    text-decoration: none;
+  }
+  .entity-nav-link:hover { color: var(--text-secondary); background: var(--bg-hover); }
+  .entity-nav-link-active { color: var(--text-primary); background: var(--bg-elevated); }
+
+  /* ============ ASSET GALLERY ============ */
+  .asset-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .asset-card {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color var(--transition-micro);
+    position: relative;
+  }
+  .asset-card:hover { border-color: var(--border-strong); }
+  .asset-card-preview {
+    aspect-ratio: 4 / 3;
+    background: var(--bg-surface);
+    position: relative;
+    overflow: hidden;
+  }
+  .asset-card-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .asset-card-overlay {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: rgba(196, 145, 90, 0.85);
+    color: var(--bg-deep);
+  }
+  .asset-card-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition-micro);
+  }
+  .asset-card:hover .asset-card-actions { opacity: 1; }
+  .asset-card-action {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    background: rgba(19, 17, 15, 0.75);
+    border: 1px solid var(--border-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: background var(--transition-micro);
+  }
+  .asset-card-action:hover { background: var(--bg-elevated); }
+  .asset-card-info {
+    padding: 10px 12px;
+    background: var(--bg-base);
+  }
+  .asset-card-label {
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+  .asset-card-type {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  .asset-card-upload {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color var(--transition-micro), background var(--transition-micro);
+    min-height: 180px;
+  }
+  .asset-card-upload:hover {
+    border-color: rgba(196, 145, 90, 0.3);
+    background: var(--bg-surface);
+  }
+  .asset-card-upload-icon {
+    color: var(--text-tertiary);
+    opacity: 0.5;
+    margin-bottom: 8px;
+  }
+  .asset-card-upload-text {
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+
+  /* ============ VERSION STACK ============ */
+  .version-stack {
+    display: flex;
+    flex-direction: column;
+  }
+  .version-entry {
+    border-bottom: 1px solid var(--border);
+  }
+  .version-entry:last-child { border-bottom: none; }
+  .version-entry-latest {
+    border-left: 2px solid var(--accent-warm);
+    padding-left: 16px;
+  }
+  .version-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0;
+    cursor: pointer;
+  }
+  .version-entry-header:hover .version-entry-label { color: var(--accent-warm); }
+  .version-entry-label {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: color var(--transition-micro);
+  }
+  .version-entry-date {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .version-entry-chevron {
+    color: var(--text-tertiary);
+    transition: transform var(--transition-standard);
+    flex-shrink: 0;
+  }
+  .version-entry.open .version-entry-chevron {
+    transform: rotate(180deg);
+  }
+  .version-entry-content {
+    padding: 0 0 20px;
+    font-size: 0.9375rem;
+    font-weight: 300;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .version-entry-content.collapsed { display: none; }
+  .version-entry-nested {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  /* ============ PROCESSING STATE PANEL ============ */
+  .processing-panel {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+  }
+  .processing-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .processing-panel-title {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .processing-panel-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+  }
+  .processing-panel-progress {
+    margin-bottom: 20px;
+  }
+  .processing-steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .processing-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+  }
+  .processing-step-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .processing-step-icon-complete { color: var(--accent-sage); }
+  .processing-step-icon-processing { color: var(--accent-warm); }
+  .processing-step-icon-pending { color: var(--text-tertiary); opacity: 0.5; }
+  .processing-step-icon-failed { color: var(--accent-rose); }
+  .processing-step-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .processing-step-name {
+    font-size: 0.9375rem;
+    font-weight: 300;
+    color: var(--text-primary);
+  }
+  .processing-step-error {
+    font-size: 0.8125rem;
+    color: var(--accent-rose);
+    font-weight: 300;
+    margin-top: 4px;
+  }
+  .processing-step-action {
+    font-size: 0.8125rem;
+    color: var(--accent-warm);
+    cursor: pointer;
+    font-weight: 400;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: color var(--transition-micro);
+  }
+  .processing-step-action:hover { color: #d4a06a; }
+  .processing-step-failed {
+    border-color: rgba(176, 122, 122, 0.2);
+  }
+  .processing-panel-complete {
+    border-color: rgba(125, 158, 135, 0.2);
+  }
+  .processing-panel-complete .processing-panel-title {
+    color: var(--accent-sage);
+  }
+  .processing-step-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--bg-hover);
+    border-top-color: var(--accent-warm);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  /* ============ STAGE PROGRESSION ============ */
+  .stage-progression {
+    display: flex;
+    align-items: flex-start;
+  }
+  .stage-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .stage-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--border-strong);
+    background: transparent;
+  }
+  .stage-dot-past {
+    background: var(--text-tertiary);
+    border-color: var(--text-tertiary);
+  }
+  .stage-dot-current {
+    background: var(--accent-warm);
+    border-color: var(--accent-warm);
+    box-shadow: 0 0 0 3px var(--accent-warm-muted);
+  }
+  .stage-dot-future {
+    border-color: var(--border-strong);
+    background: transparent;
+  }
+  .stage-label {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    font-weight: 400;
+    white-space: nowrap;
+    text-align: center;
+    margin-top: 8px;
+    max-width: 80px;
+  }
+  .stage-label-current {
+    color: var(--accent-warm);
+    font-weight: 500;
+  }
+  .stage-label-future { opacity: 0.5; }
+  .stage-connector {
+    height: 2px;
+    flex: 1;
+    margin-top: 5px;
+    min-width: 16px;
+  }
+  .stage-connector-past {
+    background: var(--text-tertiary);
+  }
+  .stage-connector-future {
+    background: var(--border-strong);
+  }
+  /* Compact variant — dots only, no labels */
+  .stage-progression-compact .stage-dot {
+    width: 8px;
+    height: 8px;
+  }
+  .stage-progression-compact .stage-dot-current {
+    box-shadow: 0 0 0 2px var(--accent-warm-muted);
+  }
+  .stage-progression-compact .stage-connector {
+    margin-top: 3px;
+    min-width: 10px;
+  }
+  .stage-progression-compact .stage-label { display: none; }
+
+  /* ============ CONTENT CARD ============ */
+  .content-card {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: border-color var(--transition-micro);
+  }
+  .content-card:hover { border-color: var(--border-strong); }
+  .content-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .content-card-title {
+    font-family: var(--font-display);
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    flex: 1;
+  }
+  .content-card-preview {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    font-weight: 300;
+    line-height: 1.5;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .content-card-meta {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+  }
+  /* Workspace — full editing view */
+  .content-workspace {
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .content-workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .content-workspace-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .content-workspace-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .content-workspace-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .content-workspace-body {
+    padding: 24px 28px;
+  }
+  .content-workspace-content {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text-primary);
+    font-weight: 300;
+    margin-bottom: 12px;
+  }
+  .content-workspace-regenerate {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.875rem;
+    color: var(--accent-warm);
+    cursor: pointer;
+    font-weight: 400;
+    margin-bottom: 16px;
+    transition: color var(--transition-micro);
+  }
+  .content-workspace-regenerate:hover { color: #d4a06a; }
+  .content-workspace-attribution {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .content-workspace-attachments-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+  .content-workspace-attachments {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  /* Type/audience selector — row of option cards */
+  .content-type-selector {
+    display: flex;
+    gap: 12px;
+  }
+  .content-type-option {
+    flex: 1;
+    padding: 16px 20px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--transition-micro), background var(--transition-micro);
+  }
+  .content-type-option:hover {
+    border-color: var(--border-strong);
+    background: var(--bg-elevated);
+  }
+  .content-type-option-selected {
+    border-color: rgba(196, 145, 90, 0.4);
+    background: var(--accent-warm-subtle);
+  }
+  .content-type-option-name {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .content-type-option-desc {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+    font-weight: 300;
+    line-height: 1.4;
+  }
+  .content-type-option-selected .content-type-option-name {
+    color: var(--accent-warm);
+  }
+
   /* ============ RESPONSIVE ============ */
   @media (max-width: 768px) {
     body { padding: 24px 16px 80px; }
@@ -2039,6 +2597,30 @@
     .color-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
     .stat-grid { grid-template-columns: 1fr; }
     .comparison { grid-template-columns: 1fr; }
+
+    /* Entity nav */
+    .entity-nav { flex-wrap: wrap; padding: 10px 16px; gap: 6px; }
+    .entity-nav-back { border-right: none; padding-right: 0; margin-right: 0; }
+    .entity-nav-identity { margin-right: 0; }
+    .entity-nav-links { order: 3; width: 100%; overflow-x: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+
+    /* Asset gallery */
+    .asset-gallery { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .asset-card-actions { opacity: 1; }
+
+    /* Processing steps */
+    .processing-steps { grid-template-columns: 1fr; }
+
+    /* Stage progression */
+    .stage-label { font-size: 0.625rem; max-width: 56px; }
+    .stage-connector { min-width: 8px; }
+
+    /* Content card */
+    .content-type-selector { flex-direction: column; }
+    .content-workspace-header { flex-wrap: wrap; gap: 12px; padding: 16px 20px; }
+    .content-workspace-body { padding: 16px 20px; }
+    .content-workspace-actions { width: 100%; }
+    .content-workspace-actions .btn { flex: 1; justify-content: center; }
   }
 </style>
 </head>
@@ -2064,6 +2646,62 @@
       <li><span style="color: var(--accent-blue);">Blue</span> — informational, neutral-active, supplementary data.</li>
       <li><span style="color: var(--accent-lavender);">Lavender</span> — categorization, tertiary grouping, supplementary.</li>
     </ul>
+  </div>
+  <div style="background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 24px; font-size: 0.9375rem; color: var(--text-secondary); font-weight: 300; line-height: 1.7; margin-top: 16px;">
+    <div style="font-weight: 500; color: var(--text-primary); margin-bottom: 10px;">Component index</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 32px; font-size: 0.875rem;">
+      <div><span style="color: var(--text-primary); font-weight: 400;">Typography</span> — display, body, meta type scale</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Colors</span> — backgrounds, text, accents, chart palette</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Navigation</span> — top-level tool switcher bar</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Query Bar</span> — natural language search input</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Tags & Badges</span> — user labels and category classifiers</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Status Indicators</span> — dot+label, pulsing, confidence tiers</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Section Card</span> — bordered content container with title</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Item List</span> — rows of records with text and metadata</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Stat Grid</span> — grid of labeled metric values</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Timeline</span> — chronological events with dates</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Person Cards</span> — avatar, name, role reference</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Internal Assessments</span> — attributed quotes</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Progress & Match</span> — progress bars, match strength</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Buttons</span> — primary, secondary, ghost</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Form Inputs</span> — text, label</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Alerts & Messages</span> — error, warning, success, info</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Toasts</span> — transient notifications</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Modal</span> — focused overlay for quick actions</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Forms</span> — selects, textareas, toggles, errors</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Structural Layout</span> — field stack, section stack, form actions</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Empty States</span> — no data / no results</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Loading States</span> — spinner, skeleton shimmer</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Edit States</span> — hover-to-edit, inline editing</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">File Upload</span> — drop zone and file items</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Data Table</span> — sortable columns, pagination</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Rating Input</span> — tap-target dot rating</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Tabs</span> — switch views within a page</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Breadcrumbs</span> — hierarchical location</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Proactive Surfacing</span> — system-initiated feed</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Side-by-Side</span> — two-column comparison</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Voice Memo</span> — record, playback, transcript</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Expandable Sections</span> — collapsible accordion</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Action Menu</span> — contextual kebab dropdown</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Avatar Variants</span> — initials, photo, sizes</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Confidentiality</span> — lock icon indicator</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Chip Input</span> — multi-select with removable chips</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Query Results</span> — prose response and result list</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Drawer Panel</span> — slide-in detail view</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Links</span> — standard, external, subtle</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Nav Notifications</span> — dot and count indicators</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Transitions</span> — micro, standard, emphasis speeds</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Focus States</span> — keyboard navigation ring</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Truncation</span> — ellipsis, line clamp, show more</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Date Display</span> — relative vs absolute conventions</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Command Palette</span> — global ⌘K search</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Entity Nav Bar</span> — secondary nav within an entity</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Asset Gallery</span> — visual thumbnail grid</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Version Stack</span> — expandable revision history</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Processing Panel</span> — multi-step async progress</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Stage Progression</span> — discrete lifecycle indicator</div>
+      <div><span style="color: var(--text-primary); font-weight: 400;">Content Card</span> — authored/generated document card</div>
+    </div>
   </div>
 </div>
 
@@ -2362,7 +3000,7 @@
 <!-- ============================================ -->
 <div class="ref-section">
   <h2 class="ref-section-title">Tags & Badges</h2>
-  <p class="ref-section-desc">Tags are user-created, ad-hoc labels. Badges are system-defined categories in color variants.</p>
+  <p class="ref-section-desc">Tags are user-created, ad-hoc labels. Badges are system-defined category classifiers — read the usage guidance below before reaching for one.</p>
 
   <div class="ref-group">
     <div class="ref-group-label">Tags</div>
@@ -2387,6 +3025,27 @@
         <span class="badge badge-lavender">Lavender</span>
         <span class="badge badge-neutral">Neutral</span>
       </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">When to use a badge</div>
+    <div style="background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 24px; font-size: 0.9375rem; color: var(--text-secondary); font-weight: 300; line-height: 1.7;">
+      <div style="margin-bottom: 12px;">A badge is an <strong style="color: var(--text-primary);">interruption</strong>. Its colored pill shape pulls the eye away from surrounding content to say: <em>this is what kind of thing you're looking at</em>. That visual cost is the point — and it means badges must earn their presence.</div>
+      <div style="font-weight: 500; color: var(--text-primary); margin-bottom: 6px;">Use a badge when:</div>
+      <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px;">
+        <li>The information is a <strong style="color: var(--text-primary);">category or type</strong> — what kind of thing this is, not what state it's in.</li>
+        <li>The user is <strong style="color: var(--text-primary);">scanning</strong> a list, grid, or table and needs to classify items at a glance.</li>
+        <li>The category is drawn from a <strong style="color: var(--text-primary);">small, discrete, system-defined set</strong> — not open-ended text.</li>
+      </ul>
+      <div style="font-weight: 500; color: var(--text-primary); margin-bottom: 6px;">Do not use a badge for:</div>
+      <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px;">
+        <li><strong style="color: var(--text-primary);">Status or state</strong> (active, complete, draft, upcoming) — use a status indicator (dot + label) or text-level color.</li>
+        <li><strong style="color: var(--text-primary);">Information the structure already communicates</strong> — if a warm border means "latest," a "Latest" badge says the same thing twice.</li>
+        <li><strong style="color: var(--text-primary);">Metadata</strong> (dates, authorship, counts) — use the meta text line.</li>
+        <li><strong style="color: var(--text-primary);">Context in a focused view</strong> — when the user is already looking at the thing (a detail page, a workspace), a meta label or section header communicates type without interrupting. Badges are for scanning, not reading.</li>
+      </ul>
+      <div style="font-size: 0.875rem; color: var(--text-tertiary);">If every card in a list has three badges, none of them are doing their job. The fewer badges on the page, the more each one means.</div>
     </div>
   </div>
 </div>
@@ -2459,7 +3118,7 @@
 <!-- ============================================ -->
 <div class="ref-section">
   <h2 class="ref-section-title">Item List</h2>
-  <p class="ref-section-desc">Structured rows with primary text, secondary text, and optional badge. Use for any list of records.</p>
+  <p class="ref-section-desc">Structured rows with primary text, secondary text, and optional status or metadata. Use for any list of records.</p>
 
   <div class="showcase" style="max-width: 640px;">
     <ul class="item-list">
@@ -2468,21 +3127,19 @@
           <div class="item-primary">Workshop at The Public</div>
           <div class="item-secondary">June 14–28, 2026 &middot; Script v3 &middot; 8 actors</div>
         </div>
-        <span class="badge badge-blue">Upcoming</span>
+        <span class="status status-blue" style="font-size: 0.8125rem;"><span class="status-dot"></span> Upcoming</span>
       </li>
       <li class="item-row">
         <div>
           <div class="item-primary">Staged Reading</div>
           <div class="item-secondary">January 10, 2026 &middot; Script v2 &middot; New York Theatre Workshop</div>
         </div>
-        <span class="badge badge-neutral">Completed</span>
       </li>
       <li class="item-row">
         <div>
           <div class="item-primary">Internal Read</div>
           <div class="item-secondary">September 5, 2025 &middot; Script v1</div>
         </div>
-        <span class="badge badge-neutral">Completed</span>
       </li>
     </ul>
   </div>
@@ -2526,7 +3183,7 @@
 <!-- ============================================ -->
 <div class="ref-section">
   <h2 class="ref-section-title">Timeline</h2>
-  <p class="ref-section-desc">Chronological events with date, title, and description. Active dot variant for most recent.</p>
+  <p class="ref-section-desc">Chronological events with date, title, and description. Active dot variant for most recent. This is for things that happened — not for versioned content (use Version Stack) or lifecycle stages (use Stage Progression).</p>
 
   <div class="showcase" style="max-width: 640px;">
     <div class="timeline">
@@ -2614,7 +3271,7 @@
 <!-- ============================================ -->
 <div class="ref-section">
   <h2 class="ref-section-title">Progress & Match Strength</h2>
-  <p class="ref-section-desc">Progress bar for any current-vs-target value. Match strength for any scored relationship.</p>
+  <p class="ref-section-desc">Progress bar for any continuous current-vs-target value. Match strength for any scored relationship. For discrete ordered stages, use Stage Progression instead.</p>
 
   <div class="showcase" style="max-width: 480px;">
     <div class="ref-group">
@@ -2901,6 +3558,84 @@
       <div class="toggle">
         <div class="toggle-track"><div class="toggle-thumb"></div></div>
         Show in public directory
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- STRUCTURAL LAYOUT -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Structural Layout</h2>
+  <p class="ref-section-desc">Spacing containers that replace per-element margins. Use these instead of adding margin classes or inline spacing to individual fields, sections, or buttons. The container handles the gap; the children just exist.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Field stack — form fields inside a modal or form</div>
+    <div class="showcase" style="max-width: 480px;">
+      <div class="field-stack">
+        <div>
+          <label class="input-label">Show Title</label>
+          <input type="text" class="input" placeholder="Working title">
+        </div>
+        <div>
+          <label class="input-label">Medium</label>
+          <div class="select-wrapper">
+            <select class="select">
+              <option>Musical</option>
+              <option>Play</option>
+              <option>Screenplay</option>
+            </select>
+            <svg class="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5"/></svg>
+          </div>
+        </div>
+        <div>
+          <label class="input-label">Logline</label>
+          <textarea class="textarea" placeholder="One-sentence description..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-primary">Create Show</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Section stack — spacing between section cards on a page</div>
+    <div class="showcase">
+      <div class="section-stack">
+        <div class="section-card">
+          <div class="section-card-header">
+            <h3 class="section-card-title">Overview</h3>
+          </div>
+          <p class="prose">A two-act musical exploring family, ambition, and reinvention in contemporary Brooklyn.</p>
+        </div>
+        <div class="section-card">
+          <div class="section-card-header">
+            <h3 class="section-card-title">Creative Team</h3>
+            <span class="section-card-meta">4 attached</span>
+          </div>
+          <p class="prose" style="color: var(--text-secondary);">Director, choreographer, music director, and dramaturg confirmed for workshop.</p>
+        </div>
+        <div class="section-card">
+          <div class="section-card-header">
+            <h3 class="section-card-title">Budget</h3>
+            <span class="section-card-meta">Last updated Mar 10</span>
+          </div>
+          <p class="prose" style="color: var(--text-secondary);">Workshop budget approved. Tracking $4K under estimate.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Form actions — button row at the bottom of a form</div>
+    <div class="showcase" style="max-width: 480px;">
+      <div class="form-actions">
+        <button class="btn btn-ghost">Cancel</button>
+        <button class="btn btn-secondary">Save Draft</button>
+        <button class="btn btn-primary">Publish</button>
       </div>
     </div>
   </div>
@@ -3205,7 +3940,7 @@
 <!-- ============================================ -->
 <div class="ref-section">
   <h2 class="ref-section-title">Tabs</h2>
-  <p class="ref-section-desc">Switch between views within a page. Active tab has warm underline. Optional count badges. Scrolls horizontally on small screens.</p>
+  <p class="ref-section-desc">Switch between views within a page — the content below changes but the URL doesn't. Active tab has warm underline. Not for real-route navigation within an entity (use Entity Nav Bar).</p>
 
   <div class="ref-group">
     <div class="ref-group-label">Standard tabs</div>
@@ -3479,7 +4214,7 @@
 <!-- ============================================ -->
 <div class="ref-section">
   <h2 class="ref-section-title">Expandable Sections</h2>
-  <p class="ref-section-desc">Collapsible accordion for long pages. Chevron rotates on open. Any content type can be inside.</p>
+  <p class="ref-section-desc">Collapsible accordion for long pages. Chevron rotates on open. Any content type can be inside. This is a generic layout wrapper — for versioned content with expand/collapse, use Version Stack instead.</p>
 
   <div class="showcase" style="max-width: 640px;">
     <div class="accordion-item open">
@@ -3971,6 +4706,717 @@
         <span><span class="cmd-palette-kbd">↑↓</span> navigate</span>
         <span><span class="cmd-palette-kbd">↵</span> select</span>
         <span><span class="cmd-palette-kbd">esc</span> close</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ENTITY NAVIGATION BAR -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Entity Navigation Bar</h2>
+  <p class="ref-section-desc">Secondary navigation within a specific entity context. Sits below the page header, above page content. Real routes, not tabs — uses the pill/bg-fill active style rather than underline. The tool-level sidebar stays in place; this provides the second level within an entity.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Show entity — 7 links</div>
+    <div class="showcase">
+      <div class="entity-nav">
+        <a class="entity-nav-back">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8.5 3.5l-4 3.5 4 3.5"/></svg>
+          Slate
+        </a>
+        <div class="entity-nav-identity">
+          <span class="entity-nav-title">Moonshot</span>
+        </div>
+        <div class="entity-nav-links">
+          <a class="entity-nav-link entity-nav-link-active">Overview</a>
+          <a class="entity-nav-link">Scripts</a>
+          <a class="entity-nav-link">Team</a>
+          <a class="entity-nav-link">Milestones</a>
+          <a class="entity-nav-link">Media</a>
+          <a class="entity-nav-link">Pitches</a>
+          <a class="entity-nav-link">Budget</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Fewer links — casting project</div>
+    <div class="showcase">
+      <div class="entity-nav">
+        <a class="entity-nav-back">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8.5 3.5l-4 3.5 4 3.5"/></svg>
+          Casting
+        </a>
+        <div class="entity-nav-identity">
+          <span class="entity-nav-title">Lead Role — Moonshot</span>
+        </div>
+        <div class="entity-nav-links">
+          <a class="entity-nav-link">Breakdown</a>
+          <a class="entity-nav-link entity-nav-link-active">Candidates</a>
+          <a class="entity-nav-link">Auditions</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- ASSET GALLERY -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Asset Gallery</h2>
+  <p class="ref-section-desc">Grid of visual thumbnails for image/media assets. For when the visual content IS the content — logos, key art, headshots, mood boards. Hover reveals action icons. Upload card doubles as a drop zone. Responsive column count.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Gallery with thumbnails, overlay badge, hover actions, and upload card</div>
+    <div class="showcase">
+      <div class="asset-gallery">
+        <div class="asset-card">
+          <div class="asset-card-preview" style="background: linear-gradient(135deg, #3a2e24, #5a4535);">
+            <span class="asset-card-overlay">Primary</span>
+            <div class="asset-card-actions">
+              <div class="asset-card-action">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 10V2M4 5l3-3 3 3"/><path d="M2 9v3h10V9"/></svg>
+              </div>
+              <div class="asset-card-action">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+              </div>
+            </div>
+          </div>
+          <div class="asset-card-info">
+            <div class="asset-card-label">Logo v2</div>
+            <div class="asset-card-type">Logo</div>
+          </div>
+        </div>
+
+        <div class="asset-card" style="border-color: var(--border-strong);">
+          <div class="asset-card-preview" style="background: linear-gradient(160deg, #2a3530, #1e2b28);">
+            <div class="asset-card-actions" style="opacity: 1;">
+              <div class="asset-card-action">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 10V2M4 5l3-3 3 3"/><path d="M2 9v3h10V9"/></svg>
+              </div>
+              <div class="asset-card-action">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="1"/><circle cx="7" cy="3" r="1"/><circle cx="7" cy="11" r="1"/></svg>
+              </div>
+              <div class="asset-card-action">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l8 8M11 3l-8 8"/></svg>
+              </div>
+            </div>
+          </div>
+          <div class="asset-card-info">
+            <div class="asset-card-label">Key Art — Final</div>
+            <div class="asset-card-type">Key Art</div>
+          </div>
+        </div>
+
+        <div class="asset-card">
+          <div class="asset-card-preview" style="background: linear-gradient(145deg, #362a2a, #4a3535);"></div>
+          <div class="asset-card-info">
+            <div class="asset-card-label">Headshot — Primary</div>
+            <div class="asset-card-type">Headshot</div>
+          </div>
+        </div>
+
+        <div class="asset-card">
+          <div class="asset-card-preview" style="background: linear-gradient(130deg, #2a2e3a, #353a48);"></div>
+          <div class="asset-card-info">
+            <div class="asset-card-label">Mood Board</div>
+            <div class="asset-card-type">Reference</div>
+          </div>
+        </div>
+
+        <div class="asset-card">
+          <div class="asset-card-preview" style="background: linear-gradient(155deg, #332e24, #4a4030);"></div>
+          <div class="asset-card-info">
+            <div class="asset-card-label">Workshop Photo — Day 3</div>
+            <div class="asset-card-type">Production Photo</div>
+          </div>
+        </div>
+
+        <div class="asset-card-upload">
+          <div class="asset-card-upload-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 8v12M8 14h12"/></svg>
+          </div>
+          <div class="asset-card-upload-text">Upload asset</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Empty state</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="6" width="32" height="28" rx="3"/><circle cx="14" cy="17" r="4"/><path d="M4 28l10-8 6 4 8-9 8 7"/></svg>
+        </div>
+        <div class="empty-state-title">No assets yet</div>
+        <div class="empty-state-desc">Upload images, logos, key art, or other visual materials for this project.</div>
+        <button class="btn btn-primary">Upload Assets</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- VERSION STACK -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Version Stack</h2>
+  <p class="ref-section-desc">Vertically ordered list of versions, most recent first. The latest version is visually distinguished with a warm left border. Each entry expands to show detailed content. This is for revisions of the same thing (script drafts, analysis snapshots) — not for chronological events (use Timeline) or generic collapsible sections (use Accordion).</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">3 versions — top expanded, others collapsed</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="version-stack">
+        <div class="version-entry version-entry-latest open">
+          <div class="version-entry-header">
+            <span class="version-entry-label">Post-Workshop Draft</span>
+            <span class="version-entry-date">Feb 2026</span>
+            <svg class="version-entry-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+          </div>
+          <div class="version-entry-content">
+            <div style="margin-bottom: 12px;">Major restructure — collapsed to two acts, moved airport scene to Act I curtain. 4 new songs added, 2 cut. Incorporated workshop feedback on the mother-daughter dynamic. Runtime reduced from 2h30m to 2h15m.</div>
+            <div class="version-entry-nested">
+              <div class="file-item">
+                <svg class="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h8l4 4v12a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M12 2v4h4"/></svg>
+                <span class="file-item-name">moonshot-script-v3.pdf</span>
+                <span class="file-item-meta">2.4 MB</span>
+              </div>
+              <div class="file-item">
+                <svg class="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="12" r="4"/><path d="M10 8V3M6 5l4-2 4 2"/></svg>
+                <span class="file-item-name">act-1-finale-revised.mp3</span>
+                <span class="file-item-meta">8.1 MB</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="version-entry">
+          <div class="version-entry-header">
+            <span class="version-entry-label">Pre-Workshop Draft</span>
+            <span class="version-entry-date">Dec 2025</span>
+            <svg class="version-entry-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+          </div>
+          <div class="version-entry-content collapsed">
+            Prepared for January staged reading. Added 2 new songs for Act II. Revised dialogue scenes 4–7.
+          </div>
+        </div>
+
+        <div class="version-entry">
+          <div class="version-entry-header">
+            <span class="version-entry-label">First Draft</span>
+            <span class="version-entry-date">Sep 2025</span>
+            <svg class="version-entry-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+          </div>
+          <div class="version-entry-content collapsed">
+            Initial complete draft. Three-act structure, 14 songs, estimated runtime 2h30m.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Version with processing status (pulsing dot)</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="version-stack">
+        <div class="version-entry version-entry-latest">
+          <div class="version-entry-header">
+            <span class="version-entry-label">Analysis Refresh</span>
+            <span class="status status-warm" style="font-size: 0.8125rem;"><span class="status-dot pulse"></span> Processing</span>
+            <span class="version-entry-date">Mar 2026</span>
+            <svg class="version-entry-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+          </div>
+          <div class="version-entry-content collapsed">
+            Reprocessing with updated parameters.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- PROCESSING STATE PANEL -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Processing State Panel</h2>
+  <p class="ref-section-desc">Multi-step processing indicator for async operations. Each step has its own status: pending, processing, complete, or failed. Uses existing progress bar for overall completion. For script analysis, dossier research, bulk imports, discovery scans — any operation with multiple discrete steps.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">In progress — 7 of 11 complete</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="processing-panel">
+        <div class="processing-panel-header">
+          <span class="processing-panel-title">Script Analysis</span>
+          <span class="processing-panel-count">7 of 11 complete</span>
+        </div>
+        <div class="processing-panel-progress">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: 64%;"></div>
+          </div>
+        </div>
+        <div class="processing-steps">
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Character Analysis</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Scene Breakdown</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Emotional Arc</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Theme Extraction</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Dialogue Analysis</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Song Inventory</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Casting Requirements</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-processing">
+              <div class="processing-step-spinner"></div>
+            </div>
+            <span class="processing-step-name">Budget Estimate</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-processing">
+              <div class="processing-step-spinner"></div>
+            </div>
+            <span class="processing-step-name">Comparable Identification</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-pending">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 9h6"/></svg>
+            </div>
+            <span class="processing-step-name">Summary Generation</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-pending">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 9h6"/></svg>
+            </div>
+            <span class="processing-step-name">Producing Assessment</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Complete — all steps done</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="processing-panel processing-panel-complete">
+        <div class="processing-panel-header">
+          <span class="processing-panel-title">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align: -3px; margin-right: 6px;"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            Script Analysis Complete
+          </span>
+          <span class="processing-panel-count">11 of 11 complete</span>
+        </div>
+        <div class="processing-panel-progress">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: 100%; background: var(--accent-sage);"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Partial failure — 1 step failed with retry action</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="processing-panel">
+        <div class="processing-panel-header">
+          <span class="processing-panel-title">Dossier Research</span>
+          <span class="processing-panel-count">5 of 6 complete · 1 failed</span>
+        </div>
+        <div class="processing-panel-progress">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" style="width: 83%;"></div>
+          </div>
+        </div>
+        <div class="processing-steps">
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Public Records</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Social Profiles</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Production Credits</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Press Coverage</span>
+          </div>
+          <div class="processing-step">
+            <div class="processing-step-icon processing-step-icon-complete">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M6 9.5l2 2 4-4"/></svg>
+            </div>
+            <span class="processing-step-name">Industry Connections</span>
+          </div>
+          <div class="processing-step processing-step-failed">
+            <div class="processing-step-icon processing-step-icon-failed">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M7 7l4 4M11 7l-4 4"/></svg>
+            </div>
+            <div class="processing-step-body">
+              <div class="processing-step-name">Financial Background</div>
+              <div class="processing-step-error">Source unavailable — API rate limit exceeded</div>
+            </div>
+            <span class="processing-step-action">Retry</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- STAGE PROGRESSION -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Stage Progression Indicator</h2>
+  <p class="ref-section-desc">Horizontal indicator showing discrete ordered stages. NOT a progress bar (continuous) and NOT a timeline (chronological with dates). This is a state indicator for where something is in a defined lifecycle. Two variants: full (with labels) and compact (dots only, for tight spaces).</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Full variant — 8 stages, current at stage 3 (Workshop)</div>
+    <div class="showcase" style="max-width: 720px;">
+      <div class="stage-progression">
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-past"></div>
+          <div class="stage-label">Early Dev</div>
+        </div>
+        <div class="stage-connector stage-connector-past"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-past"></div>
+          <div class="stage-label">Internal Read</div>
+        </div>
+        <div class="stage-connector stage-connector-past"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-current"></div>
+          <div class="stage-label stage-label-current">Workshop</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">Staged Reading</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">Seeking Prod.</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">In Production</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">Running</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">Closed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Full variant — current at stage 5 (Seeking Production)</div>
+    <div class="showcase" style="max-width: 720px;">
+      <div class="stage-progression">
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-past"></div>
+          <div class="stage-label">Early Dev</div>
+        </div>
+        <div class="stage-connector stage-connector-past"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-past"></div>
+          <div class="stage-label">Internal Read</div>
+        </div>
+        <div class="stage-connector stage-connector-past"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-past"></div>
+          <div class="stage-label">Workshop</div>
+        </div>
+        <div class="stage-connector stage-connector-past"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-past"></div>
+          <div class="stage-label">Staged Reading</div>
+        </div>
+        <div class="stage-connector stage-connector-past"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-current"></div>
+          <div class="stage-label stage-label-current">Seeking Prod.</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">In Production</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">Running</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">Closed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Compact variant — dots only, no labels (for table cells and tight spaces)</div>
+    <div class="showcase" style="max-width: 360px;">
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span style="font-size: 0.9375rem; font-weight: 400; min-width: 100px;">Moonshot</span>
+          <div class="stage-progression stage-progression-compact" style="flex: 1;">
+            <div class="stage-node"><div class="stage-dot stage-dot-past"></div></div>
+            <div class="stage-connector stage-connector-past"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-past"></div></div>
+            <div class="stage-connector stage-connector-past"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-current"></div></div>
+            <div class="stage-connector stage-connector-future"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-future"></div></div>
+            <div class="stage-connector stage-connector-future"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-future"></div></div>
+            <div class="stage-connector stage-connector-future"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-future"></div></div>
+            <div class="stage-connector stage-connector-future"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-future"></div></div>
+            <div class="stage-connector stage-connector-future"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-future"></div></div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span style="font-size: 0.9375rem; font-weight: 400; min-width: 100px;">Stable Geniuses</span>
+          <div class="stage-progression stage-progression-compact" style="flex: 1;">
+            <div class="stage-node"><div class="stage-dot stage-dot-past"></div></div>
+            <div class="stage-connector stage-connector-past"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-past"></div></div>
+            <div class="stage-connector stage-connector-past"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-past"></div></div>
+            <div class="stage-connector stage-connector-past"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-past"></div></div>
+            <div class="stage-connector stage-connector-past"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-past"></div></div>
+            <div class="stage-connector stage-connector-past"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-current"></div></div>
+            <div class="stage-connector stage-connector-future"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-future"></div></div>
+            <div class="stage-connector stage-connector-future"></div>
+            <div class="stage-node"><div class="stage-dot stage-dot-future"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Fewer stages — 5-stage lifecycle</div>
+    <div class="showcase" style="max-width: 480px;">
+      <div class="stage-progression">
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-past"></div>
+          <div class="stage-label">Submitted</div>
+        </div>
+        <div class="stage-connector stage-connector-past"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-past"></div>
+          <div class="stage-label">Reviewed</div>
+        </div>
+        <div class="stage-connector stage-connector-past"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-current"></div>
+          <div class="stage-label stage-label-current">Interview</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">Offer</div>
+        </div>
+        <div class="stage-connector stage-connector-future"></div>
+        <div class="stage-node">
+          <div class="stage-dot stage-dot-future"></div>
+          <div class="stage-label stage-label-future">Hired</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- CONTENT CARD WITH ACTIONS -->
+<!-- ============================================ -->
+<div class="ref-section">
+  <h2 class="ref-section-title">Content Card with Actions</h2>
+  <p class="ref-section-desc">Card pattern for generated or authored content — documents, pitches, reports, analyses. Covers three sub-patterns: compact card (for list views), full workspace (for reading/editing), and type selector (for choosing content type when generating). Each document has a type/audience, content, and metadata about authorship.</p>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Compact cards — list view</div>
+    <div class="showcase" style="display: flex; flex-direction: column; gap: 10px; max-width: 640px;">
+      <div class="content-card">
+        <div class="content-card-header">
+          <span class="badge badge-warm">Producer</span>
+          <span class="content-card-title">Moonshot — Investor Pitch</span>
+        </div>
+        <div class="content-card-preview">A deeply personal queer musical exploring how families reinvent themselves after loss. Set in contemporary Brooklyn, Moonshot follows three generations of a Korean-American family as they navigate grief, ambition, and the distance between who they are and who they hoped to become.</div>
+        <div class="content-card-meta">Generated by AI · Mar 15, 2026 · <span style="color: var(--accent-sage);">Final</span></div>
+      </div>
+
+      <div class="content-card">
+        <div class="content-card-header">
+          <span class="badge badge-blue">Festival</span>
+          <span class="content-card-title">Moonshot — NAMT Submission</span>
+        </div>
+        <div class="content-card-preview">A mother-daughter musical with an extraordinary score and a story that refuses to settle for easy catharsis. Currently in workshop development with a creative team drawn from Off-Broadway's most inventive talents.</div>
+        <div class="content-card-meta">Generated by AI · Mar 12, 2026 · Draft</div>
+      </div>
+
+      <div class="content-card">
+        <div class="content-card-header">
+          <span class="badge badge-lavender">Grant-maker</span>
+          <span class="content-card-title">NEA Application — Narrative</span>
+        </div>
+        <div class="content-card-preview">Weird Noises produces new American musicals that center underrepresented voices and stories. Moonshot, our current lead development project, uses music to explore intergenerational trauma in Korean-American families.</div>
+        <div class="content-card-meta">Edited by Husani · Mar 18, 2026 · Draft</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Full workspace view</div>
+    <div class="showcase" style="max-width: 720px;">
+      <div class="content-workspace">
+        <div class="content-workspace-header">
+          <div class="content-workspace-header-left">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span class="type-meta">Producer</span>
+              <span class="content-workspace-title">Moonshot — Investor Pitch</span>
+            </div>
+          </div>
+          <div class="content-workspace-actions">
+            <button class="btn btn-ghost">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12v2h2l8-8-2-2-8 8zM10 2l2-0 2 2-0 2"/></svg>
+              Edit
+            </button>
+            <button class="btn btn-secondary">Export</button>
+            <button class="btn btn-primary">Save</button>
+          </div>
+        </div>
+        <div class="content-workspace-body">
+          <div class="content-workspace-content">A deeply personal queer musical exploring how families reinvent themselves after loss. Set in contemporary Brooklyn, <em>Moonshot</em> follows three generations of a Korean-American family as they navigate grief, ambition, and the distance between who they are and who they hoped to become.<br><br>The score blends contemporary pop with traditional Korean musical forms, creating a sound that feels both deeply specific and immediately accessible. Early readings have drawn comparisons to <em>Next to Normal</em> for its emotional directness and to <em>The Band's Visit</em> for its restraint.<br><br>We are seeking producing partners who share our commitment to intimate, character-driven storytelling and who understand the commercial potential of authentic representation. Current capitalization stands at 68% of target.</div>
+          <div class="content-workspace-regenerate">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 7a5.5 5.5 0 019.35-3.93M12.5 7a5.5 5.5 0 01-9.35 3.93"/><path d="M11 1v3h-3M3 13v-3h3"/></svg>
+            Regenerate
+          </div>
+          <div class="content-workspace-attribution">Generated by AI · Mar 15, 2026 · Last edited by Husani · Mar 17, 2026</div>
+          <div class="content-workspace-attachments-label">Attached Materials</div>
+          <div class="content-workspace-attachments">
+            <div class="file-item">
+              <svg class="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h8l4 4v12a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z"/><path d="M12 2v4h4"/></svg>
+              <span class="file-item-name">moonshot-one-pager.pdf</span>
+              <span class="file-item-meta">420 KB</span>
+              <svg class="file-item-remove" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+            </div>
+            <div class="file-item">
+              <svg class="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="12" r="4"/><path d="M10 8V3M6 5l4-2 4 2"/></svg>
+              <span class="file-item-name">act-1-finale-demo.mp3</span>
+              <span class="file-item-meta">8.1 MB</span>
+              <svg class="file-item-remove" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Type/audience selector</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div style="margin-bottom: 12px;">
+        <div class="type-meta" style="margin-bottom: 10px;">Generate pitch for</div>
+      </div>
+      <div class="content-type-selector">
+        <div class="content-type-option content-type-option-selected">
+          <div class="content-type-option-name">Producer</div>
+          <div class="content-type-option-desc">Tailored for lead or co-producers evaluating commercial potential and creative fit</div>
+        </div>
+        <div class="content-type-option">
+          <div class="content-type-option-name">Investor</div>
+          <div class="content-type-option-desc">Focused on financials, market positioning, and return projections</div>
+        </div>
+        <div class="content-type-option">
+          <div class="content-type-option-name">Festival</div>
+          <div class="content-type-option-desc">Emphasizes artistic merit, development stage, and creative team credentials</div>
+        </div>
+        <div class="content-type-option">
+          <div class="content-type-option-name">Grant-maker</div>
+          <div class="content-type-option-desc">Highlights mission alignment, community impact, and artistic innovation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ref-group">
+    <div class="ref-group-label">Empty state</div>
+    <div class="showcase" style="max-width: 640px;">
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h16l8 8v20a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2z"/><path d="M24 6v8h8"/><path d="M14 22h12M14 28h8"/></svg>
+        </div>
+        <div class="empty-state-title">No pitch documents yet</div>
+        <div class="empty-state-desc">Generate a pitch tailored to a specific audience — producers, investors, festivals, or grant-makers.</div>
+        <button class="btn btn-primary">Generate Pitch</button>
       </div>
     </div>
   </div>

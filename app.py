@@ -46,6 +46,8 @@ from skeleton_a.backend.interface import SkeletonAInterface
 from skeleton_a.backend.jobs import skeleton_heartbeat
 from skeleton_a.backend.routes import create_skeleton_router
 from skeleton_b.backend.interface import SkeletonBInterface
+from slate.backend.interface import SlateInterface
+from slate.backend.routes import create_slate_router
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -118,6 +120,21 @@ registry.register(
 app.include_router(
     create_producers_router(producers_interface, mcp_server, producers_session_factory)
 )
+
+# --- Slate ---
+# WN's development slate — projects WN is creating, developing, and producing.
+slate_engine = create_engine_for("intelligence_slate")
+slate_session_factory = create_session_factory(slate_engine)
+slate_interface = SlateInterface(
+    session_factory=slate_session_factory, mcp_server=mcp_server
+)
+registry.register(
+    "slate",
+    name="Slate",
+    description="WN's development slate — projects, scripts, and pitches",
+    path="/slate",
+)
+app.include_router(create_slate_router(slate_interface, slate_session_factory))
 
 # Scheduled jobs
 scheduler.add_job(skeleton_heartbeat, "interval", minutes=5, id="skeleton_heartbeat")
