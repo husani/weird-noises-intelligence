@@ -581,6 +581,14 @@ Each behavior has a system prompt and user prompt. The user prompt receives the 
 
 ### Frontend Additions
 
+**UI philosophy (established in Phase 1 — applies to all Phase 2 frontend work):**
+
+Pages are for reading, not for editing. When a page displays show data (characters, structure, comparables, etc.), it displays it as readable content — a cast breakdown you'd hand to a director, a scene list you'd review in a meeting. Not a database table with edit buttons on every row. Editing is a deliberate action: an ActionMenu leading to an edit page or a modal, not inline form controls scattered across the page.
+
+Before writing any frontend code, read the design system spec (`specs/mockups/design-system.html`) — the showcase HTML, not just class names. If the spec has a component for what you're building, use it exactly. If it doesn't, flag it in the design plan. Never invent CSS classes when the design system already has the pattern.
+
+Think about the user's workflow, not database operations. "Upload a script and watch the show populate" is a workflow. "CRUD show_data records" is not. The processing panel should communicate progress meaningfully. The Characters page should feel like reading a cast breakdown, not like browsing a database table.
+
 **Version system:**
 Every page displays a version label showing which script version the data is based on (e.g. "Based on Post-Workshop Draft · Feb 2026"). Always visible but unobtrusive. Default is always the latest version.
 
@@ -589,35 +597,35 @@ To view the show at a historical version, click the version label on any page. T
 All show data comes from whichever version is selected. If the current version is still being processed, show what's ready and indicate what's still loading.
 
 **Show > Overview — now populated:**
-- Stat grid: cast size, runtime, budget range
-- Comparables section
+- Stat grid: cast size, runtime, budget range — values now populated from show data
+- Comparables section in the main column
 - Content advisories as compact alerts
 - Producing info: budget estimate with factors, cast requirements, technical complexity
-- Logline: if not set, show generated options with "Use this" action
+- Logline: if not set on the show, display generated options with "Use this" action (saves to the show record)
 - Summary: if not set, show generated summary with "Use this" action
-- Each field: "Edit" and "Regenerate from script" actions
+- "Regenerate from script" actions accessible via ActionMenu or dedicated controls — not inline edit buttons on every field
 
 **Show > Characters — now populated:**
-- Characters displayed as a table or card list: name, description, age range, gender, vocal range (musicals), dance requirements, line count, song count (musicals), notes
-- All editable. Add/remove characters manually.
+- Characters displayed as readable content — a cast breakdown, not a data table. Each character: name, description, age range, gender, vocal range (musicals), dance requirements, line count, song count (musicals), notes. The page should feel like reading a casting breakdown document.
+- Editing: ActionMenu per character for edit (opens modal or edit page), delete. "Add Character" button for manual additions. Not inline editable fields on every attribute.
 
 **Show > Structure — now populated:**
-- Act/scene breakdown with locations, characters per scene, estimated timing
+- Act/scene breakdown with locations, characters per scene, estimated timing — displayed as readable content, not a CRUD table
 - Song list with placement, characters, song types (musicals)
 - Read-only emotional arc visualization (custom Slate component)
 
 **Show > Visual Identity updates:**
-- Each asset now shows the system's understanding alongside the thumbnail — mood, tone, visual themes
-- Editable like everything else
+- Each asset now shows the system's analysis alongside the thumbnail — mood, tone, visual themes
+- Analysis displayed as read-only content below the asset card info
 
 **Show > Scripts / Book & Score updates:**
-- Each version shows processing status (ready, updating, failed)
-- When the show is updating after an upload, show which parts are ready and which are still loading
-- Music files show their analysis (key, tempo, mood, function) inline
+- Each version shows processing status using the `processing-panel` design system component (ready, updating, failed — with per-step status)
+- When the show is updating after an upload, the processing panel shows which analyses are complete, which are running, which are pending
+- Music files show their analysis (key, tempo, mood, function) as read-only content inline
 
 **AI Configuration page:**
 - Lists all behaviors with model selection and prompt editing
-- Same pattern as Producers
+- Same pattern as Producers (workbench layout)
 
 ### Verification
 
@@ -628,12 +636,12 @@ All show data comes from whichever version is selected. If the current version i
 - Uploading a visual asset produces analysis (palette, mood, themes)
 - Version label appears on every page, shows the current version
 - Switching to a historical version via modal updates all pages
-- Characters page shows editable character data
+- Characters page displays character data as a readable cast breakdown
 - Structure page shows scene breakdown and emotional arc visualization
-- Overview stat grid and producing info populated
-- Processing status visible while show is updating
-- Can manually edit any show data
-- Can regenerate from script per field
+- Overview stat grid and producing info populated from show data
+- Processing panel visible during script analysis with per-step progress
+- Can edit individual show data records via ActionMenu → edit modal
+- Can regenerate specific data types from script
 - AI Configuration page lists all 14 behaviors with editable prompts
 
 ---
