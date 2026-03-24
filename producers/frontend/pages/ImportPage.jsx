@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { importParse, importDedup, importConfirm } from '@producers/api'
+import FileUpload from '@shared/components/FileUpload'
 
 const FIELDS = [
   { key: 'first_name', label: 'First Name' },
@@ -27,7 +28,6 @@ export default function ImportPage() {
   const [file, setFile] = useState(null)
   const [sheetUrl, setSheetUrl] = useState('')
   const [pastedText, setPastedText] = useState('')
-  const fileRef = useRef()
 
   // Parse results
   const [parsedRows, setParsedRows] = useState([])
@@ -43,23 +43,6 @@ export default function ImportPage() {
   const navigate = useNavigate()
 
   // --- Step 0: Input ---
-
-  function handleFileDrop(e) {
-    e.preventDefault()
-    const dropped = e.dataTransfer?.files?.[0]
-    if (dropped) {
-      setFile(dropped)
-      setInputMode('file')
-    }
-  }
-
-  function handleFileSelect(e) {
-    const selected = e.target.files[0]
-    if (selected) {
-      setFile(selected)
-      setInputMode('file')
-    }
-  }
 
   async function handleParse() {
     setLoading(true)
@@ -253,41 +236,12 @@ export default function ImportPage() {
 
           <div className="import-input-body">
             {(inputMode === 'file' || !inputMode) && (
-              <>
-                {file ? (
-                  <div className="file-item">
-                    <div className="file-item-icon">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    </div>
-                    <div className="file-item-name">{file.name}</div>
-                    <div className="file-item-meta">{(file.size / 1024).toFixed(1)} KB</div>
-                    <div className="file-item-remove" onClick={() => { setFile(null); fileRef.current.value = '' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 6L6 18M6 6l12 12" />
-                      </svg>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className="file-upload"
-                    onClick={() => fileRef.current.click()}
-                    onDrop={handleFileDrop}
-                    onDragOver={e => e.preventDefault()}
-                  >
-                    <input ref={fileRef} type="file" accept=".csv,.tsv,.xlsx,.xls" onChange={handleFileSelect} className="hidden" />
-                    <div className="file-upload-icon">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                      </svg>
-                    </div>
-                    <div className="file-upload-title">Drop a file or click to browse</div>
-                    <div className="file-upload-desc">CSV, TSV, XLSX</div>
-                  </div>
-                )}
-              </>
+              <FileUpload
+                file={file}
+                onFile={f => { setFile(f); setInputMode('file') }}
+                accept=".csv,.tsv,.xlsx,.xls"
+                description="CSV, TSV, XLSX"
+              />
             )}
 
             {inputMode === 'url' && (
