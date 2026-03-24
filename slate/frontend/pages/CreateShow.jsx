@@ -122,7 +122,9 @@ export default function CreateShow() {
 
             <div>
               <label className="input-label">Script</label>
-              <div className="file-upload" onClick={() => fileRef.current?.click()}>
+              <div className="file-upload" onClick={() => fileRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) setScriptFile(f) }}>
                 <div className="file-upload-icon">
                   <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M18 24V10M12 16l6-6 6 6" /><path d="M6 22v6a2 2 0 002 2h20a2 2 0 002-2v-6" />
