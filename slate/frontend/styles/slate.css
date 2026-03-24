@@ -713,3 +713,116 @@
   align-items: center;
   gap: 10px;
 }
+
+/* ================================================================
+   Pitches — list, groups, workspace, and generate flow
+   ================================================================ */
+
+.slate-pitches {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.slate-pitch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.slate-pitch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.slate-pitch-group-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.slate-pitch-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.slate-pitch-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+.content-workspace-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.slate-pitch-textarea {
+  min-height: 180px;
+  resize: vertical;
+}
+.slate-generate-label {
+  margin-bottom: 10px;
+}
+.slate-generate-producer-field {
+  margin-top: 16px;
+}
+.slate-material-clickable {
+  cursor: pointer;
+}
+.slate-material-clickable:hover {
+  color: var(--accent-warm);
+}
+.slate-upload-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+.badge-sm {
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+}
+
+/* ================================================================
+   AI Query — question/answer history and form
+   ================================================================ */
+
+.slate-query-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.slate-query-form {
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0;
+  background: var(--bg-deep);
+}
+.slate-query-history {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.slate-query-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.slate-query-question {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.slate-query-question-text {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.slate-query-answer-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+}

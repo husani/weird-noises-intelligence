@@ -235,3 +235,56 @@ export function getAIBehaviors() {
 export function updateAIBehavior(id, data) {
   return request(`/settings/ai-behaviors/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 }
+
+// Pitches
+export function listPitches(showId) {
+  return request(`/shows/${showId}/pitches`)
+}
+
+export function getPitch(showId, pitchId) {
+  return request(`/shows/${showId}/pitches/${pitchId}`)
+}
+
+export function createPitch(showId, data) {
+  return request(`/shows/${showId}/pitches`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function generatePitch(showId, data) {
+  return request(`/shows/${showId}/pitches/generate`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updatePitch(showId, pitchId, data) {
+  return request(`/shows/${showId}/pitches/${pitchId}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function deletePitch(showId, pitchId) {
+  return request(`/shows/${showId}/pitches/${pitchId}`, { method: 'DELETE' })
+}
+
+export function listPitchMaterials(showId, pitchId) {
+  return request(`/shows/${showId}/pitches/${pitchId}/materials`)
+}
+
+export function uploadPitchMaterial(showId, pitchId, formData) {
+  return fetch(`${BASE}/shows/${showId}/pitches/${pitchId}/materials`, {
+    method: 'POST',
+    body: formData,
+  }).then(r => r.json())
+}
+
+export function deletePitchMaterial(showId, pitchId, materialId) {
+  return request(`/shows/${showId}/pitches/${pitchId}/materials/${materialId}`, { method: 'DELETE' })
+}
+
+export function downloadPitchMaterial(showId, pitchId, materialId) {
+  return request(`/shows/${showId}/pitches/${pitchId}/materials/${materialId}/download`)
+}
+
+// AI Query
+export function showQuery(showId, query) {
+  return request(`/shows/${showId}/query`, { method: 'POST', body: JSON.stringify({ query }) })
+}
+
+export function slateQuery(query) {
+  return request('/query', { method: 'POST', body: JSON.stringify({ query }) })
+}

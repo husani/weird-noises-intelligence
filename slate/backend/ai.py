@@ -18,7 +18,10 @@ from pydantic import BaseModel
 
 from slate.backend.models import (
     SlateAIBehavior,
+    SlateLookupValue,
+    SlateMilestone,
     SlateMusicFile,
+    SlatePitch,
     SlateScriptVersion,
     SlateShow,
     SlateShowData,
@@ -68,6 +71,7 @@ def _get_provider(model_id: str) -> str:
 
 async def call_llm(behavior: str, context: dict,
                    file_parts: list[dict] | None = None,
+                   use_mcp: bool = False,
                    response_schema=None) -> str:
     """Call an LLM for a named behavior and return the text response.
 
@@ -76,6 +80,8 @@ async def call_llm(behavior: str, context: dict,
 
     file_parts is an optional list of dicts with 'data' (bytes) and 'mime_type'
     (str) for multimodal inputs (PDFs, audio, images).
+
+    use_mcp enables MCP tool access so the LLM can call Intelligence tools.
 
     response_schema can be a BaseModel subclass for a single object, or
     list[SomeModel] for an array of objects.
@@ -96,13 +102,14 @@ async def call_llm(behavior: str, context: dict,
     provider = _get_provider(model)
 
     if provider == "google":
-        return await _call_gemini(model, system, user, file_parts, response_schema)
+        return await _call_gemini(model, system, user, file_parts, use_mcp, response_schema)
     else:
-        return await _call_claude(model, system, user, file_parts, response_schema)
+        return await _call_claude(model, system, user, file_parts, use_mcp, response_schema)
 
 
 async def _call_claude(model: str, system: str, user: str,
                        file_parts: list[dict] | None = None,
+                       use_mcp: bool = False,
                        response_schema=None) -> str:
     """Call Claude and return the text response.
 
@@ -110,6 +117,8 @@ async def _call_claude(model: str, system: str, user: str,
     If file_parts is provided, the user message content becomes a list with
     document/image blocks plus the text.
     """
+    from shared.backend.config import settings
+
     client = get_anthropic_client()
 
     # Build user message content
@@ -158,6 +167,22 @@ async def _call_claude(model: str, system: str, user: str,
         "messages": [{"role": "user", "content": user_content}],
     }
 
+    tools = []
+
+    if use_mcp and "localhost" not in settings.app_domain:
+        mcp_url = f"{settings.app_domain}/mcp/mcp"
+        kwargs["mcp_servers"] = [{
+            "type": "url",
+            "url": mcp_url,
+            "name": "intelligence",
+            "authorization_token": settings.mcp_secret,
+        }]
+        tools.append({"type": "mcp_toolset", "mcp_server_name": "intelligence"})
+        kwargs["betas"] = kwargs.get("betas", []) + ["mcp-client-2025-11-20"]
+
+    if tools:
+        kwargs["tools"] = tools
+
     if response_schema:
         # Handle list[Model] or plain Model
         origin = getattr(response_schema, "__origin__", None)
@@ -201,6 +226,7 @@ async def _call_claude(model: str, system: str, user: str,
 
 async def _call_gemini(model: str, system: str, user: str,
                        file_parts: list[dict] | None = None,
+                       use_mcp: bool = False,
                        response_schema=None) -> str:
     """Call Gemini and return the text response.
 
@@ -211,13 +237,12 @@ async def _call_gemini(model: str, system: str, user: str,
     """
     from google.genai import types
 
+    from shared.backend.config import settings
+
     client = get_google_ai_client()
 
     config_kwargs = {"system_instruction": system}
-
-    if response_schema:
-        config_kwargs["response_mime_type"] = "application/json"
-        config_kwargs["response_schema"] = response_schema
+    tools = []
 
     # Build contents
     if file_parts:
@@ -228,6 +253,48 @@ async def _call_gemini(model: str, system: str, user: str,
         contents = [*parts, user]
     else:
         contents = user
+
+    if use_mcp:
+        from fastmcp import Client
+
+        if settings.environment == "production":
+            mcp_client = Client(f"{settings.app_domain}/mcp/mcp")
+        else:
+            from shared.backend.mcp import mcp_server
+            mcp_client = Client(mcp_server)
+
+        async with mcp_client:
+            tools.append(mcp_client.session)
+            config_kwargs["tools"] = tools
+            config_kwargs["automatic_function_calling"] = (
+                types.AutomaticFunctionCallingConfig(maximum_remote_calls=50)
+            )
+
+            if response_schema:
+                config_kwargs["response_mime_type"] = "application/json"
+                config_kwargs["response_schema"] = response_schema
+
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=contents,
+                config=types.GenerateContentConfig(**config_kwargs),
+            )
+
+            if response.candidates:
+                parts = []
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, "text") and part.text:
+                        parts.append(part.text)
+                return "\n".join(parts)
+            return response.text or ""
+
+    # Non-MCP Gemini call
+    if tools:
+        config_kwargs["tools"] = tools
+
+    if response_schema:
+        config_kwargs["response_mime_type"] = "application/json"
+        config_kwargs["response_schema"] = response_schema
 
     response = await client.aio.models.generate_content(
         model=model,
@@ -921,3 +988,252 @@ async def process_visual(session_factory, asset_id: int):
                     session.commit()
         except Exception:
             logger.error(f"Failed to record error for asset {asset_id}")
+
+
+# --- Pitch and query functions ---
+
+def _gather_show_context(session, show_id: int) -> dict:
+    """Gather comprehensive show data for pitch generation and queries.
+
+    Returns a dict with identity fields and all available show data
+    for the current script version.
+    """
+    show = (
+        session.query(SlateShow)
+        .filter(SlateShow.id == show_id)
+        .first()
+    )
+    if not show:
+        return {}
+
+    medium_label = show.medium.display_label if show.medium else "Unknown"
+    stage_label = show.development_stage.display_label if show.development_stage else "Unknown"
+
+    ctx = {
+        "title": show.title,
+        "medium": medium_label,
+        "genre": show.genre or "Not specified",
+        "logline": show.logline or "Not available",
+        "summary": show.summary or "Not available",
+        "development_stage": stage_label,
+    }
+
+    # Get current script version
+    current_version = (
+        session.query(SlateScriptVersion)
+        .filter(SlateScriptVersion.show_id == show_id)
+        .order_by(SlateScriptVersion.created_at.desc())
+        .first()
+    )
+
+    # Gather all show data from current version
+    show_data_sections = []
+    if current_version:
+        all_data = (
+            session.query(SlateShowData)
+            .filter(
+                SlateShowData.show_id == show_id,
+                SlateShowData.source_type == "script_version",
+                SlateShowData.source_id == current_version.id,
+            )
+            .all()
+        )
+        for d in all_data:
+            show_data_sections.append(f"## {d.data_type}\n{json.dumps(d.content, indent=2)}")
+
+    # Visual analysis data
+    visual_data = (
+        session.query(SlateShowData)
+        .filter(
+            SlateShowData.show_id == show_id,
+            SlateShowData.source_type == "visual_asset",
+        )
+        .all()
+    )
+    for d in visual_data:
+        show_data_sections.append(f"## visual_analysis (asset {d.source_id})\n{json.dumps(d.content, indent=2)}")
+
+    # Music analysis data
+    music_data = (
+        session.query(SlateShowData)
+        .filter(
+            SlateShowData.show_id == show_id,
+            SlateShowData.source_type == "music_file",
+        )
+        .all()
+    )
+    for d in music_data:
+        show_data_sections.append(f"## music_analysis (track {d.source_id})\n{json.dumps(d.content, indent=2)}")
+
+    # Milestones
+    milestones = (
+        session.query(SlateMilestone)
+        .filter(SlateMilestone.show_id == show_id)
+        .order_by(SlateMilestone.date.desc())
+        .limit(20)
+        .all()
+    )
+    if milestones:
+        milestone_lines = []
+        for m in milestones:
+            date_str = m.date.isoformat() if m.date else "no date"
+            type_label = ""
+            if m.milestone_type:
+                type_label = f" [{m.milestone_type.display_label}]"
+            milestone_lines.append(f"- {date_str}{type_label}: {m.title}")
+            if m.description:
+                milestone_lines.append(f"  {m.description}")
+        show_data_sections.append("## recent_milestones\n" + "\n".join(milestone_lines))
+
+    ctx["show_context"] = "\n\n".join(show_data_sections) if show_data_sections else "No analysis data available yet."
+    return ctx
+
+
+async def generate_pitch(session_factory, show_id: int, audience_type: str,
+                         target_producer_id: int | None = None) -> dict:
+    """Generate a pitch for a show tailored to an audience type.
+
+    Creates a SlatePitch record and populates it with AI-generated content.
+    Returns the pitch dict.
+    """
+    # 1. Gather all show data
+    with session_factory() as session:
+        ctx = _gather_show_context(session, show_id)
+        if not ctx:
+            raise ValueError(f"Show {show_id} not found")
+
+        # Resolve audience_type to lookup value for the pitch record
+        audience_lv = (
+            session.query(SlateLookupValue)
+            .filter_by(category="audience_type", entity_type="pitch", value=audience_type)
+            .first()
+        )
+        audience_type_id = audience_lv.id if audience_lv else None
+
+        # Resolve draft status
+        draft_lv = (
+            session.query(SlateLookupValue)
+            .filter_by(category="pitch_status", entity_type="pitch", value="draft")
+            .first()
+        )
+        draft_status_id = draft_lv.id if draft_lv else None
+
+    ctx["audience_type"] = audience_type
+
+    # 2. If target_producer_id, get producer profile via MCP
+    producer_profile = "Not targeting a specific producer."
+    if target_producer_id:
+        try:
+            from shared.backend.mcp import mcp_server
+            result = await mcp_server.call_tool(
+                "producers_get_record",
+                {"producer_id": target_producer_id},
+            )
+            if result:
+                # Extract text content from MCP result
+                if hasattr(result, "content") and result.content:
+                    parts = []
+                    for block in result.content:
+                        if hasattr(block, "text"):
+                            parts.append(block.text)
+                    producer_profile = "\n".join(parts) if parts else str(result)
+                else:
+                    producer_profile = str(result)
+        except Exception as e:
+            logger.warning(f"Failed to fetch producer {target_producer_id} via MCP: {e}")
+            producer_profile = f"(Producer ID {target_producer_id} — profile unavailable)"
+
+    ctx["producer_profile"] = producer_profile
+
+    # 3. Call LLM
+    logger.info(f"Generating {audience_type} pitch for show {show_id}")
+    raw = await call_llm(behavior="pitch_generate", context=ctx)
+
+    # 4. Create SlatePitch record
+    with session_factory() as session:
+        pitch = SlatePitch(
+            show_id=show_id,
+            audience_type_id=audience_type_id,
+            target_producer_id=target_producer_id,
+            title=f"{ctx['title']} — {audience_type.replace('_', ' ').title()} Pitch",
+            content=raw,
+            status_id=draft_status_id,
+            generated_by="system",
+        )
+        session.add(pitch)
+        session.flush()
+        pitch_id = pitch.id
+        session.commit()
+
+    logger.info(f"Pitch {pitch_id} generated for show {show_id}")
+    return {
+        "id": pitch_id,
+        "show_id": show_id,
+        "audience_type": audience_type,
+        "title": f"{ctx['title']} — {audience_type.replace('_', ' ').title()} Pitch",
+        "status": "draft",
+        "generated_by": "system",
+    }
+
+
+async def generate_one_pager(session_factory, show_id: int, pitch_id: int) -> str:
+    """Generate a one-page pitch document from an existing pitch.
+
+    Returns the generated one-pager content as text.
+    """
+    with session_factory() as session:
+        pitch = session.query(SlatePitch).filter(
+            SlatePitch.id == pitch_id,
+            SlatePitch.show_id == show_id,
+        ).first()
+        if not pitch:
+            raise ValueError(f"Pitch {pitch_id} not found for show {show_id}")
+
+        show = session.query(SlateShow).get(show_id)
+        if not show:
+            raise ValueError(f"Show {show_id} not found")
+
+        context = {
+            "title": show.title,
+            "pitch_content": pitch.content or "No pitch content available.",
+        }
+
+    raw = await call_llm(behavior="pitch_one_pager", context=context)
+    return raw
+
+
+async def run_show_query(session_factory, show_id: int, query: str) -> str:
+    """Answer a natural language question about a specific show using MCP.
+
+    The LLM has access to all Intelligence MCP tools and can look up
+    any data about the show to answer the question.
+    """
+    with session_factory() as session:
+        show = session.query(SlateShow).get(show_id)
+        if not show:
+            raise ValueError(f"Show {show_id} not found")
+
+        context = {
+            "show_title": show.title,
+            "show_id": str(show_id),
+            "query": query,
+        }
+
+    logger.info(f"Running show query for show {show_id}: {query[:100]}")
+    result = await call_llm(behavior="show_query", context=context, use_mcp=True)
+    return result
+
+
+async def run_slate_query(session_factory, query: str) -> str:
+    """Answer a natural language question across the entire slate using MCP.
+
+    The LLM has access to all Intelligence MCP tools and can search
+    across shows, compare data, and synthesize answers.
+    """
+    context = {
+        "query": query,
+    }
+
+    logger.info(f"Running slate query: {query[:100]}")
+    result = await call_llm(behavior="slate_query", context=context, use_mcp=True)
+    return result

@@ -11,6 +11,7 @@ from sqlalchemy.orm import joinedload
 from slate.backend.models import (
     DevelopmentMilestone,
     MusicFile,
+    Pitch,
     ScriptVersion,
     Show,
     ShowData,
@@ -65,6 +66,18 @@ class SlateInterface:
         def slate_get_structure(show_id: int) -> dict | None:
             """Scene breakdown for a show's current script version."""
             return self.get_structure(show_id)
+
+        @mcp_server.tool
+        def slate_get_pitch(show_id: int, audience_type: str = "general") -> dict | None:
+            """Get the most recent pitch for a show by audience type.
+            audience_type can be: producer, investor, grant_maker, festival, general."""
+            return self.get_pitch(show_id, audience_type)
+
+        @mcp_server.tool
+        def slate_get_budget_estimate(show_id: int) -> dict | None:
+            """Budget estimate for a show's current script version, including
+            estimated range, cost factors, cast size impact, and technical complexity."""
+            return self.get_budget_estimate(show_id)
 
     # --- Business logic methods ---
 
@@ -350,6 +363,61 @@ class SlateInterface:
                     ShowData.source_type == "script_version",
                     ShowData.source_id == version.id,
                     ShowData.data_type == "scene_breakdown",
+                )
+                .first()
+            )
+            return data.content if data else None
+
+    def get_pitch(self, show_id, audience_type="general"):
+        with self._session_factory() as session:
+            # Resolve audience_type string to lookup value
+            audience_lv = (
+                session.query(SlateLookupValue)
+                .filter_by(category="audience_type", entity_type="pitch", value=audience_type)
+                .first()
+            )
+
+            query = (
+                session.query(Pitch)
+                .filter(Pitch.show_id == show_id)
+            )
+            if audience_lv:
+                query = query.filter(Pitch.audience_type_id == audience_lv.id)
+
+            pitch = query.order_by(Pitch.created_at.desc()).first()
+            if not pitch:
+                return None
+
+            return {
+                "id": pitch.id,
+                "show_id": pitch.show_id,
+                "title": pitch.title,
+                "content": pitch.content,
+                "audience_type": audience_type,
+                "target_producer_id": pitch.target_producer_id,
+                "generated_by": pitch.generated_by,
+                "created_at": pitch.created_at.isoformat() if pitch.created_at else None,
+                "updated_at": pitch.updated_at.isoformat() if pitch.updated_at else None,
+            }
+
+    def get_budget_estimate(self, show_id):
+        with self._session_factory() as session:
+            # Find current version
+            version = (
+                session.query(ScriptVersion)
+                .filter(ScriptVersion.show_id == show_id)
+                .order_by(ScriptVersion.created_at.desc())
+                .first()
+            )
+            if not version:
+                return None
+            data = (
+                session.query(ShowData)
+                .filter(
+                    ShowData.show_id == show_id,
+                    ShowData.source_type == "script_version",
+                    ShowData.source_id == version.id,
+                    ShowData.data_type == "budget_estimate",
                 )
                 .first()
             )

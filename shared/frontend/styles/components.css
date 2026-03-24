@@ -2625,6 +2625,171 @@
   margin-top: 12px;
 }
 
+/* ============ CONTENT CARD ============ */
+.content-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: border-color var(--transition-micro);
+}
+.content-card:hover { border-color: var(--border-strong); }
+.content-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.content-card-title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+}
+.content-card-preview {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  font-weight: 300;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.content-card-meta {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  font-weight: 300;
+}
+
+/* ============ CONTENT WORKSPACE ============ */
+.content-workspace {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.content-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+}
+.content-workspace-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.content-workspace-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.content-workspace-actions {
+  display: flex;
+  gap: 8px;
+}
+.content-workspace-body {
+  padding: 24px 28px;
+}
+.content-workspace-content {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  font-weight: 300;
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+.content-workspace-regenerate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--accent-warm);
+  cursor: pointer;
+  font-weight: 400;
+  margin-bottom: 16px;
+  transition: color var(--transition-micro);
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body);
+}
+.content-workspace-regenerate:hover { color: #d4a06a; }
+.content-workspace-attribution {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  font-weight: 300;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.content-workspace-attachments-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.content-workspace-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ============ CONTENT TYPE SELECTOR ============ */
+.content-type-selector {
+  display: flex;
+  gap: 12px;
+}
+.content-type-option {
+  flex: 1;
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition-micro), background var(--transition-micro);
+}
+.content-type-option:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+.content-type-option-selected {
+  border-color: rgba(196, 145, 90, 0.4);
+  background: var(--accent-warm-subtle);
+}
+.content-type-option-name {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.content-type-option-desc {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  font-weight: 300;
+  line-height: 1.4;
+}
+.content-type-option-selected .content-type-option-name {
+  color: var(--accent-warm);
+}
+
+/* ============ RESPONSIVE — CONTENT ============ */
+@media (max-width: 768px) {
+  .content-type-selector { flex-direction: column; }
+  .content-workspace-header { flex-wrap: wrap; gap: 12px; padding: 16px 20px; }
+  .content-workspace-body { padding: 16px 20px; }
+  .content-workspace-actions { width: 100%; }
+  .content-workspace-actions .btn { flex: 1; justify-content: center; }
+}
+
 /* ============ RESPONSIVE — ENTITY NAV ============ */
 @media (max-width: 768px) {
   .entity-nav { flex-wrap: wrap; padding: 10px 16px; gap: 6px; }

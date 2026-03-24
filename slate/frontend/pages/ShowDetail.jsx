@@ -13,6 +13,8 @@ const ShowStructure = lazy(() => import('./ShowStructure'))
 const ShowMilestones = lazy(() => import('./ShowMilestones'))
 const ShowVisual = lazy(() => import('./ShowVisual'))
 const ShowScripts = lazy(() => import('./ShowScripts'))
+const ShowPitches = lazy(() => import('./ShowPitches'))
+const ShowQuery = lazy(() => import('./ShowQuery'))
 const ShowEdit = lazy(() => import('./ShowEdit'))
 
 export default function ShowDetail() {
@@ -47,6 +49,8 @@ export default function ShowDetail() {
     { label: 'Milestones', path: `${basePath}/milestones` },
     { label: 'Visual Identity', path: `${basePath}/visual` },
     { label: scriptsLabel, path: `${basePath}/scripts` },
+    { label: 'Pitches', path: `${basePath}/pitches` },
+    { label: 'AI Query', path: `${basePath}/query` },
   ]
 
   return (
@@ -66,6 +70,8 @@ export default function ShowDetail() {
           <Route path="milestones" element={<ShowMilestones show={show} onUpdate={load} />} />
           <Route path="visual" element={<ShowVisual show={show} onUpdate={load} />} />
           <Route path="scripts" element={<ShowScripts show={show} onUpdate={load} />} />
+          <Route path="pitches" element={<ShowPitches show={show} />} />
+          <Route path="query" element={<ShowQuery show={show} />} />
           <Route path="edit" element={<ShowEdit show={show} onUpdate={load} />} />
         </Routes>
       </Suspense>

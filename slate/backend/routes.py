@@ -19,6 +19,8 @@ from shared.backend.storage.gcs import delete_file, get_signed_url, upload_file
 from slate.backend.models import (
     DevelopmentMilestone,
     MusicFile,
+    Pitch,
+    PitchMaterial,
     ScriptVersion,
     Show,
     ShowData,
@@ -126,6 +128,30 @@ class UpdateShowDataRequest(BaseModel):
 
 class UpdateSettingsRequest(BaseModel):
     settings: dict
+
+
+class CreatePitchRequest(BaseModel):
+    title: str
+    audience_type_id: Optional[int] = None
+    content: Optional[str] = None
+
+
+class GeneratePitchRequest(BaseModel):
+    audience_type: str  # producer, investor, grant_maker, festival, general
+    target_producer_id: Optional[int] = None
+
+
+class UpdatePitchRequest(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    status_id: Optional[int] = None
+
+
+class QueryRequest(BaseModel):
+    query: str
+
+
+PITCH_MATERIAL_EXTENSIONS = {".pdf", ".docx", ".png", ".jpg", ".jpeg", ".pptx", ".key"}
 
 
 def _validate_extension(filename: str, allowed: set) -> str | None:
@@ -1221,5 +1247,271 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 behavior.model = req["model"]
             session.commit()
             return {"updated": True}
+
+    # ==================== PITCHES ====================
+
+    @router.get("/shows/{show_id}/pitches")
+    def list_pitches(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            pitches = (
+                session.query(Pitch)
+                .options(
+                    joinedload(Pitch.audience_type),
+                    joinedload(Pitch.status),
+                )
+                .filter(Pitch.show_id == show_id)
+                .order_by(Pitch.created_at.desc())
+                .all()
+            )
+            return {
+                "pitches": [
+                    {
+                        "id": p.id,
+                        "title": p.title,
+                        "audience_type": _lookup_dict(p.audience_type),
+                        "status": _lookup_dict(p.status),
+                        "target_producer_id": p.target_producer_id,
+                        "generated_by": p.generated_by,
+                        "created_at": p.created_at.isoformat() if p.created_at else None,
+                        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+                    }
+                    for p in pitches
+                ]
+            }
+
+    @router.post("/shows/{show_id}/pitches")
+    def create_pitch(show_id: int, req: CreatePitchRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            # Resolve draft status
+            draft_lv = (
+                session.query(SlateLookupValue)
+                .filter_by(category="pitch_status", entity_type="pitch", value="draft")
+                .first()
+            )
+            pitch = Pitch(
+                show_id=show_id,
+                title=req.title,
+                audience_type_id=req.audience_type_id,
+                content=req.content,
+                status_id=draft_lv.id if draft_lv else None,
+                generated_by="manual",
+            )
+            session.add(pitch)
+            session.flush()
+            pitch_id = pitch.id
+            session.commit()
+            return {"id": pitch_id, "title": req.title}
+
+    @router.post("/shows/{show_id}/pitches/generate")
+    async def generate_pitch_route(
+        show_id: int,
+        req: GeneratePitchRequest,
+        background_tasks: BackgroundTasks,
+        user: dict = Depends(get_current_user),
+    ):
+        from slate.backend.ai import generate_pitch
+
+        async def _run_generate():
+            try:
+                await generate_pitch(
+                    session_factory, show_id, req.audience_type, req.target_producer_id
+                )
+            except Exception as e:
+                logger.error(f"Pitch generation failed for show {show_id}: {e}")
+
+        background_tasks.add_task(_run_generate)
+        return {
+            "status": "generating",
+            "show_id": show_id,
+            "audience_type": req.audience_type,
+        }
+
+    @router.get("/shows/{show_id}/pitches/{pitch_id}")
+    def get_pitch(show_id: int, pitch_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            pitch = (
+                session.query(Pitch)
+                .options(
+                    joinedload(Pitch.audience_type),
+                    joinedload(Pitch.status),
+                    joinedload(Pitch.materials).joinedload(PitchMaterial.material_type),
+                )
+                .filter(Pitch.id == pitch_id, Pitch.show_id == show_id)
+                .first()
+            )
+            if not pitch:
+                return {"error": "Pitch not found"}
+
+            return {
+                "id": pitch.id,
+                "show_id": pitch.show_id,
+                "title": pitch.title,
+                "content": pitch.content,
+                "audience_type": _lookup_dict(pitch.audience_type),
+                "status": _lookup_dict(pitch.status),
+                "target_producer_id": pitch.target_producer_id,
+                "generated_by": pitch.generated_by,
+                "materials": [
+                    {
+                        "id": m.id,
+                        "label": m.label,
+                        "material_type": _lookup_dict(m.material_type),
+                        "original_filename": m.original_filename,
+                        "created_at": m.created_at.isoformat() if m.created_at else None,
+                    }
+                    for m in pitch.materials
+                ],
+                "created_at": pitch.created_at.isoformat() if pitch.created_at else None,
+                "updated_at": pitch.updated_at.isoformat() if pitch.updated_at else None,
+            }
+
+    @router.put("/shows/{show_id}/pitches/{pitch_id}")
+    def update_pitch(
+        show_id: int, pitch_id: int, req: UpdatePitchRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            pitch = session.query(Pitch).filter(
+                Pitch.id == pitch_id, Pitch.show_id == show_id
+            ).first()
+            if not pitch:
+                return {"error": "Pitch not found"}
+
+            updates = req.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                old_value = getattr(pitch, field)
+                if old_value != value:
+                    _log_change(session, "pitch", pitch_id, field, old_value, value, user["email"])
+                    setattr(pitch, field, value)
+
+            session.commit()
+            return {"updated": True}
+
+    @router.delete("/shows/{show_id}/pitches/{pitch_id}")
+    def delete_pitch(show_id: int, pitch_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            pitch = session.query(Pitch).filter(
+                Pitch.id == pitch_id, Pitch.show_id == show_id
+            ).first()
+            if not pitch:
+                return {"error": "Pitch not found"}
+            # Delete associated GCS files for materials
+            for mat in pitch.materials:
+                try:
+                    delete_file(mat.file_path)
+                except Exception:
+                    logger.warning(f"Failed to delete GCS file: {mat.file_path}")
+            session.delete(pitch)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== PITCH MATERIALS ====================
+
+    @router.get("/shows/{show_id}/pitches/{pitch_id}/materials")
+    def list_pitch_materials(
+        show_id: int, pitch_id: int, user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            materials = (
+                session.query(PitchMaterial)
+                .options(joinedload(PitchMaterial.material_type))
+                .filter(PitchMaterial.pitch_id == pitch_id)
+                .order_by(PitchMaterial.created_at.desc())
+                .all()
+            )
+            return {
+                "materials": [
+                    {
+                        "id": m.id,
+                        "label": m.label,
+                        "material_type": _lookup_dict(m.material_type),
+                        "original_filename": m.original_filename,
+                        "created_at": m.created_at.isoformat() if m.created_at else None,
+                    }
+                    for m in materials
+                ]
+            }
+
+    @router.post("/shows/{show_id}/pitches/{pitch_id}/materials")
+    async def upload_pitch_material(
+        show_id: int,
+        pitch_id: int,
+        file: UploadFile = File(...),
+        label: str = Form(...),
+        material_type_id: int = Form(None),
+        user: dict = Depends(get_current_user),
+    ):
+        ext = _validate_extension(file.filename, PITCH_MATERIAL_EXTENSIONS)
+        if not ext:
+            return {"error": f"Unsupported file type. Allowed: {', '.join(PITCH_MATERIAL_EXTENSIONS)}"}
+
+        data = await file.read()
+        blob_path = f"slate/shows/{show_id}/pitches/{pitch_id}/{file.filename}"
+        content_type = mimetypes.guess_type(file.filename)[0] or "application/octet-stream"
+        upload_file(blob_path, data, content_type=content_type)
+
+        with session_factory() as session:
+            material = PitchMaterial(
+                pitch_id=pitch_id,
+                file_path=blob_path,
+                original_filename=file.filename,
+                material_type_id=material_type_id if material_type_id else None,
+                label=label,
+            )
+            session.add(material)
+            session.flush()
+            material_id = material.id
+            session.commit()
+
+        return {"id": material_id, "label": label}
+
+    @router.delete("/shows/{show_id}/pitches/{pitch_id}/materials/{material_id}")
+    def delete_pitch_material(
+        show_id: int, pitch_id: int, material_id: int,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            material = session.query(PitchMaterial).filter(
+                PitchMaterial.id == material_id,
+                PitchMaterial.pitch_id == pitch_id,
+            ).first()
+            if not material:
+                return {"error": "Pitch material not found"}
+            try:
+                delete_file(material.file_path)
+            except Exception:
+                logger.warning(f"Failed to delete GCS file: {material.file_path}")
+            session.delete(material)
+            session.commit()
+            return {"deleted": True}
+
+    @router.get("/shows/{show_id}/pitches/{pitch_id}/materials/{material_id}/download")
+    def download_pitch_material(
+        show_id: int, pitch_id: int, material_id: int,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            material = session.query(PitchMaterial).filter(
+                PitchMaterial.id == material_id,
+                PitchMaterial.pitch_id == pitch_id,
+            ).first()
+            if not material:
+                return {"error": "Pitch material not found"}
+            url = get_signed_url(material.file_path, expiration_minutes=60)
+            return {"url": url}
+
+    # ==================== AI QUERY ====================
+
+    @router.post("/shows/{show_id}/query")
+    async def show_query(show_id: int, req: QueryRequest, user: dict = Depends(get_current_user)):
+        from slate.backend.ai import run_show_query
+        result = await run_show_query(session_factory, show_id, req.query)
+        return {"response": result}
+
+    @router.post("/query")
+    async def slate_query(req: QueryRequest, user: dict = Depends(get_current_user)):
+        from slate.backend.ai import run_slate_query
+        result = await run_slate_query(session_factory, req.query)
+        return {"response": result}
 
     return router

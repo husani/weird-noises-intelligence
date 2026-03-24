@@ -16,10 +16,12 @@ const OptionsPage = lazy(() => import('./OptionsPage'))
 const OptionEdit = lazy(() => import('./OptionEdit'))
 const Settings = lazy(() => import('./Settings'))
 const AIConfig = lazy(() => import('./AIConfig'))
+const SlateQuery = lazy(() => import('./SlateQuery'))
 
 // SVG icons for sidebar links
 const icons = {
   dashboard: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>,
+  query: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="10" cy="10" r="7" /><path d="M16 16l5 5" /></svg>,
   shows: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 6h16M4 10h16M4 14h12M4 18h8" /></svg>,
   options: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="8" cy="6" r="2" fill="currentColor" /><circle cx="16" cy="12" r="2" fill="currentColor" /><circle cx="10" cy="18" r="2" fill="currentColor" /></svg>,
   settings: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>,
@@ -41,6 +43,9 @@ function Sidebar({ onQuickAdd }) {
       <nav>
         <NavLink to="/slate" end className={({ isActive }) => `sidebar-nav-link${isActive ? ' active' : ''}`}>
           {icons.dashboard} Dashboard
+        </NavLink>
+        <NavLink to="/slate/query" className={({ isActive }) => `sidebar-nav-link${isActive ? ' active' : ''}`}>
+          {icons.query} AI Query
         </NavLink>
 
         <div className="sidebar-nav-section">Slate</div>
@@ -119,6 +124,7 @@ export default function SlatePage() {
         <Suspense fallback={<div className="page-loading"><div className="loading-spinner" /></div>}>
           <Routes>
             <Route index element={<Dashboard />} />
+            <Route path="query" element={<SlateQuery />} />
             <Route path="shows" element={<ShowList />} />
             <Route path="shows/new" element={<CreateShow />} />
             <Route path="shows/:showId/*" element={<ShowDetail />} />
