@@ -40,7 +40,7 @@ Each show has an ordered history of script uploads. A script version is an uploa
 
 ### Music Files
 
-For musicals, music is part of the work. For film/TV, a score or temp tracks may be relevant. Music files are tied to the script version they correspond to.
+For musicals, music is part of the work. For film/TV, a score or temp tracks may be relevant. Music files are tied to the script version they correspond to. Analysis fields live directly on the record — they describe the file itself.
 
 - Script version reference
 - File path (GCS) and original file name
@@ -50,17 +50,165 @@ For musicals, music is part of the work. For film/TV, a score or temp tracks may
 - Sort order
 - Processing status — pending, processing, complete, failed
 - Created timestamp
+- Analysis fields (populated by AI on upload, editable):
+  - Key — e.g. "C major", "F# minor"
+  - Tempo — e.g. "Allegro, approximately 132 BPM"
+  - Mood — e.g. "triumphant and soaring"
+  - Instrumentation — array of instruments
+  - Vocal range required — nullable
+  - Function in show — what role this track serves (opening number, ballad, underscore, etc.)
+  - Emotional quality
+  - Analysis notes
 
-### Show Data
+### Characters
 
-Structured data derived from scripts, music, and visual assets. Each data type is a separate record tied to a source (script version, music file, or visual asset), so they can be regenerated independently. All data is editable — if the system gets something wrong, the team corrects it.
+Domain entities — the characters in the show. Populated by AI from script analysis, editable by humans. Other tools (Casting) query these directly.
 
-- Source type — script_version, music_file, visual_asset
-- Source ID — reference to the specific script version, music file, or visual asset
-- Data type — character_breakdown, scene_breakdown, song_list, runtime_estimate, cast_requirements, budget_estimate, logline_draft, summary_draft, comparables, content_advisories, version_diff, emotional_arc, music_analysis, visual_analysis (lookup value)
-- Content — JSONB, structure varies by type (see data type definitions below)
-- Generated at timestamp
-- Model used — which LLM produced this data
+- Show reference
+- Name
+- Description — who they are and their role in the story
+- Age range
+- Gender
+- Line count (approximate)
+- Vocal range — musicals only (nullable)
+- Song count — musicals only (nullable)
+- Dance requirements — nullable
+- Notes — casting notes, special skills, etc.
+- Sort order
+- Created, updated timestamps
+
+### Scenes
+
+The show's scene structure. Populated by AI, editable by humans. Medium-aware — theatre scenes have act structure, film/TV scenes have INT/EXT and time of day.
+
+- Show reference
+- Act number — nullable (film/TV may not use formal acts)
+- Scene number
+- Title — nullable
+- Location
+- INT/EXT — film/TV only (nullable)
+- Time of day — film/TV only (nullable)
+- Characters present — array of character names
+- Description
+- Estimated minutes — nullable
+- Sort order
+- Created, updated timestamps
+
+### Songs
+
+Musicals only. The show's song list. Populated by AI, editable by humans.
+
+- Show reference
+- Title
+- Act — nullable
+- Scene — nullable
+- Characters — array of character names who perform it
+- Song type — opening, I Want, charm, conflict, comedy, ballad, production number, eleven o'clock, finale, reprise, underscoring, other
+- Description — dramatic purpose and what's happening in the story
+- Sort order
+- Created, updated timestamps
+
+### Emotional Arc Points
+
+Analytical data — the emotional trajectory of the show as plottable points. Populated by AI, editable.
+
+- Show reference
+- Position — 0-100, percentage through the show
+- Intensity — 0-100
+- Label — scene or moment identifier
+- Tone — comedic, tense, intimate, triumphant, etc.
+- Sort order
+- Created timestamp
+
+### Runtime Estimates
+
+One per show. Can be AI-derived or manually entered.
+
+- Show reference
+- Total minutes
+- Act breakdown — array of {act, minutes}
+- Notes
+- Created, updated timestamps
+
+### Cast Requirements
+
+One per show. Production planning data.
+
+- Show reference
+- Minimum cast size
+- Recommended cast size
+- Doubling possibilities — theatre only (nullable)
+- Musicians — musicals only (nullable)
+- Musician instruments — musicals only, array (nullable)
+- Locations count — film/TV only (nullable)
+- Notes
+- Created, updated timestamps
+
+### Budget Estimates
+
+One per show. Production budget picture.
+
+- Show reference
+- Estimated range — e.g. "$2M-$4M"
+- Factors — array of cost drivers
+- Cast size impact
+- Technical complexity
+- Location complexity — film/TV only (nullable)
+- Post-production notes — film/TV only (nullable)
+- Notes
+- Created, updated timestamps
+
+### Comparables
+
+Comparable works. Multiple per show. Populated by AI, editable. Other tools (Producers, Radar) reference these.
+
+- Show reference
+- Title — the comparable work
+- Relationship — structurally similar, thematic overlap, tonal match, etc.
+- Reasoning
+- Created, updated timestamps
+
+### Content Advisories
+
+Content that may require audience advisories. Multiple per show.
+
+- Show reference
+- Category — violence, language, sexual content, substance use, etc.
+- Description — specific detail
+- Severity — mild, moderate, strong
+- Created, updated timestamps
+
+### Logline Drafts
+
+AI-generated logline options. The user picks one and it becomes the show's logline. Multiple options per show.
+
+- Show reference
+- Text — the logline
+- Tone — commercial, literary, emotional, thematic, etc.
+- Created timestamp
+
+### Summary Drafts
+
+AI-generated summary. The user can accept it as the show's summary.
+
+- Show reference
+- Summary text
+- Created timestamp
+
+### Version Diffs
+
+Comparison between two script versions. Analytical data.
+
+- Show reference
+- Current version reference
+- Previous version reference
+- Summary
+- Structural changes — array
+- Character changes — array
+- Song changes — array, musicals only (nullable)
+- Tone shift
+- Notes
+- Created timestamp
 
 ### Development Milestones
 
@@ -89,7 +237,16 @@ Each show has its own visual brand — logo, key art, mood boards, color palette
 - Processing status — pending, processing, complete, failed
 - Created timestamp
 
-When a visual asset is uploaded, the system analyzes it — extracting color palette, mood, tone, typography, visual themes. This understanding becomes part of the show's data (stored in the Show Data table with source_type `visual_asset`).
+When a visual asset is uploaded, the system analyzes it. Analysis fields live directly on the asset record.
+
+- Analysis fields (populated by AI on upload, editable):
+  - Color palette — array of descriptive color names
+  - Mood
+  - Tone
+  - Typography — if text is present
+  - Visual themes — array
+  - Communicates — what the imagery says about the show
+  - Analysis notes
 
 ### Pitches
 
@@ -120,7 +277,7 @@ Same pattern as Producers. Soft enums stored in the database, managed via UI.
 
 - Category, entity type, value, display label, sort order, description, CSS class
 
-Categories: medium (show), rights_status (show), development_stage (show), track_type (music_file), data_type (show_data), milestone_type (milestone), asset_type (visual_asset), audience_type (pitch), pitch_status (pitch), material_type (pitch_material).
+Categories: medium (show), rights_status (show), development_stage (show), track_type (music_file), milestone_type (milestone), asset_type (visual_asset), audience_type (pitch), pitch_status (pitch), material_type (pitch_material).
 
 ### Change History
 
@@ -323,27 +480,30 @@ Upload a script, the show populates. Characters, scenes, songs, runtime, budget 
 
 ### What Happens on Script Upload
 
-When a script version is uploaded, the system reads it and populates the show's data in the background:
+When a script version is uploaded, the system reads it and populates the show's domain tables in the background:
 
 1. Set `processing_status = "processing"` on the script version
 2. Read the script file from GCS
 3. For PDF: pass file bytes directly to Gemini (native PDF support). For DOCX: extract text via python-docx. For FDX: parse the XML (dialogue, action, scene headings are tagged elements).
-4. Derive show data in three grouped LLM calls (grouped by what naturally fits together):
-   - **Core analysis**: characters, scenes, songs (musicals), emotional arc, runtime — structural data that's deeply interdependent, derived from one reading of the script
-   - **Production analysis**: cast requirements, budget estimate, content advisories — practical producing data derived from the structural analysis (receives core analysis output as context, not the raw script again)
-   - **Creative positioning**: logline options, summary, comparables — marketing and positioning, also receives core analysis as context
-5. Store results in the Show Data table
-6. If this isn't the first version, generate a version diff against the previous version
+4. Three LLM calls, each reading the script, each doing a different kind of work:
+   - **Extraction** — read the script and discover what's in it: characters, scenes, songs (musicals), emotional arc, runtime estimate. Thoroughness and accuracy matter. Populates: Characters, Scenes, Songs, Emotional Arc Points, Runtime Estimates tables.
+   - **Assessment** — read the script and make practical judgments: cast requirements, budget estimate, content advisories. Domain expertise and production knowledge matter. Populates: Cast Requirements, Budget Estimates, Content Advisories tables.
+   - **Creative generation** — read the script and write: logline options, summary, comparables. Voice and insight matter. Populates: Logline Drafts, Summary Drafts, Comparables tables.
+   All three calls read the script because they're each doing a different kind of reading. They also receive the show's medium, genre, and title as context.
+5. Parse each LLM response and create/update rows in the domain tables
+6. If this isn't the first version, generate a version diff against the previous version (separate call comparing two scripts)
 7. Set `processing_status = "complete"` (or "failed" with error detail)
+
+AI is infrastructure, not the product. The LLM calls populate domain tables that the rest of Intelligence queries via MCP. The data is the same whether AI populated it or a human edited it — real entities with real IDs in real tables.
 
 ### What Happens on Music Upload
 
-When a music file is uploaded, the system listens to it:
+When a music file is uploaded, the system listens to it. Analysis is medium-aware — for musicals, the LLM analyzes dramatic function and connects to the song list; for film/TV, it analyzes score function and scene support.
 
 1. Set `processing_status = "processing"` on the music file
 2. Read the audio file from GCS
-3. Derive: key, tempo, mood, instrumentation, vocal range requirements, how the track functions in the show, what it conveys emotionally
-4. Store as a `music_analysis` record in Show Data
+3. One LLM call: derive key, tempo, mood, instrumentation, vocal range, function in show, emotional quality
+4. Write analysis fields directly to the music file record (not a separate table)
 5. Set `processing_status = "complete"`
 
 ### What Happens on Visual Asset Upload
@@ -352,8 +512,8 @@ When a visual asset is uploaded, the system looks at it:
 
 1. Set `processing_status = "processing"` on the visual asset
 2. Read the image from GCS
-3. Derive: color palette, mood, tone, typography (if text is present), visual themes, what the imagery communicates
-4. Store as a `visual_analysis` record in Show Data
+3. One LLM call: derive color palette, mood, tone, typography, visual themes, what it communicates
+4. Write analysis fields directly to the visual asset record (not a separate table)
 5. Set `processing_status = "complete"`
 
 ### Data Types Derived from Scripts (JSONB)
