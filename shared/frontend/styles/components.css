@@ -975,6 +975,17 @@
   border-color: rgba(196, 145, 90, 0.3);
   background: var(--bg-surface);
 }
+.file-upload-active {
+  border-color: var(--accent-warm);
+  border-style: solid;
+  background: var(--accent-warm-subtle);
+}
+.file-upload-active .file-upload-icon {
+  color: var(--accent-warm);
+}
+.file-upload-active .file-upload-title {
+  color: var(--accent-warm);
+}
 .file-upload-icon {
   color: var(--text-tertiary);
   margin-bottom: 12px;
