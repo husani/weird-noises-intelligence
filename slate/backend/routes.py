@@ -58,9 +58,6 @@ VISUAL_EXTENSIONS = {".png", ".jpg", ".jpeg", ".svg", ".pdf"}
 class CreateShowRequest(BaseModel):
     title: str
     medium_id: Optional[int] = None
-    genre: Optional[str] = None
-    logline: Optional[str] = None
-    summary: Optional[str] = None
     rights_status_id: Optional[int] = None
     development_stage_id: Optional[int] = None
 
@@ -68,9 +65,6 @@ class CreateShowRequest(BaseModel):
 class UpdateShowRequest(BaseModel):
     title: Optional[str] = None
     medium_id: Optional[int] = None
-    genre: Optional[str] = None
-    logline: Optional[str] = None
-    summary: Optional[str] = None
     rights_status_id: Optional[int] = None
     development_stage_id: Optional[int] = None
 
@@ -416,9 +410,6 @@ def create_slate_router(interface, session_factory) -> APIRouter:
             show = Show(
                 title=req.title,
                 medium_id=req.medium_id,
-                genre=req.genre,
-                logline=req.logline,
-                summary=req.summary,
                 rights_status_id=req.rights_status_id,
                 development_stage_id=req.development_stage_id,
             )
