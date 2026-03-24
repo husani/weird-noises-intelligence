@@ -205,7 +205,8 @@ class SlateInterface:
             return None
         return {
             "id": v.id,
-            "version_label": v.version_label,
+            "version_label": v.version_label.display_label if v.version_label else f"v{v.version_number}",
+            "version_number": v.version_number,
             "original_filename": v.original_filename,
             "upload_date": v.upload_date.isoformat() if v.upload_date else None,
             "change_notes": v.change_notes,
@@ -228,7 +229,8 @@ class SlateInterface:
             return {
                 "id": version.id,
                 "show_id": version.show_id,
-                "version_label": version.version_label,
+                "version_label": version.version_label.display_label if version.version_label else f"v{version.version_number}",
+                "version_number": version.version_number,
                 "file_path": version.file_path,
                 "original_filename": version.original_filename,
                 "upload_date": version.upload_date.isoformat() if version.upload_date else None,

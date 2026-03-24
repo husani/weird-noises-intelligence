@@ -469,7 +469,10 @@ def create_slate_router(interface, session_factory) -> APIRouter:
         with session_factory() as session:
             versions = (
                 session.query(ShowVersion)
-                .options(joinedload(ShowVersion.music_files))
+                .options(
+                    joinedload(ShowVersion.music_files),
+                    joinedload(ShowVersion.version_label),
+                )
                 .filter(ShowVersion.show_id == show_id)
                 .order_by(ShowVersion.version_number.desc())
                 .all()
@@ -478,7 +481,9 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 "scripts": [
                     {
                         "id": v.id,
-                        "version_label": v.version_label,
+                        "version_number": v.version_number,
+                        "version_label": v.version_label.display_label if v.version_label else f"v{v.version_number}",
+                        "version_label_id": v.version_label_id,
                         "original_filename": v.original_filename,
                         "upload_date": v.upload_date.isoformat() if v.upload_date else None,
                         "change_notes": v.change_notes,
@@ -495,7 +500,8 @@ def create_slate_router(interface, session_factory) -> APIRouter:
         show_id: int,
         background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
-        version_label: str = Form(...),
+        version_number: int = Form(...),
+        version_label_id: int = Form(None),
         change_notes: str = Form(""),
         user: dict = Depends(get_current_user),
     ):
@@ -511,7 +517,8 @@ def create_slate_router(interface, session_factory) -> APIRouter:
         with session_factory() as session:
             version = ShowVersion(
                 show_id=show_id,
-                version_label=version_label,
+                version_number=version_number,
+                version_label_id=version_label_id if version_label_id else None,
                 file_path=blob_path,
                 original_filename=file.filename,
                 change_notes=change_notes or None,
@@ -525,7 +532,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
         from slate.backend.ai import process_script
         background_tasks.add_task(process_script, session_factory, version_id)
 
-        return {"id": version_id, "version_label": version_label}
+        return {"id": version_id, "version_number": version_number}
 
     @router.get("/shows/{show_id}/scripts/{version_id}")
     def get_script(show_id: int, version_id: int, user: dict = Depends(get_current_user)):
@@ -1484,9 +1491,9 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                     {
                         "id": d.id,
                         "current_version_id": d.current_version_id,
-                        "current_version_label": d.current_version.version_label if d.current_version else None,
+                        "current_version_label": d.current_version.version_label.display_label if d.current_version and d.current_version.version_label else (f"v{d.current_version.version_number}" if d.current_version else None),
                         "previous_version_id": d.previous_version_id,
-                        "previous_version_label": d.previous_version.version_label if d.previous_version else None,
+                        "previous_version_label": d.previous_version.version_label.display_label if d.previous_version and d.previous_version.version_label else (f"v{d.previous_version.version_number}" if d.previous_version else None),
                         "summary": d.summary,
                         "created_at": d.created_at.isoformat(),
                     }
@@ -1511,9 +1518,9 @@ def create_slate_router(interface, session_factory) -> APIRouter:
             return {
                 "id": d.id,
                 "current_version_id": d.current_version_id,
-                "current_version_label": d.current_version.version_label if d.current_version else None,
+                "current_version_label": d.current_version.version_label.display_label if d.current_version and d.current_version.version_label else (f"v{d.current_version.version_number}" if d.current_version else None),
                 "previous_version_id": d.previous_version_id,
-                "previous_version_label": d.previous_version.version_label if d.previous_version else None,
+                "previous_version_label": d.previous_version.version_label.display_label if d.previous_version and d.previous_version.version_label else (f"v{d.previous_version.version_number}" if d.previous_version else None),
                 "summary": d.summary,
                 "structural_changes": d.structural_changes,
                 "character_changes": d.character_changes,
@@ -1591,7 +1598,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                         "description": m.description,
                         "milestone_type": _lookup_dict(m.milestone_type),
                         "version_id": m.version_id,
-                        "script_version_label": m.script_version.version_label if m.script_version else None,
+                        "script_version_label": m.version.version_label.display_label if m.version and m.version.version_label else (f"v{m.version.version_number}" if m.version else None),
                         "created_at": m.created_at.isoformat(),
                     }
                     for m in milestones

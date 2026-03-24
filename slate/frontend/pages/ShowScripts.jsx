@@ -20,7 +20,7 @@ export default function ShowScripts({ show, onUpdate }) {
   const [expanded, setExpanded] = useState(null)
   const [musicByVersion, setMusicByVersion] = useState({})
   const [uploadModal, setUploadModal] = useState(false)
-  const [uploadForm, setUploadForm] = useState({ version_label: '', change_notes: '' })
+  const [uploadForm, setUploadForm] = useState({ version_number: '', change_notes: '' })
   const [uploadFile, setUploadFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [musicModal, setMusicModal] = useState(null)
@@ -91,18 +91,18 @@ export default function ShowScripts({ show, onUpdate }) {
 
   async function handleUpload(e) {
     e.preventDefault()
-    if (!uploadFile || !uploadForm.version_label.trim()) return
+    if (!uploadFile || !uploadForm.version_number) return
     setUploading(true)
     setError(null)
     try {
       const fd = new FormData()
       fd.append('file', uploadFile)
-      fd.append('version_label', uploadForm.version_label.trim())
+      fd.append('version_number', uploadForm.version_number)
       fd.append('change_notes', uploadForm.change_notes)
       await uploadScript(show.id, fd)
       setUploadModal(false)
       setUploadFile(null)
-      setUploadForm({ version_label: '', change_notes: '' })
+      setUploadForm({ version_number: '', change_notes: '' })
       load()
       onUpdate()
     } catch (err) {
@@ -354,7 +354,7 @@ export default function ShowScripts({ show, onUpdate }) {
           footer={<>
             <button className="btn btn-ghost" onClick={() => setUploadModal(false)}>Cancel</button>
             <button className="btn btn-primary" onClick={handleUpload}
-              disabled={uploading || !uploadFile || !uploadForm.version_label.trim()}>
+              disabled={uploading || !uploadFile || !uploadForm.version_number}>
               {uploading ? 'Uploading...' : 'Upload'}
             </button>
           </>}>
@@ -374,10 +374,10 @@ export default function ShowScripts({ show, onUpdate }) {
                 onChange={e => setUploadFile(e.target.files[0])} />
             </div>
             <div>
-              <label className="input-label">Version Label *</label>
-              <input className="input" value={uploadForm.version_label}
-                onChange={e => setUploadForm(p => ({ ...p, version_label: e.target.value }))}
-                placeholder="e.g. Post-Workshop Draft" autoFocus />
+              <label className="input-label">Version Number *</label>
+              <input className="input" type="number" min="1" value={uploadForm.version_number}
+                onChange={e => setUploadForm(p => ({ ...p, version_number: e.target.value }))}
+                placeholder="e.g. 1" autoFocus />
             </div>
             <div>
               <label className="input-label">Change Notes</label>
