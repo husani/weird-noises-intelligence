@@ -10,14 +10,6 @@ lookup_values:
         display_label: Play
         description: A theatrical work without integrated musical score
         css_class: badge-sage
-      - value: screenplay
-        display_label: Screenplay
-        description: A script written for film
-        css_class: badge-blue
-      - value: teleplay
-        display_label: Teleplay
-        description: A script written for television
-        css_class: badge-lavender
       - value: feature_film
         display_label: Feature Film
         description: A full-length film project
@@ -26,6 +18,10 @@ lookup_values:
         display_label: Short Film
         description: A short-form film project
         css_class: badge-teal
+      - value: tv_series
+        display_label: TV Series
+        description: An ongoing television series
+        css_class: badge-lavender
       - value: limited_series
         display_label: Limited Series
         description: A self-contained television series with a predetermined number of episodes
@@ -77,12 +73,12 @@ lookup_values:
         display_label: In Post-Production
         description: Post-production phase (film/TV)
         css_class: badge-blue
-        applies_to: [screenplay, feature_film, short_film, teleplay, limited_series]
+        applies_to: [feature_film, short_film, tv_series, limited_series]
       - value: released
         display_label: Released
         description: Released or premiered
         css_class: badge-sage
-        applies_to: [screenplay, feature_film, short_film, teleplay, limited_series]
+        applies_to: [feature_film, short_film, tv_series, limited_series]
       - value: closed
         display_label: Closed
         description: Production has closed
