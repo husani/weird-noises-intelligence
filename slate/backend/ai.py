@@ -809,18 +809,16 @@ def _store_creative_results(session_factory, show_id, version_id, data):
     logger.info(f"Stored creative results for show {show_id}")
 
 
-def _store_version_diff(session_factory, show_id, version_id, previous_version_id, data):
+def _store_version_diff(session_factory, version_id, previous_version_id, data):
     """Store version diff results in the SlateVersionDiff table."""
     with session_factory() as session:
         # Delete any existing diff for this version pair
         session.query(SlateVersionDiff).filter_by(
-            show_id=show_id,
             current_version_id=version_id,
             previous_version_id=previous_version_id,
         ).delete()
 
         session.add(SlateVersionDiff(
-            show_id=show_id,
             current_version_id=version_id,
             previous_version_id=previous_version_id,
             summary=data.get("summary"),
@@ -977,7 +975,7 @@ async def process_script(session_factory, version_id: int):
                     response_schema=VersionDiff,
                 )
                 diff_data = json.loads(diff_raw)
-                _store_version_diff(session_factory, show_id, version_id, previous_id, diff_data)
+                _store_version_diff(session_factory, version_id, previous_id, diff_data)
             except Exception as e:
                 logger.error(f"Version diff failed for version {version_id}: {e}")
 
@@ -1254,7 +1252,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Characters
     characters = (
         session.query(SlateCharacter)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .order_by(SlateCharacter.sort_order)
         .all()
     )
@@ -1282,7 +1280,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Scenes
     scenes = (
         session.query(SlateScene)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .order_by(SlateScene.sort_order)
         .all()
     )
@@ -1315,7 +1313,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Songs
     songs = (
         session.query(SlateSong)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .order_by(SlateSong.sort_order)
         .all()
     )
@@ -1339,7 +1337,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Emotional arc
     arc_points = (
         session.query(SlateArcPoint)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .order_by(SlateArcPoint.sort_order)
         .all()
     )
@@ -1418,7 +1416,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Content advisories
     advisories = (
         session.query(SlateContentAdvisory)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .all()
     )
     if advisories:
@@ -1431,7 +1429,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Comparables
     comparables = (
         session.query(SlateComparable)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .all()
     )
     if comparables:

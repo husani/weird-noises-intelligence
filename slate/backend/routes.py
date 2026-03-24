@@ -762,12 +762,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
         with session_factory() as session:
             # Get next sort order
             max_order = session.query(Character.sort_order).filter(
-                Character.show_id == show_id
+                Character.version_id == vid
             ).order_by(Character.sort_order.desc()).first()
             next_order = (max_order[0] + 1) if max_order else 0
 
             char = Character(
-                show_id=show_id,
+                version_id=vid,
                 name=req.name,
                 description=req.description,
                 age_range=req.age_range,
@@ -858,12 +858,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def create_scene(show_id: int, req: CreateSceneRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             max_order = session.query(Scene.sort_order).filter(
-                Scene.show_id == show_id
+                Scene.version_id == vid
             ).order_by(Scene.sort_order.desc()).first()
             next_order = (max_order[0] + 1) if max_order else 0
 
             scene = Scene(
-                show_id=show_id,
+                version_id=vid,
                 act_number=req.act_number,
                 scene_number=req.scene_number,
                 title=req.title,
@@ -951,12 +951,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def create_song(show_id: int, req: CreateSongRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             max_order = session.query(Song.sort_order).filter(
-                Song.show_id == show_id
+                Song.version_id == vid
             ).order_by(Song.sort_order.desc()).first()
             next_order = (max_order[0] + 1) if max_order else 0
 
             song = Song(
-                show_id=show_id,
+                version_id=vid,
                 title=req.title,
                 act=req.act,
                 scene=req.scene,
@@ -1038,12 +1038,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def replace_arc_points(show_id: int, req: BulkArcRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             # Delete existing arc points
-            session.query(ArcPoint).filter(ArcPoint.show_id == show_id).delete()
+            session.query(ArcPoint).filter(ArcPoint.version_id == vid).delete()
 
             # Insert new ones
             for i, pt in enumerate(req.points):
                 session.add(ArcPoint(
-                    show_id=show_id,
+                    version_id=vid,
                     position=pt.position,
                     intensity=pt.intensity,
                     label=pt.label,
@@ -1057,11 +1057,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== RUNTIME ESTIMATE ====================
 
     @router.get("/shows/{show_id}/runtime")
-    def get_runtime(show_id: int, user: dict = Depends(get_current_user)):
+    def get_runtime(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
-            est = session.query(RuntimeEstimate).filter(
-                RuntimeEstimate.show_id == show_id
-            ).first()
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return None
+            est = session.query(RuntimeEstimate).filter_by(version_id=vid).first()
             if not est:
                 return None
             return {
@@ -1077,7 +1078,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def upsert_runtime(show_id: int, req: RuntimeEstimateRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             est = session.query(RuntimeEstimate).filter(
-                RuntimeEstimate.show_id == show_id
+                RuntimeEstimate.version_id == vid
             ).first()
 
             if est:
@@ -1089,7 +1090,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                         setattr(est, field, value)
             else:
                 est = RuntimeEstimate(
-                    show_id=show_id,
+                    version_id=vid,
                     total_minutes=req.total_minutes,
                     act_breakdown=req.act_breakdown,
                     notes=req.notes,
@@ -1102,11 +1103,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== CAST REQUIREMENTS ====================
 
     @router.get("/shows/{show_id}/cast-requirements")
-    def get_cast_requirements(show_id: int, user: dict = Depends(get_current_user)):
+    def get_cast_requirements(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
-            cr = session.query(CastRequirements).filter(
-                CastRequirements.show_id == show_id
-            ).first()
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return None
+            cr = session.query(CastRequirements).filter_by(version_id=vid).first()
             if not cr:
                 return None
             return {
@@ -1126,7 +1128,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def upsert_cast_requirements(show_id: int, req: CastRequirementsRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             cr = session.query(CastRequirements).filter(
-                CastRequirements.show_id == show_id
+                CastRequirements.version_id == vid
             ).first()
 
             if cr:
@@ -1138,7 +1140,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                         setattr(cr, field, value)
             else:
                 cr = CastRequirements(
-                    show_id=show_id,
+                    version_id=vid,
                     minimum_cast_size=req.minimum_cast_size,
                     recommended_cast_size=req.recommended_cast_size,
                     doubling_possibilities=req.doubling_possibilities,
@@ -1155,11 +1157,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== BUDGET ESTIMATE ====================
 
     @router.get("/shows/{show_id}/budget")
-    def get_budget(show_id: int, user: dict = Depends(get_current_user)):
+    def get_budget(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
-            est = session.query(BudgetEstimate).filter(
-                BudgetEstimate.show_id == show_id
-            ).first()
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return None
+            est = session.query(BudgetEstimate).filter_by(version_id=vid).first()
             if not est:
                 return None
             return {
@@ -1179,7 +1182,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def upsert_budget(show_id: int, req: BudgetEstimateRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             est = session.query(BudgetEstimate).filter(
-                BudgetEstimate.show_id == show_id
+                BudgetEstimate.version_id == vid
             ).first()
 
             if est:
@@ -1191,7 +1194,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                         setattr(est, field, value)
             else:
                 est = BudgetEstimate(
-                    show_id=show_id,
+                    version_id=vid,
                     estimated_range=req.estimated_range,
                     factors=req.factors,
                     cast_size_impact=req.cast_size_impact,
@@ -1237,7 +1240,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def create_comparable(show_id: int, req: CreateComparableRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             comp = Comparable(
-                show_id=show_id,
+                version_id=vid,
                 title=req.title,
                 relationship_type=req.relationship_type,
                 reasoning=req.reasoning,
@@ -1314,7 +1317,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def create_advisory(show_id: int, req: CreateContentAdvisoryRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             adv = ContentAdvisory(
-                show_id=show_id,
+                version_id=vid,
                 category=req.category,
                 description=req.description,
                 severity=req.severity,
@@ -1389,7 +1392,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def create_logline_draft(show_id: int, req: CreateLoglineDraftRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             draft = LoglineDraft(
-                show_id=show_id,
+                version_id=vid,
                 text=req.text,
                 tone=req.tone,
             )
@@ -1440,7 +1443,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def create_summary_draft(show_id: int, req: CreateSummaryDraftRequest, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             draft = SummaryDraft(
-                show_id=show_id,
+                version_id=vid,
                 summary_text=req.summary_text,
             )
             session.add(draft)
@@ -1472,7 +1475,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                     joinedload(VersionDiff.current_version),
                     joinedload(VersionDiff.previous_version),
                 )
-                .filter(VersionDiff.show_id == show_id)
+                .filter(VersionDiff.current_version_id.in_(session.query(ShowVersion.id).filter_by(show_id=show_id)))
                 .order_by(VersionDiff.created_at.desc())
                 .all()
             )
@@ -1500,7 +1503,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                     joinedload(VersionDiff.current_version),
                     joinedload(VersionDiff.previous_version),
                 )
-                .filter(VersionDiff.id == diff_id, VersionDiff.show_id == show_id)
+                .filter(VersionDiff.id == diff_id, VersionDiff.current_version_id.in_(session.query(ShowVersion.id).filter_by(show_id=show_id)))
                 .first()
             )
             if not d:
