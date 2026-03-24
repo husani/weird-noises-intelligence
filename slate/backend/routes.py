@@ -150,13 +150,16 @@ def _log_change(session, entity_type, entity_id, field, old_val, new_val, user_e
 def _lookup_dict(lv):
     if not lv:
         return None
-    return {
+    d = {
         "id": lv.id,
         "value": lv.value,
         "display_label": lv.display_label,
         "description": lv.description,
         "css_class": lv.css_class,
     }
+    if lv.applies_to is not None:
+        d["applies_to"] = lv.applies_to
+    return d
 
 
 def create_slate_router(interface, session_factory) -> APIRouter:
@@ -1076,6 +1079,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                         "sort_order": v.sort_order,
                         "description": v.description,
                         "css_class": v.css_class,
+                        "applies_to": v.applies_to,
                     }
                     for v in values
                 ]

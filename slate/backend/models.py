@@ -223,6 +223,7 @@ class SlateLookupValue(Base):
     sort_order = Column(Integer, default=0, nullable=False)
     description = Column(Text, nullable=True)
     css_class = Column(String, nullable=True)
+    applies_to = Column(JSONB, nullable=True)  # array of medium values this applies to; null = all
 
     __table_args__ = (
         UniqueConstraint("category", "entity_type", "value"),

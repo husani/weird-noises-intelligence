@@ -9,24 +9,16 @@ import StageProgression from '@shared/components/StageProgression'
 import { ActionMenu, Modal } from '@shared/components'
 import { deleteShow, getLookupValues, getShowData, updateShow, reprocessScript } from '@slate/api'
 
-// Medium-aware stage filtering
-const THEATRE_STAGES = [
-  'early_development', 'internal_read', 'workshop', 'staged_reading', 'table_read',
-  'seeking_production', 'in_pre_production', 'in_production', 'running', 'closed',
-]
-const FILM_TV_STAGES = [
-  'early_development', 'internal_read', 'table_read',
-  'seeking_production', 'in_pre_production', 'in_production', 'in_post_production', 'released',
-]
-const THEATRE_MEDIUMS = ['musical', 'play']
-const FILM_TV_MEDIUMS = ['screenplay', 'feature_film', 'short_film', 'teleplay', 'limited_series']
-
+/**
+ * Filter stages by medium using the applies_to field from lookup values.
+ * If applies_to is null, the stage applies to all mediums.
+ * If applies_to is an array, the stage only applies to those mediums.
+ */
 function getStagesForMedium(allStages, mediumValue) {
-  let allowed
-  if (THEATRE_MEDIUMS.includes(mediumValue)) allowed = THEATRE_STAGES
-  else if (FILM_TV_MEDIUMS.includes(mediumValue)) allowed = FILM_TV_STAGES
-  else return allStages
-  return allStages.filter(s => allowed.includes(s.value))
+  if (!mediumValue) return allStages
+  return allStages.filter(s =>
+    !s.applies_to || s.applies_to.includes(mediumValue)
+  )
 }
 
 export default function ShowOverview({ show, onUpdate }) {

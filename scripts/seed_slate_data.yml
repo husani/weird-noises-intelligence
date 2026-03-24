@@ -46,10 +46,12 @@ lookup_values:
         display_label: Workshop
         description: Active workshop and development process
         css_class: badge-warm
+        applies_to: [musical, play]
       - value: staged_reading
         display_label: Staged Reading
         description: Formal staged reading with actors
         css_class: badge-warm
+        applies_to: [musical, play]
       - value: table_read
         display_label: Table Read
         description: Seated read-through with actors and creative team
@@ -70,18 +72,22 @@ lookup_values:
         display_label: Running
         description: Currently running (theatre)
         css_class: badge-sage
+        applies_to: [musical, play]
       - value: in_post_production
         display_label: In Post-Production
         description: Post-production phase (film/TV)
         css_class: badge-blue
+        applies_to: [screenplay, feature_film, short_film, teleplay, limited_series]
       - value: released
         display_label: Released
         description: Released or premiered
         css_class: badge-sage
+        applies_to: [screenplay, feature_film, short_film, teleplay, limited_series]
       - value: closed
         display_label: Closed
         description: Production has closed
         css_class: badge-neutral
+        applies_to: [musical, play]
 
   rights_status:
     entity_type: show

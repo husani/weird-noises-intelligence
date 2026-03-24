@@ -46,6 +46,7 @@ def seed_lookup_values(session, lookup_data, force=False):
                 description=entry.get("description"),
                 css_class=entry.get("css_class"),
                 sort_order=sort_order,
+                applies_to=entry.get("applies_to"),
             ))
             count += 1
     return count
