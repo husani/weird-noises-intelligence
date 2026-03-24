@@ -613,21 +613,22 @@ def _extract_fdx_text(file_bytes: bytes) -> str:
 
 # --- Domain table storage helpers ---
 
-def _store_extraction_results(session_factory, show_id, data, is_musical):
-    """Parse extraction response and create domain entity rows."""
+def _store_extraction_results(session_factory, show_id, version_id, data, is_musical):
+    """Parse extraction response and create domain entity rows for this version."""
     with session_factory() as session:
-        # Clear existing AI-derived data for this show
-        session.query(SlateCharacter).filter_by(show_id=show_id).delete()
-        session.query(SlateScene).filter_by(show_id=show_id).delete()
-        session.query(SlateSong).filter_by(show_id=show_id).delete()
-        session.query(SlateArcPoint).filter_by(show_id=show_id).delete()
-        session.query(SlateRuntimeEstimate).filter_by(show_id=show_id).delete()
+        # Clear existing data for this version (in case of reprocessing)
+        session.query(SlateCharacter).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateScene).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateSong).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateArcPoint).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateRuntimeEstimate).filter_by(show_id=show_id, script_version_id=version_id).delete()
 
         # Characters
         characters = data.get("character_breakdown", {}).get("characters", [])
         for i, char in enumerate(characters):
             session.add(SlateCharacter(
                 show_id=show_id,
+                script_version_id=version_id,
                 name=char.get("name", ""),
                 description=char.get("description"),
                 age_range=char.get("age_range"),
@@ -648,6 +649,7 @@ def _store_extraction_results(session_factory, show_id, data, is_musical):
             for scene in act.get("scenes", []):
                 session.add(SlateScene(
                     show_id=show_id,
+                    script_version_id=version_id,
                     act_number=act_num,
                     scene_number=scene.get("scene_number", sort_idx + 1),
                     title=scene.get("title"),
@@ -667,6 +669,7 @@ def _store_extraction_results(session_factory, show_id, data, is_musical):
             for i, song in enumerate(songs):
                 session.add(SlateSong(
                     show_id=show_id,
+                    script_version_id=version_id,
                     title=song.get("title", ""),
                     act=song.get("act"),
                     scene=song.get("scene"),
@@ -681,6 +684,7 @@ def _store_extraction_results(session_factory, show_id, data, is_musical):
         for i, point in enumerate(arc_points):
             session.add(SlateArcPoint(
                 show_id=show_id,
+                script_version_id=version_id,
                 position=point.get("position", 0),
                 intensity=point.get("intensity", 0),
                 label=point.get("label"),
@@ -707,6 +711,7 @@ def _store_extraction_results(session_factory, show_id, data, is_musical):
                 ]
             session.add(SlateRuntimeEstimate(
                 show_id=show_id,
+                script_version_id=version_id,
                 total_minutes=runtime.get("total_minutes"),
                 act_breakdown=act_breakdown,
                 notes=runtime.get("notes"),
@@ -717,18 +722,19 @@ def _store_extraction_results(session_factory, show_id, data, is_musical):
     logger.info(f"Stored extraction results for show {show_id}")
 
 
-def _store_assessment_results(session_factory, show_id, data):
-    """Parse assessment response and create domain entity rows."""
+def _store_assessment_results(session_factory, show_id, version_id, data):
+    """Parse assessment response and create domain entity rows for this version."""
     with session_factory() as session:
-        session.query(SlateCastRequirements).filter_by(show_id=show_id).delete()
-        session.query(SlateBudgetEstimate).filter_by(show_id=show_id).delete()
-        session.query(SlateContentAdvisory).filter_by(show_id=show_id).delete()
+        session.query(SlateCastRequirements).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateBudgetEstimate).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateContentAdvisory).filter_by(show_id=show_id, script_version_id=version_id).delete()
 
         # Cast requirements
         cast = data.get("cast_requirements", {})
         if cast:
             session.add(SlateCastRequirements(
                 show_id=show_id,
+                script_version_id=version_id,
                 minimum_cast_size=cast.get("minimum_cast_size"),
                 recommended_cast_size=cast.get("recommended_cast_size"),
                 doubling_possibilities=cast.get("doubling_possibilities"),
@@ -743,6 +749,7 @@ def _store_assessment_results(session_factory, show_id, data):
         if budget:
             session.add(SlateBudgetEstimate(
                 show_id=show_id,
+                script_version_id=version_id,
                 estimated_range=budget.get("estimated_range"),
                 factors=budget.get("factors"),
                 cast_size_impact=budget.get("cast_size_impact"),
@@ -757,6 +764,7 @@ def _store_assessment_results(session_factory, show_id, data):
         for adv in advisories:
             session.add(SlateContentAdvisory(
                 show_id=show_id,
+                script_version_id=version_id,
                 category=adv.get("category", ""),
                 description=adv.get("description"),
                 severity=adv.get("severity"),
@@ -767,12 +775,12 @@ def _store_assessment_results(session_factory, show_id, data):
     logger.info(f"Stored assessment results for show {show_id}")
 
 
-def _store_creative_results(session_factory, show_id, data):
-    """Parse creative generation response and create domain entity rows."""
+def _store_creative_results(session_factory, show_id, version_id, data):
+    """Parse creative generation response and create domain entity rows for this version."""
     with session_factory() as session:
-        session.query(SlateLoglineDraft).filter_by(show_id=show_id).delete()
-        session.query(SlateSummaryDraft).filter_by(show_id=show_id).delete()
-        session.query(SlateComparable).filter_by(show_id=show_id).delete()
+        session.query(SlateLoglineDraft).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateSummaryDraft).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateComparable).filter_by(show_id=show_id, script_version_id=version_id).delete()
 
         # Logline drafts
         logline_data = data.get("logline_draft", {})
@@ -780,6 +788,7 @@ def _store_creative_results(session_factory, show_id, data):
         for opt in options:
             session.add(SlateLoglineDraft(
                 show_id=show_id,
+                script_version_id=version_id,
                 text=opt.get("text", ""),
                 tone=opt.get("tone"),
             ))
@@ -790,6 +799,7 @@ def _store_creative_results(session_factory, show_id, data):
         if summary_text:
             session.add(SlateSummaryDraft(
                 show_id=show_id,
+                script_version_id=version_id,
                 summary_text=summary_text,
             ))
 
@@ -799,6 +809,7 @@ def _store_creative_results(session_factory, show_id, data):
         for comp in comparables:
             session.add(SlateComparable(
                 show_id=show_id,
+                script_version_id=version_id,
                 title=comp.get("title", ""),
                 relationship_type=comp.get("relationship"),
                 reasoning=comp.get("reasoning"),
@@ -901,7 +912,7 @@ async def process_script(session_factory, version_id: int):
             response_schema=CoreAnalysis,
         )
         core_data = json.loads(core_raw)
-        _store_extraction_results(session_factory, show_id, core_data, is_musical)
+        _store_extraction_results(session_factory, show_id, version_id, core_data, is_musical)
 
         # 6. ASSESSMENT CALL — read the script, make production judgments
         assessment_context = {
@@ -917,7 +928,7 @@ async def process_script(session_factory, version_id: int):
             response_schema=ProductionAnalysis,
         )
         prod_data = json.loads(prod_raw)
-        _store_assessment_results(session_factory, show_id, prod_data)
+        _store_assessment_results(session_factory, show_id, version_id, prod_data)
 
         # 7. CREATIVE GENERATION CALL — read the script, write positioning
         creative_context = {
@@ -933,7 +944,7 @@ async def process_script(session_factory, version_id: int):
             response_schema=CreativePositioning,
         )
         creative_data = json.loads(creative_raw)
-        _store_creative_results(session_factory, show_id, creative_data)
+        _store_creative_results(session_factory, show_id, version_id, creative_data)
 
         # 8. If previous version exists, run version_diff
         with session_factory() as session:

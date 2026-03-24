@@ -154,9 +154,18 @@ class QueryRequest(BaseModel):
     query: str
 
 
+def _resolve_version(session, show_id, version_id=None):
+    """Resolve a version ID — if None, return the latest version for the show."""
+    if version_id:
+        return version_id
+    v = session.query(ScriptVersion.id).filter_by(show_id=show_id).order_by(ScriptVersion.created_at.desc()).first()
+    return v[0] if v else None
+
+
 # --- Domain entity request models ---
 
 class CreateCharacterRequest(BaseModel):
+    script_version_id: int
     name: str
     description: Optional[str] = None
     age_range: Optional[str] = None
@@ -715,11 +724,14 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== CHARACTERS ====================
 
     @router.get("/shows/{show_id}/characters")
-    def list_characters(show_id: int, user: dict = Depends(get_current_user)):
+    def list_characters(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return {"characters": []}
             chars = (
                 session.query(Character)
-                .filter(Character.show_id == show_id)
+                .filter(Character.show_id == show_id, Character.script_version_id == vid)
                 .order_by(Character.sort_order)
                 .all()
             )
@@ -809,11 +821,14 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== SCENES ====================
 
     @router.get("/shows/{show_id}/scenes")
-    def list_scenes(show_id: int, user: dict = Depends(get_current_user)):
+    def list_scenes(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return {"scenes": []}
             scenes = (
                 session.query(Scene)
-                .filter(Scene.show_id == show_id)
+                .filter(Scene.show_id == show_id, Scene.script_version_id == vid)
                 .order_by(Scene.sort_order)
                 .all()
             )
@@ -902,11 +917,14 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== SONGS ====================
 
     @router.get("/shows/{show_id}/songs")
-    def list_songs(show_id: int, user: dict = Depends(get_current_user)):
+    def list_songs(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return {"songs": []}
             songs = (
                 session.query(Song)
-                .filter(Song.show_id == show_id)
+                .filter(Song.show_id == show_id, Song.script_version_id == vid)
                 .order_by(Song.sort_order)
                 .all()
             )
@@ -989,11 +1007,14 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== EMOTIONAL ARC ====================
 
     @router.get("/shows/{show_id}/arc")
-    def list_arc_points(show_id: int, user: dict = Depends(get_current_user)):
+    def list_arc_points(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return {"points": []}
             points = (
                 session.query(ArcPoint)
-                .filter(ArcPoint.show_id == show_id)
+                .filter(ArcPoint.show_id == show_id, ArcPoint.script_version_id == vid)
                 .order_by(ArcPoint.sort_order)
                 .all()
             )
@@ -1186,11 +1207,14 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== COMPARABLES ====================
 
     @router.get("/shows/{show_id}/comparables")
-    def list_comparables(show_id: int, user: dict = Depends(get_current_user)):
+    def list_comparables(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return {"comparables": []}
             comps = (
                 session.query(Comparable)
-                .filter(Comparable.show_id == show_id)
+                .filter(Comparable.show_id == show_id, Comparable.script_version_id == vid)
                 .order_by(Comparable.created_at.desc())
                 .all()
             )
@@ -1260,11 +1284,14 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== CONTENT ADVISORIES ====================
 
     @router.get("/shows/{show_id}/advisories")
-    def list_advisories(show_id: int, user: dict = Depends(get_current_user)):
+    def list_advisories(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return {"advisories": []}
             advs = (
                 session.query(ContentAdvisory)
-                .filter(ContentAdvisory.show_id == show_id)
+                .filter(ContentAdvisory.show_id == show_id, ContentAdvisory.script_version_id == vid)
                 .order_by(ContentAdvisory.created_at.desc())
                 .all()
             )
@@ -1334,11 +1361,14 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== LOGLINE DRAFTS ====================
 
     @router.get("/shows/{show_id}/logline-drafts")
-    def list_logline_drafts(show_id: int, user: dict = Depends(get_current_user)):
+    def list_logline_drafts(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return {"drafts": []}
             drafts = (
                 session.query(LoglineDraft)
-                .filter(LoglineDraft.show_id == show_id)
+                .filter(LoglineDraft.show_id == show_id, LoglineDraft.script_version_id == vid)
                 .order_by(LoglineDraft.created_at.desc())
                 .all()
             )
@@ -1383,11 +1413,14 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     # ==================== SUMMARY DRAFTS ====================
 
     @router.get("/shows/{show_id}/summary-drafts")
-    def list_summary_drafts(show_id: int, user: dict = Depends(get_current_user)):
+    def list_summary_drafts(show_id: int, version: int = Query(None), user: dict = Depends(get_current_user)):
         with session_factory() as session:
+            vid = _resolve_version(session, show_id, version)
+            if not vid:
+                return {"drafts": []}
             drafts = (
                 session.query(SummaryDraft)
-                .filter(SummaryDraft.show_id == show_id)
+                .filter(SummaryDraft.show_id == show_id, SummaryDraft.script_version_id == vid)
                 .order_by(SummaryDraft.created_at.desc())
                 .all()
             )
