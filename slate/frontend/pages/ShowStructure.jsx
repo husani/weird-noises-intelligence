@@ -1,11 +1,11 @@
 /**
  * Show > Structure — scene breakdown, song list, and emotional arc.
- * Read-only display of AI-generated structure analysis.
+ * Read-only display of AI-generated structure analysis from domain tables.
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { getShowData } from '@slate/api'
+import { listScenes, listSongs, listArcPoints } from '@slate/api'
 
 function CustomTooltip({ active, payload }) {
   if (!active || !payload || !payload.length) return null
@@ -20,9 +20,9 @@ function CustomTooltip({ active, payload }) {
 }
 
 export default function ShowStructure({ show }) {
-  const [sceneBreakdown, setSceneBreakdown] = useState(null)
-  const [songList, setSongList] = useState(null)
-  const [emotionalArc, setEmotionalArc] = useState(null)
+  const [scenes, setScenes] = useState([])
+  const [songs, setSongs] = useState([])
+  const [arcPoints, setArcPoints] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedActs, setExpandedActs] = useState({})
 
@@ -30,24 +30,16 @@ export default function ShowStructure({ show }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await getShowData(show.id)
-      const allData = [
-        ...(res.script_data || []),
-        ...(res.music_data || []),
-        ...(res.visual_data || []),
-      ]
-      const byType = {}
-      allData.forEach(d => { byType[d.data_type] = d })
+      const results = await Promise.allSettled([
+        listScenes(show.id),
+        listSongs(show.id),
+        listArcPoints(show.id),
+      ])
 
-      if (byType.scene_breakdown?.content) {
-        setSceneBreakdown(byType.scene_breakdown.content)
-      }
-      if (byType.song_list?.content) {
-        setSongList(byType.song_list.content)
-      }
-      if (byType.emotional_arc?.content) {
-        setEmotionalArc(byType.emotional_arc.content)
-      }
+      const [sceneRes, songRes, arcRes] = results
+      if (sceneRes.status === 'fulfilled') setScenes(sceneRes.value.scenes || [])
+      if (songRes.status === 'fulfilled') setSongs(songRes.value.songs || [])
+      if (arcRes.status === 'fulfilled') setArcPoints(arcRes.value.points || [])
     } catch (err) {
       console.error('Failed to load structure data:', err)
     } finally {
@@ -63,7 +55,7 @@ export default function ShowStructure({ show }) {
 
   if (loading) return <div className="page-loading"><div className="loading-spinner" /></div>
 
-  const hasData = sceneBreakdown || songList || emotionalArc
+  const hasData = scenes.length > 0 || songs.length > 0 || arcPoints.length > 0
 
   if (!hasData) {
     return (
@@ -89,14 +81,11 @@ export default function ShowStructure({ show }) {
 
   // Group scenes by act
   const scenesByAct = {}
-  if (sceneBreakdown) {
-    const scenes = sceneBreakdown.scenes || sceneBreakdown.items || []
-    scenes.forEach(scene => {
-      const act = scene.act || 'Act 1'
-      if (!scenesByAct[act]) scenesByAct[act] = []
-      scenesByAct[act].push(scene)
-    })
-  }
+  scenes.forEach(scene => {
+    const act = scene.act_number ? `Act ${scene.act_number}` : 'Act 1'
+    if (!scenesByAct[act]) scenesByAct[act] = []
+    scenesByAct[act].push(scene)
+  })
 
   const actKeys = Object.keys(scenesByAct)
 
@@ -109,16 +98,15 @@ export default function ShowStructure({ show }) {
   }
 
   // Emotional arc chart data
-  const arcData = emotionalArc?.arc_points
-    ? emotionalArc.arc_points.map(p => ({
-        position: p.position,
-        intensity: p.intensity,
-        label: p.label || '',
-        tone: p.tone || '',
-      }))
-    : []
+  const arcData = arcPoints.map(p => ({
+    position: p.position,
+    intensity: p.intensity,
+    label: p.label || '',
+    tone: p.tone || '',
+  }))
 
-  const songs = songList?.songs || songList?.items || []
+  // Arc summary from the show object
+  const arcSummary = show.emotional_arc_summary
 
   return (
     <div className="section-stack">
@@ -146,11 +134,11 @@ export default function ShowStructure({ show }) {
                 </button>
                 {expandedActs[actKey] && (
                   <div className="slate-scene-list">
-                    {scenesByAct[actKey].map((scene, i) => (
-                      <div key={i} className="slate-scene-block">
+                    {scenesByAct[actKey].map(scene => (
+                      <div key={scene.id} className="slate-scene-block">
                         <div className="slate-scene-header">
                           <span className="slate-scene-number">
-                            {scene.scene_number || scene.number || `Scene ${i + 1}`}
+                            {scene.scene_number || `Scene`}
                           </span>
                           {scene.title && (
                             <span className="slate-scene-title">{scene.title}</span>
@@ -188,17 +176,17 @@ export default function ShowStructure({ show }) {
             <div className="section-card-meta">{songs.length} songs</div>
           </div>
           <div className="slate-song-list">
-            {songs.map((song, i) => (
-              <div key={i} className="slate-song-block">
+            {songs.map(song => (
+              <div key={song.id} className="slate-song-block">
                 <div className="slate-song-header">
                   <span className="slate-song-title">{song.title}</span>
                   {song.song_type && <span className="badge badge-neutral">{song.song_type}</span>}
                 </div>
-                {(song.act || song.scene) && (
+                {(song.act_number || song.scene_number) && (
                   <div className="type-meta">
-                    {song.act && <span>{song.act}</span>}
-                    {song.act && song.scene && <span>, </span>}
-                    {song.scene && <span>{song.scene}</span>}
+                    {song.act_number && <span>Act {song.act_number}</span>}
+                    {song.act_number && song.scene_number && <span>, </span>}
+                    {song.scene_number && <span>Scene {song.scene_number}</span>}
                   </div>
                 )}
                 {song.characters && (
@@ -254,8 +242,8 @@ export default function ShowStructure({ show }) {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          {emotionalArc.summary && (
-            <div className="prose text-secondary slate-arc-summary">{emotionalArc.summary}</div>
+          {arcSummary && (
+            <div className="prose text-secondary slate-arc-summary">{arcSummary}</div>
           )}
         </div>
       )}

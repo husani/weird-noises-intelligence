@@ -2,7 +2,9 @@
 Slate data models.
 
 All tables for the Slate tool — shows, script versions, music files,
-show data, development milestones, visual identity assets, pitches,
+characters, scenes, songs, emotional arcs, runtime estimates, cast requirements,
+budget estimates, comparables, content advisories, logline/summary drafts,
+version diffs, development milestones, visual identity assets, pitches,
 pitch materials, lookup values, change history, AI behaviors, and settings.
 
 All class names are prefixed with "Slate" to avoid collisions with
@@ -46,19 +48,35 @@ class SlateShow(Base):
     genre = Column(Text, nullable=True)
     logline = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
+    emotional_arc_summary = Column(Text, nullable=True)  # narrative summary of the emotional arc
     rights_status_id = Column(Integer, ForeignKey("slate_lookup_values.id"), nullable=True)
     development_stage_id = Column(Integer, ForeignKey("slate_lookup_values.id"), nullable=True)
     created_at = Column(DateTime, default=_utcnow, nullable=False)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
 
-    # Relationships
+    # Lookup relationships
     medium = relationship("SlateLookupValue", foreign_keys=[medium_id])
     rights_status = relationship("SlateLookupValue", foreign_keys=[rights_status_id])
     development_stage = relationship("SlateLookupValue", foreign_keys=[development_stage_id])
+
+    # One-to-many relationships
     script_versions = relationship("SlateScriptVersion", back_populates="show", cascade="all, delete-orphan", order_by="SlateScriptVersion.created_at.desc()")
     milestones = relationship("SlateMilestone", back_populates="show", cascade="all, delete-orphan", order_by="SlateMilestone.date.desc()")
     visual_assets = relationship("SlateVisualAsset", back_populates="show", cascade="all, delete-orphan")
     pitches = relationship("SlatePitch", back_populates="show", cascade="all, delete-orphan")
+    characters = relationship("SlateCharacter", back_populates="show", cascade="all, delete-orphan", order_by="SlateCharacter.sort_order")
+    scenes = relationship("SlateScene", back_populates="show", cascade="all, delete-orphan", order_by="SlateScene.sort_order")
+    songs = relationship("SlateSong", back_populates="show", cascade="all, delete-orphan", order_by="SlateSong.sort_order")
+    arc_points = relationship("SlateArcPoint", back_populates="show", cascade="all, delete-orphan", order_by="SlateArcPoint.sort_order")
+    comparables = relationship("SlateComparable", back_populates="show", cascade="all, delete-orphan")
+    content_advisories = relationship("SlateContentAdvisory", back_populates="show", cascade="all, delete-orphan")
+    logline_drafts = relationship("SlateLoglineDraft", back_populates="show", cascade="all, delete-orphan")
+    summary_drafts = relationship("SlateSummaryDraft", back_populates="show", cascade="all, delete-orphan")
+
+    # One-to-one relationships
+    runtime_estimate = relationship("SlateRuntimeEstimate", back_populates="show", cascade="all, delete-orphan", uselist=False)
+    cast_requirements = relationship("SlateCastRequirements", back_populates="show", cascade="all, delete-orphan", uselist=False)
+    budget_estimate = relationship("SlateBudgetEstimate", back_populates="show", cascade="all, delete-orphan", uselist=False)
 
 
 # --- Script Versions ---
@@ -100,27 +118,251 @@ class SlateMusicFile(Base):
     processing_status = Column(String, default="pending", nullable=False)
     created_at = Column(DateTime, default=_utcnow, nullable=False)
 
+    # Analysis fields (populated by AI, editable)
+    analysis_key = Column(String, nullable=True)
+    analysis_tempo = Column(String, nullable=True)
+    analysis_mood = Column(String, nullable=True)
+    analysis_instrumentation = Column(JSONB, nullable=True)  # array of strings
+    analysis_vocal_range = Column(String, nullable=True)
+    analysis_function = Column(String, nullable=True)
+    analysis_emotional_quality = Column(String, nullable=True)
+    analysis_notes = Column(Text, nullable=True)
+
     # Relationships
     script_version = relationship("SlateScriptVersion", back_populates="music_files")
     track_type = relationship("SlateLookupValue", foreign_keys=[track_type_id])
 
 
-# --- Show Data ---
+# --- Characters ---
 
-class SlateShowData(Base):
-    """Structured data derived from scripts, music, and visual assets."""
-    __tablename__ = "slate_show_data"
+class SlateCharacter(Base):
+    """A character in a show. Populated by AI from script analysis, editable."""
+    __tablename__ = "slate_characters"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
-    source_type = Column(String, nullable=False)  # script_version, music_file, visual_asset
-    source_id = Column(Integer, nullable=False)
-    data_type = Column(String, nullable=False, index=True)  # character_breakdown, scene_breakdown, etc.
-    content = Column(JSONB, nullable=False)
-    generated_at = Column(DateTime, default=_utcnow, nullable=False)
-    model_used = Column(String, nullable=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    age_range = Column(String, nullable=True)
+    gender = Column(String, nullable=True)
+    line_count = Column(Integer, nullable=True)
+    vocal_range = Column(String, nullable=True)  # musicals
+    song_count = Column(Integer, nullable=True)  # musicals
+    dance_requirements = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
 
     show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Scenes ---
+
+class SlateScene(Base):
+    """A scene in a show. Medium-aware — theatre has acts, film/TV has INT/EXT."""
+    __tablename__ = "slate_scenes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
+    act_number = Column(Integer, nullable=True)  # nullable for film/TV
+    scene_number = Column(Integer, nullable=False)
+    title = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    int_ext = Column(String, nullable=True)  # film/TV only: "INT", "EXT", "INT/EXT"
+    time_of_day = Column(String, nullable=True)  # film/TV only
+    characters_present = Column(JSONB, nullable=True)  # array of character names
+    description = Column(Text, nullable=True)
+    estimated_minutes = Column(Float, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Songs ---
+
+class SlateSong(Base):
+    """A song in a musical. Only used for musical mediums."""
+    __tablename__ = "slate_songs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    act = Column(Integer, nullable=True)
+    scene = Column(Integer, nullable=True)
+    characters = Column(JSONB, nullable=True)  # array of character names
+    song_type = Column(String, nullable=True)  # opening, I Want, ballad, etc.
+    description = Column(Text, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Emotional Arc ---
+
+class SlateArcPoint(Base):
+    """A point on the emotional arc. Analytical visualization data."""
+    __tablename__ = "slate_arc_points"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
+    position = Column(Float, nullable=False)  # 0-100
+    intensity = Column(Float, nullable=False)  # 0-100
+    label = Column(String, nullable=True)
+    tone = Column(String, nullable=True)
+    sort_order = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Runtime Estimates ---
+
+class SlateRuntimeEstimate(Base):
+    """Runtime estimate for a show."""
+    __tablename__ = "slate_runtime_estimates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+    total_minutes = Column(Integer, nullable=True)
+    act_breakdown = Column(JSONB, nullable=True)  # [{act: 1, minutes: 65}, ...]
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Cast Requirements ---
+
+class SlateCastRequirements(Base):
+    """Cast and resource requirements for a show."""
+    __tablename__ = "slate_cast_requirements"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+    minimum_cast_size = Column(Integer, nullable=True)
+    recommended_cast_size = Column(Integer, nullable=True)
+    doubling_possibilities = Column(Text, nullable=True)  # theatre
+    musicians = Column(Integer, nullable=True)  # musicals
+    musician_instruments = Column(JSONB, nullable=True)  # musicals, array
+    locations_count = Column(Integer, nullable=True)  # film/TV
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Budget Estimates ---
+
+class SlateBudgetEstimate(Base):
+    """Budget estimate for a show."""
+    __tablename__ = "slate_budget_estimates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+    estimated_range = Column(String, nullable=True)  # e.g. "$2M-$4M"
+    factors = Column(JSONB, nullable=True)  # array of cost drivers
+    cast_size_impact = Column(Text, nullable=True)
+    technical_complexity = Column(Text, nullable=True)
+    location_complexity = Column(Text, nullable=True)  # film/TV
+    post_production_notes = Column(Text, nullable=True)  # film/TV
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Comparables ---
+
+class SlateComparable(Base):
+    """A comparable work for positioning."""
+    __tablename__ = "slate_comparables"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    relationship_type = Column(String, nullable=True)  # structurally similar, tonal match, etc.
+    reasoning = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Content Advisories ---
+
+class SlateContentAdvisory(Base):
+    """Content advisory for a show."""
+    __tablename__ = "slate_content_advisories"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
+    category = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    severity = Column(String, nullable=True)  # mild, moderate, strong
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Logline Drafts ---
+
+class SlateLoglineDraft(Base):
+    """AI-generated logline option."""
+    __tablename__ = "slate_logline_drafts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
+    text = Column(Text, nullable=False)
+    tone = Column(String, nullable=True)  # commercial, literary, emotional, etc.
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Summary Drafts ---
+
+class SlateSummaryDraft(Base):
+    """AI-generated summary option."""
+    __tablename__ = "slate_summary_drafts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
+    summary_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+
+
+# --- Version Diffs ---
+
+class SlateVersionDiff(Base):
+    """Comparison between two script versions."""
+    __tablename__ = "slate_version_diffs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    show_id = Column(Integer, ForeignKey("slate_shows.id", ondelete="CASCADE"), nullable=False, index=True)
+    current_version_id = Column(Integer, ForeignKey("slate_script_versions.id"), nullable=False)
+    previous_version_id = Column(Integer, ForeignKey("slate_script_versions.id"), nullable=False)
+    summary = Column(Text, nullable=True)
+    structural_changes = Column(JSONB, nullable=True)  # array of strings
+    character_changes = Column(JSONB, nullable=True)  # array of strings
+    song_changes = Column(JSONB, nullable=True)  # array of strings, musicals only
+    tone_shift = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    show = relationship("SlateShow", foreign_keys=[show_id])
+    current_version = relationship("SlateScriptVersion", foreign_keys=[current_version_id])
+    previous_version = relationship("SlateScriptVersion", foreign_keys=[previous_version_id])
 
 
 # --- Development Milestones ---
@@ -160,6 +402,15 @@ class SlateVisualAsset(Base):
     is_current = Column(Boolean, default=True, nullable=False)
     processing_status = Column(String, default="pending", nullable=False)
     created_at = Column(DateTime, default=_utcnow, nullable=False)
+
+    # Analysis fields (populated by AI, editable)
+    analysis_color_palette = Column(JSONB, nullable=True)  # array of strings
+    analysis_mood = Column(String, nullable=True)
+    analysis_tone = Column(String, nullable=True)
+    analysis_typography = Column(String, nullable=True)
+    analysis_visual_themes = Column(JSONB, nullable=True)  # array of strings
+    analysis_communicates = Column(Text, nullable=True)
+    analysis_notes = Column(Text, nullable=True)
 
     # Relationships
     show = relationship("SlateShow", back_populates="visual_assets")
@@ -278,18 +529,40 @@ class SlateSettings(Base):
 Show = SlateShow
 ScriptVersion = SlateScriptVersion
 MusicFile = SlateMusicFile
-ShowData = SlateShowData
 DevelopmentMilestone = SlateMilestone
 VisualAsset = SlateVisualAsset
 Pitch = SlatePitch
 PitchMaterial = SlatePitchMaterial
+Character = SlateCharacter
+Scene = SlateScene
+Song = SlateSong
+ArcPoint = SlateArcPoint
+RuntimeEstimate = SlateRuntimeEstimate
+CastRequirements = SlateCastRequirements
+BudgetEstimate = SlateBudgetEstimate
+Comparable = SlateComparable
+ContentAdvisory = SlateContentAdvisory
+LoglineDraft = SlateLoglineDraft
+SummaryDraft = SlateSummaryDraft
+VersionDiff = SlateVersionDiff
 
 # All models for table creation
 ALL_MODELS = [
     SlateShow,
     SlateScriptVersion,
     SlateMusicFile,
-    SlateShowData,
+    SlateCharacter,
+    SlateScene,
+    SlateSong,
+    SlateArcPoint,
+    SlateRuntimeEstimate,
+    SlateCastRequirements,
+    SlateBudgetEstimate,
+    SlateComparable,
+    SlateContentAdvisory,
+    SlateLoglineDraft,
+    SlateSummaryDraft,
+    SlateVersionDiff,
     SlateMilestone,
     SlateVisualAsset,
     SlatePitch,

@@ -1,13 +1,17 @@
 /**
  * Show > Overview — read-only view of the show's identity and current state.
- * Populated from show object + AI-generated show_data when available.
+ * Populated from show object + domain table APIs for AI-generated data.
  */
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import StageProgression from '@shared/components/StageProgression'
 import { ActionMenu, Modal } from '@shared/components'
-import { deleteShow, getLookupValues, getShowData, updateShow, reprocessScript } from '@slate/api'
+import {
+  deleteShow, getLookupValues, updateShow, reprocessScript,
+  getCastRequirements, getRuntimeEstimate, getBudgetEstimate,
+  listComparables, listAdvisories, listLoglineDrafts, listSummaryDrafts,
+} from '@slate/api'
 
 /**
  * Filter stages by medium using the applies_to field from lookup values.
@@ -26,8 +30,16 @@ export default function ShowOverview({ show, onUpdate }) {
   const [stages, setStages] = useState([])
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [showData, setShowData] = useState(null)
   const [loadingData, setLoadingData] = useState(true)
+
+  // Domain data state
+  const [castReq, setCastReq] = useState(null)
+  const [runtime, setRuntime] = useState(null)
+  const [budget, setBudget] = useState(null)
+  const [comparables, setComparables] = useState([])
+  const [advisories, setAdvisories] = useState([])
+  const [loglineDrafts, setLoglineDrafts] = useState([])
+  const [summaryDrafts, setSummaryDrafts] = useState([])
 
   useEffect(() => {
     getLookupValues({ category: 'development_stage' }).then(res => {
@@ -35,39 +47,34 @@ export default function ShowOverview({ show, onUpdate }) {
     })
   }, [])
 
-  const loadShowData = useCallback(async () => {
+  const loadDomainData = useCallback(async () => {
     try {
-      const res = await getShowData(show.id)
-      setShowData(res)
+      const results = await Promise.allSettled([
+        getCastRequirements(show.id),
+        getRuntimeEstimate(show.id),
+        getBudgetEstimate(show.id),
+        listComparables(show.id),
+        listAdvisories(show.id),
+        listLoglineDrafts(show.id),
+        listSummaryDrafts(show.id),
+      ])
+
+      const [cast, rt, bud, comp, adv, log, sum] = results
+      if (cast.status === 'fulfilled') setCastReq(cast.value)
+      if (rt.status === 'fulfilled') setRuntime(rt.value)
+      if (bud.status === 'fulfilled') setBudget(bud.value)
+      if (comp.status === 'fulfilled') setComparables(comp.value.comparables || [])
+      if (adv.status === 'fulfilled') setAdvisories(adv.value.advisories || [])
+      if (log.status === 'fulfilled') setLoglineDrafts(log.value.drafts || [])
+      if (sum.status === 'fulfilled') setSummaryDrafts(sum.value.drafts || [])
     } catch (err) {
-      console.error('Failed to load show data:', err)
+      console.error('Failed to load domain data:', err)
     } finally {
       setLoadingData(false)
     }
   }, [show.id])
 
-  useEffect(() => { loadShowData() }, [loadShowData])
-
-  // Extract data from show_data response
-  const dataByType = {}
-  if (showData) {
-    const allData = [
-      ...(showData.script_data || []),
-      ...(showData.music_data || []),
-      ...(showData.visual_data || []),
-    ]
-    allData.forEach(d => {
-      dataByType[d.data_type] = d
-    })
-  }
-
-  const castRequirements = dataByType.cast_requirements?.content
-  const runtimeEstimate = dataByType.runtime_estimate?.content
-  const budgetEstimate = dataByType.budget_estimate?.content
-  const comparables = dataByType.comparables?.content
-  const contentAdvisories = dataByType.content_advisories?.content
-  const loglineDraft = dataByType.logline_draft?.content
-  const summaryDraft = dataByType.summary_draft?.content
+  useEffect(() => { loadDomainData() }, [loadDomainData])
 
   async function handleDelete() {
     setDeleting(true)
@@ -140,10 +147,10 @@ export default function ShowOverview({ show, onUpdate }) {
 
   const isProcessing = show.current_script_version?.processing_status === 'processing'
 
-  // Stat values
-  const castSize = castRequirements?.recommended_cast_size
-  const runtime = runtimeEstimate?.total_minutes
-  const budgetRange = budgetEstimate?.estimated_range
+  // Stat values from domain entities
+  const castSize = castReq?.recommended_cast_size
+  const runtimeMinutes = runtime?.total_minutes
+  const budgetRange = budget?.estimated_range
 
   return (
     <div className="section-stack">
@@ -183,17 +190,17 @@ export default function ShowOverview({ show, onUpdate }) {
           </div>
 
           {/* Logline drafts */}
-          {!show.logline && loglineDraft && Array.isArray(loglineDraft.options) && loglineDraft.options.length > 0 && (
+          {!show.logline && loglineDrafts.length > 0 && (
             <div className="section-card section-card--compact section-card--accent-warm">
               <div className="section-card-header">
                 <h2 className="section-card-title">Generated Loglines</h2>
                 <div className="section-card-meta">Choose one to use</div>
               </div>
               <div className="slate-draft-options">
-                {loglineDraft.options.map((opt, i) => (
-                  <div key={i} className="slate-draft-option">
-                    <div className="prose">{typeof opt === 'string' ? opt : opt.text}</div>
-                    <button className="btn btn-ghost btn-sm" onClick={() => handleUseLogline(typeof opt === 'string' ? opt : opt.text)}>
+                {loglineDrafts.map(draft => (
+                  <div key={draft.id} className="slate-draft-option">
+                    <div className="prose">{draft.text}</div>
+                    <button className="btn btn-ghost btn-sm" onClick={() => handleUseLogline(draft.text)}>
                       Use this
                     </button>
                   </div>
@@ -208,17 +215,17 @@ export default function ShowOverview({ show, onUpdate }) {
           </div>
 
           {/* Summary drafts */}
-          {!show.summary && summaryDraft && Array.isArray(summaryDraft.options) && summaryDraft.options.length > 0 && (
+          {!show.summary && summaryDrafts.length > 0 && (
             <div className="section-card section-card--compact section-card--accent-warm">
               <div className="section-card-header">
                 <h2 className="section-card-title">Generated Summaries</h2>
                 <div className="section-card-meta">Choose one to use</div>
               </div>
               <div className="slate-draft-options">
-                {summaryDraft.options.map((opt, i) => (
-                  <div key={i} className="slate-draft-option">
-                    <div className="prose">{typeof opt === 'string' ? opt : opt.text}</div>
-                    <button className="btn btn-ghost btn-sm" onClick={() => handleUseSummary(typeof opt === 'string' ? opt : opt.text)}>
+                {summaryDrafts.map(draft => (
+                  <div key={draft.id} className="slate-draft-option">
+                    <div className="prose">{draft.text}</div>
+                    <button className="btn btn-ghost btn-sm" onClick={() => handleUseSummary(draft.text)}>
                       Use this
                     </button>
                   </div>
@@ -228,17 +235,17 @@ export default function ShowOverview({ show, onUpdate }) {
           )}
 
           {/* Comparables */}
-          {comparables && Array.isArray(comparables.items) && comparables.items.length > 0 && (
+          {comparables.length > 0 && (
             <div className="section-card">
               <div className="section-card-header">
                 <h2 className="section-card-title">Comparables</h2>
               </div>
               <div className="section-stack">
-                {comparables.items.map((comp, i) => (
-                  <div key={i} className="slate-comparable">
+                {comparables.map(comp => (
+                  <div key={comp.id} className="slate-comparable">
                     <div className="slate-comparable-header">
                       <span className="slate-comparable-title">{comp.title}</span>
-                      {comp.relationship && <span className="badge badge-neutral">{comp.relationship}</span>}
+                      {comp.relationship_type && <span className="badge badge-neutral">{comp.relationship_type}</span>}
                     </div>
                     {comp.reasoning && <div className="prose text-secondary">{comp.reasoning}</div>}
                   </div>
@@ -262,10 +269,10 @@ export default function ShowOverview({ show, onUpdate }) {
               </div>
               <div className="stat-card">
                 <div className="stat-label">Runtime</div>
-                <div className={`stat-value${!runtime ? ' text-tertiary' : ''}`}>
-                  {runtime ? `${runtime} min` : '\u2014'}
+                <div className={`stat-value${!runtimeMinutes ? ' text-tertiary' : ''}`}>
+                  {runtimeMinutes ? `${runtimeMinutes} min` : '\u2014'}
                 </div>
-                <div className="stat-note">{runtime ? 'Estimated from script' : 'Populated from script'}</div>
+                <div className="stat-note">{runtimeMinutes ? 'Estimated from script' : 'Populated from script'}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-label">Budget Range</div>
@@ -278,14 +285,14 @@ export default function ShowOverview({ show, onUpdate }) {
           </div>
 
           {/* Content Advisories */}
-          {contentAdvisories && Array.isArray(contentAdvisories.items) && contentAdvisories.items.length > 0 && (
+          {advisories.length > 0 && (
             <div className="section-stack">
-              {contentAdvisories.items.map((advisory, i) => {
+              {advisories.map(advisory => {
                 const severity = (advisory.severity || '').toLowerCase()
                 const alertClass = (severity === 'moderate' || severity === 'strong')
                   ? 'alert-warning' : 'alert-info'
                 return (
-                  <div key={i} className={`alert ${alertClass}`}>
+                  <div key={advisory.id} className={`alert ${alertClass}`}>
                     <svg className="alert-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
                       {alertClass === 'alert-warning'
                         ? <path d="M10 2L1 18h18L10 2zM10 8v4M10 14.5v.5" />
@@ -293,7 +300,7 @@ export default function ShowOverview({ show, onUpdate }) {
                       }
                     </svg>
                     <div className="alert-content">
-                      <div className="alert-title">{advisory.category || advisory.type}</div>
+                      <div className="alert-title">{advisory.category}</div>
                       <div>{advisory.description}</div>
                     </div>
                   </div>
@@ -307,41 +314,38 @@ export default function ShowOverview({ show, onUpdate }) {
             <div className="section-card-header">
               <h2 className="section-card-title">Producing Info</h2>
             </div>
-            {(budgetEstimate || castRequirements) ? (
+            {(budget || castReq) ? (
               <div className="section-stack">
-                {budgetEstimate?.content?.budget_factors && (
+                {budget?.budget_factors && Array.isArray(budget.budget_factors) && budget.budget_factors.length > 0 && (
                   <div>
                     <div className="type-label">Budget Factors</div>
                     <ul className="slate-producing-list">
-                      {(Array.isArray(budgetEstimate.content.budget_factors)
-                        ? budgetEstimate.content.budget_factors
-                        : []
-                      ).map((factor, i) => (
+                      {budget.budget_factors.map((factor, i) => (
                         <li key={i} className="text-secondary">{factor}</li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {castRequirements && (
+                {castReq && (
                   <div>
                     <div className="type-label">Cast Requirements</div>
                     <div className="prose text-secondary">
-                      {castRequirements.summary || castRequirements.details || (
+                      {castReq.summary || castReq.details || (
                         <span>
-                          {castRequirements.recommended_cast_size && `Recommended cast size: ${castRequirements.recommended_cast_size}`}
-                          {castRequirements.minimum_cast_size && ` (minimum: ${castRequirements.minimum_cast_size})`}
+                          {castReq.recommended_cast_size && `Recommended cast size: ${castReq.recommended_cast_size}`}
+                          {castReq.minimum_cast_size && ` (minimum: ${castReq.minimum_cast_size})`}
                         </span>
                       )}
                     </div>
-                    {castRequirements.notes && (
-                      <div className="prose text-secondary">{castRequirements.notes}</div>
+                    {castReq.notes && (
+                      <div className="prose text-secondary">{castReq.notes}</div>
                     )}
                   </div>
                 )}
-                {budgetEstimate?.content?.technical_complexity && (
+                {budget?.technical_complexity && (
                   <div>
                     <div className="type-label">Technical Complexity</div>
-                    <div className="prose text-secondary">{budgetEstimate.content.technical_complexity}</div>
+                    <div className="prose text-secondary">{budget.technical_complexity}</div>
                   </div>
                 )}
               </div>

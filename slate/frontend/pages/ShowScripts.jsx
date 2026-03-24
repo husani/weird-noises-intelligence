@@ -1,6 +1,6 @@
 /**
  * Show > Scripts / Book & Score — script version management with music files.
- * Shows processing status panel when a version is being analyzed.
+ * Shows processing status when a version is being analyzed.
  * Polls for updates during processing.
  */
 
@@ -10,16 +10,8 @@ import SelectArrow from '@shared/components/SelectArrow'
 import {
   listScripts, uploadScript, deleteScript, downloadScript,
   listMusic, uploadMusic, deleteMusic, downloadMusic,
-  getLookupValues, getShowData, reprocessScript,
+  getLookupValues, reprocessScript,
 } from '@slate/api'
-
-const ANALYSIS_GROUPS = [
-  { key: 'core', label: 'Core Analysis', types: ['character_breakdown', 'scene_breakdown', 'emotional_arc', 'runtime_estimate'] },
-  { key: 'production', label: 'Production Analysis', types: ['cast_requirements', 'budget_estimate', 'content_advisories'] },
-  { key: 'creative', label: 'Creative Positioning', types: ['logline_draft', 'summary_draft', 'comparables'] },
-]
-
-const MUSICAL_EXTRA_CORE_TYPES = ['song_list']
 
 export default function ShowScripts({ show, onUpdate }) {
   const [versions, setVersions] = useState([])
@@ -36,24 +28,11 @@ export default function ShowScripts({ show, onUpdate }) {
   const [musicFile, setMusicFile] = useState(null)
   const [musicUploading, setMusicUploading] = useState(false)
   const [error, setError] = useState(null)
-  const [completedTypes, setCompletedTypes] = useState({})
-  const [musicAnalysis, setMusicAnalysis] = useState({})
   const fileRef = useRef(null)
   const musicFileRef = useRef(null)
   const pollRef = useRef(null)
 
   const isMusical = show.medium?.value === 'musical'
-
-  // Build groups with musical song_list injected into core group
-  const analysisGroups = ANALYSIS_GROUPS.map(group => {
-    if (group.key === 'core' && isMusical) {
-      return { ...group, types: [...group.types.slice(0, 2), 'song_list', ...group.types.slice(2)] }
-    }
-    return group
-  })
-
-  // Flat list of all data type keys for progress counting
-  const allDataTypeKeys = analysisGroups.flatMap(g => g.types)
 
   const load = useCallback(async () => {
     try {
@@ -75,49 +54,12 @@ export default function ShowScripts({ show, onUpdate }) {
 
   useEffect(() => { load() }, [load])
 
-  // Load show data to check processing status
-  const loadShowData = useCallback(async () => {
-    try {
-      const res = await getShowData(show.id)
-      const allData = [
-        ...(res.script_data || []),
-        ...(res.music_data || []),
-        ...(res.visual_data || []),
-      ]
-
-      // Track which data types are complete per version
-      const typesByVersion = {}
-      const musicAnalysisMap = {}
-      allData.forEach(d => {
-        const vId = d.version_id || 'current'
-        if (!typesByVersion[vId]) typesByVersion[vId] = new Set()
-        typesByVersion[vId].add(d.data_type)
-
-        if (d.data_type === 'music_analysis' && d.source_id) {
-          musicAnalysisMap[d.source_id] = d.content
-        }
-      })
-
-      const completed = {}
-      Object.entries(typesByVersion).forEach(([vId, types]) => {
-        completed[vId] = Array.from(types)
-      })
-      setCompletedTypes(completed)
-      setMusicAnalysis(musicAnalysisMap)
-    } catch (err) {
-      // Ignore errors in polling
-    }
-  }, [show.id])
-
-  useEffect(() => { loadShowData() }, [loadShowData])
-
   // Poll when any version is processing
   useEffect(() => {
     const hasProcessing = versions.some(v => v.processing_status === 'processing')
     if (hasProcessing) {
       pollRef.current = setInterval(() => {
         load()
-        loadShowData()
       }, 4000)
     }
     return () => {
@@ -126,7 +68,7 @@ export default function ShowScripts({ show, onUpdate }) {
         pollRef.current = null
       }
     }
-  }, [versions, load, loadShowData])
+  }, [versions, load])
 
   async function loadMusic(versionId) {
     if (musicByVersion[versionId]) return
@@ -254,61 +196,23 @@ export default function ShowScripts({ show, onUpdate }) {
     failed: 'status-rose',
   }
 
-  function renderProcessingPanel(version) {
-    const vCompleted = completedTypes[version.id] || completedTypes['current'] || []
-    const completedCount = allDataTypeKeys.filter(key => vCompleted.includes(key)).length
-    const totalCount = allDataTypeKeys.length
-    const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
-
-    // Determine group statuses: complete (all types done), processing (first incomplete group), pending
-    let foundFirstIncomplete = false
-
+  function renderProcessingIndicator(version) {
     return (
       <div className="processing-panel">
         <div className="processing-panel-header">
           <span className="processing-panel-title">Script Analysis</span>
-          <span className="processing-panel-count">{completedCount} of {totalCount} complete</span>
+          <span className="status status-warm">
+            <span className="status-dot pulse" />
+            Processing
+          </span>
         </div>
         <div className="processing-panel-progress">
           <div className="progress-bar-track">
-            <div className="progress-bar-fill" style={{ width: `${progressPct}%` }} />
+            <div className="progress-bar-fill progress-bar-indeterminate" />
           </div>
         </div>
-        <div className="processing-steps">
-          {analysisGroups.map(group => {
-            const groupComplete = group.types.every(t => vCompleted.includes(t))
-            let groupStatus = 'pending'
-            if (groupComplete) {
-              groupStatus = 'complete'
-            } else if (!foundFirstIncomplete) {
-              groupStatus = 'processing'
-              foundFirstIncomplete = true
-            }
-
-            const statusClass = `processing-step-icon-${groupStatus}`
-
-            return (
-              <div key={group.key} className="processing-step">
-                <div className={`processing-step-icon ${statusClass}`}>
-                  {groupStatus === 'complete' && (
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="9" cy="9" r="7" />
-                      <path d="M6 9.5l2 2 4-4" />
-                    </svg>
-                  )}
-                  {groupStatus === 'processing' && (
-                    <div className="processing-step-spinner" />
-                  )}
-                  {groupStatus === 'pending' && (
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M6 9h6" />
-                    </svg>
-                  )}
-                </div>
-                <span className="processing-step-name">{group.label}</span>
-              </div>
-            )
-          })}
+        <div className="prose text-secondary">
+          Analyzing script for characters, scenes, emotional arc, casting requirements, and more. This page will update automatically when complete.
         </div>
       </div>
     )
@@ -364,10 +268,10 @@ export default function ShowScripts({ show, onUpdate }) {
                   <div className={`version-entry-content${isOpen ? '' : ' collapsed'}`}>
                     {v.change_notes && <div>{v.change_notes}</div>}
 
-                    {/* Processing panel */}
+                    {/* Processing indicator */}
                     {isVersionProcessing && (
                       <div className="slate-processing-wrapper">
-                        {renderProcessingPanel(v)}
+                        {renderProcessingIndicator(v)}
                       </div>
                     )}
 
@@ -401,28 +305,28 @@ export default function ShowScripts({ show, onUpdate }) {
                               <path d="M4 4l8 8M12 4l-8 8" />
                             </svg>
                           </div>
-                          {/* Music analysis inline */}
-                          {musicAnalysis[m.id] && (
+                          {/* Music analysis from fields on the music file record */}
+                          {(m.analysis_key || m.analysis_tempo || m.analysis_mood || m.analysis_function) && (
                             <div className="slate-music-analysis">
-                              {musicAnalysis[m.id].key && (
-                                <span className="type-meta">Key: {musicAnalysis[m.id].key}</span>
+                              {m.analysis_key && (
+                                <span className="type-meta">Key: {m.analysis_key}</span>
                               )}
-                              {musicAnalysis[m.id].tempo && (
+                              {m.analysis_tempo && (
                                 <span className="type-meta">
                                   <span className="slate-middot">&middot;</span>
-                                  Tempo: {musicAnalysis[m.id].tempo}
+                                  Tempo: {m.analysis_tempo}
                                 </span>
                               )}
-                              {musicAnalysis[m.id].mood && (
+                              {m.analysis_mood && (
                                 <span className="type-meta">
                                   <span className="slate-middot">&middot;</span>
-                                  Mood: {musicAnalysis[m.id].mood}
+                                  Mood: {m.analysis_mood}
                                 </span>
                               )}
-                              {musicAnalysis[m.id].function && (
+                              {m.analysis_function && (
                                 <span className="type-meta">
                                   <span className="slate-middot">&middot;</span>
-                                  {musicAnalysis[m.id].function}
+                                  {m.analysis_function}
                                 </span>
                               )}
                             </div>

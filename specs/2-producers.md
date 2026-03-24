@@ -185,15 +185,64 @@ AI discovery is a scheduled background job. Runs weekly by default — cadence c
 
 ## Intake
 
-Three paths, all first-class, all feeding the same research pipeline.
-
-**Duplicate detection.** Before any new record is created, the system checks for duplicates. Exact email match catches definitive duplicates. Fuzzy name matching catches near-misses. Name + organization is the strongest non-email signal — "Sarah Chen" being added when "S. Chen" at Level Forward already exists is almost certainly a duplicate. Duplicate candidates surface live as the name field is filled in — not on submit, where it feels like a rejection. The system shows candidates with match reasoning and the team confirms or creates a new record. For spreadsheet import, duplicates are flagged during the preview step.
-
-**Manual add.** The team enters a name and whatever they know — org affiliation, email, how they encountered the person, notes. The record is created immediately. AI research runs async.
+**Manual add.** The team enters a name and whatever they know — org affiliation, email, how they encountered the person, notes. Duplicate candidates surface live as the name field is filled in. The system shows candidates with match reasoning and the team confirms or creates a new record. On confirm, the record is created immediately and AI research runs async.
 
 **URL submission.** The team pastes a URL (Playbill article, BroadwayWorld page, company website, LinkedIn profile). The AI extracts the producer's identity from the page, checks for duplicates, creates the record, and runs the full research pipeline. Part of the manual add flow — not a separate page.
 
-**Spreadsheet import.** Upload a spreadsheet with existing producer data. The system maps columns (name, email, org, notes — whatever exists). Preview before import, with duplicate candidates flagged. On confirm, records are created for each row and AI research kicks off for all of them asynchronously. Import progress is visible — how many processed, how many still researching.
+## Import
+
+Bulk intake pipeline. Accepts any input, uses AI to parse it into structured data, uses AI with full MCP and web search to deduplicate against the existing database, and gives the user control over what gets created and what gets merged.
+
+### Input
+
+The import page has a single intake zone. Three input methods, all feeding the same pipeline:
+
+- **File upload** — CSV, XLSX, TSV, any tabular format.
+- **Google Sheet URL** — paste a sharing link. The system fetches the sheet contents via the Google Sheets API using the user's OAuth token.
+- **Pasted text** — names from a conference program, a forwarded email, a copied table, a Slack thread. Any format.
+
+### Parse
+
+The raw input goes to an LLM for structured extraction. The LLM reads whatever it was given and pulls out producer records — each with whatever fields it can identify: name, email, phone, organization, role, location, website, notes. Uses structured output (response schema) for clean typed data. Synchronous, with a loading state in the UI.
+
+### Dedup
+
+The parsed rows go to a second LLM call with full MCP access and web search. The LLM can search the producer database, pull full records, check org affiliations, look at production history, and search the web to resolve ambiguity. It decides what tools it needs based on what it finds — some rows are trivial, others require real investigation.
+
+For each parsed row, the LLM returns a verdict: **clean** (no match in the database), **match** (this is an existing producer, with who and why), or **possible match** (ambiguous, with the candidate and reasoning).
+
+### Review
+
+The user sees every parsed row with its dedup status:
+
+- **Clean rows** — ready to create. Checked by default.
+- **Matched rows** — flagged with the existing producer and the LLM's reasoning. Per-row action: **skip**, **merge**, or **create anyway**.
+- **Possible matches** — same options, no pre-selected action. The user decides.
+
+### Merge
+
+When the user merges an import row into an existing producer:
+
+- **Scalar fields** (phone, city, state_region, country, website) — fill empty fields on the existing record. If both have different values, the user picks.
+- **Emails** — add the import email if it doesn't already exist on the producer.
+- **Organizations** — add the association if the producer isn't already affiliated. If the association exists but the role differs, surface the conflict.
+- **Tags** — add any the producer doesn't already have.
+- **Notes** — create an Interaction record attributed to the importing user.
+
+Existing data is never overwritten without the user explicitly choosing the import value.
+
+### Confirm
+
+The user confirms the batch. Clean rows are created, merge rows are merged. Created records get `intake_source: "import"`.
+
+### AI Behaviors
+
+Two entries in the `ai_behaviors` table:
+
+- **`import_parse`** — extracts structured producer data from raw input. Structured output. Fast/cheap model.
+- **`import_dedup`** — reasons about matches between parsed rows and existing producers. MCP access and web search. Capable model.
+
+Both configurable at runtime via the AI Configuration page.
 
 ## Interaction Logging
 
@@ -371,7 +420,7 @@ Entity nav links: Overview, Intel, Shows & Productions, Organizations, Interacti
 
 **Add producer.** A form with two paths that converge. Enter a name and whatever you know (org, email, notes, tags), or paste a URL and let the AI extract identity. Duplicate candidates surface live as the name is typed. On submit, the record exists immediately and research runs async.
 
-**Spreadsheet import.** Upload flow: choose CSV file, preview with duplicate candidates flagged, confirm. Progress view showing research status for each imported record.
+**Import.** Bulk intake page. Single intake zone accepts file uploads (CSV, XLSX, TSV), Google Sheet URLs, or pasted text. AI parses input into structured rows, then AI-powered dedup with MCP and web search reviews each row against the existing database. Review table shows parsed data with dedup verdicts — clean, match, or possible match. Per-row actions: create, skip, or merge into existing. Merge surfaces field-level conflicts for user resolution.
 
 **AI discovery queue.** Two tabs: Review Queue (pending candidates with expandable cards, inline editing, email selection, dedup warnings) and Scan History (past scans with stats). Actions: confirm (adds to database, triggers research) or dismiss with reason.
 

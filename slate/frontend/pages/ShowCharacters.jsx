@@ -6,11 +6,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { ActionMenu, Modal } from '@shared/components'
-import { getShowDataByType, updateShowData, getShowData } from '@slate/api'
+import { listCharacters, createCharacter, updateCharacter, deleteCharacter } from '@slate/api'
 
 export default function ShowCharacters({ show }) {
   const [characters, setCharacters] = useState(null)
-  const [dataRecord, setDataRecord] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editModal, setEditModal] = useState(null)
   const [editForm, setEditForm] = useState({})
@@ -21,18 +20,11 @@ export default function ShowCharacters({ show }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await getShowDataByType(show.id, 'character_breakdown')
-      if (res && res.content) {
-        setDataRecord(res)
-        setCharacters(res.content.characters || res.content.items || [])
-      } else {
-        setCharacters(null)
-        setDataRecord(null)
-      }
+      const res = await listCharacters(show.id)
+      setCharacters(res.characters || [])
     } catch (err) {
       // 404 means no data yet
       setCharacters(null)
-      setDataRecord(null)
     } finally {
       setLoading(false)
     }
@@ -40,9 +32,9 @@ export default function ShowCharacters({ show }) {
 
   useEffect(() => { load() }, [load])
 
-  function openEditModal(character, index) {
+  function openEditModal(character) {
     setEditForm({
-      index,
+      id: character.id,
       name: character.name || '',
       description: character.description || '',
       age_range: character.age_range || '',
@@ -58,7 +50,7 @@ export default function ShowCharacters({ show }) {
 
   function openAddModal() {
     setEditForm({
-      index: -1,
+      id: null,
       name: '',
       description: '',
       age_range: '',
@@ -77,27 +69,24 @@ export default function ShowCharacters({ show }) {
     if (!editForm.name.trim()) return
     setSaving(true)
     try {
-      const updated = [...(characters || [])]
       const charData = {
         name: editForm.name.trim(),
         description: editForm.description.trim(),
         age_range: editForm.age_range.trim(),
         gender: editForm.gender.trim(),
-        line_count: editForm.line_count ? parseInt(editForm.line_count, 10) || editForm.line_count : '',
+        line_count: editForm.line_count ? parseInt(editForm.line_count, 10) || null : null,
         vocal_range: editForm.vocal_range.trim(),
-        song_count: editForm.song_count ? parseInt(editForm.song_count, 10) || editForm.song_count : '',
+        song_count: editForm.song_count ? parseInt(editForm.song_count, 10) || null : null,
         dance_requirements: editForm.dance_requirements.trim(),
         notes: editForm.notes.trim(),
       }
 
-      if (editForm.index >= 0) {
-        updated[editForm.index] = { ...updated[editForm.index], ...charData }
+      if (editForm.id) {
+        await updateCharacter(show.id, editForm.id, charData)
       } else {
-        updated.push(charData)
+        await createCharacter(show.id, charData)
       }
 
-      const content = { ...(dataRecord?.content || {}), characters: updated }
-      await updateShowData(show.id, dataRecord.id, { content })
       setEditModal(false)
       setAddModal(false)
       load()
@@ -108,13 +97,10 @@ export default function ShowCharacters({ show }) {
     }
   }
 
-  async function handleDeleteCharacter(index) {
+  async function handleDeleteCharacter(charId) {
     if (!confirm('Remove this character from the breakdown?')) return
     try {
-      const updated = [...characters]
-      updated.splice(index, 1)
-      const content = { ...(dataRecord?.content || {}), characters: updated }
-      await updateShowData(show.id, dataRecord.id, { content })
+      await deleteCharacter(show.id, charId)
       load()
     } catch (err) {
       console.error('Failed to delete character:', err)
@@ -155,7 +141,7 @@ export default function ShowCharacters({ show }) {
           </div>
         </div>
         <div className="slate-character-list">
-          {characters.map((char, i) => {
+          {characters.map(char => {
             const metaParts = []
             if (char.age_range) metaParts.push(char.age_range)
             if (char.gender) metaParts.push(char.gender)
@@ -165,21 +151,21 @@ export default function ShowCharacters({ show }) {
             if (isMusical && char.dance_requirements) metaParts.push(char.dance_requirements)
 
             return (
-              <div key={i} className="slate-character-block">
+              <div key={char.id} className="slate-character-block">
                 <div className="slate-character-header">
                   <h3 className="type-display-2">{char.name}</h3>
                   <ActionMenu items={[
                     {
                       label: 'Edit',
                       icon: 'M13.5 3.5l3 3L5.5 17.5H2.5v-3L13.5 3.5z',
-                      onClick: () => openEditModal(char, i),
+                      onClick: () => openEditModal(char),
                     },
                     { divider: true },
                     {
                       label: 'Remove',
                       icon: 'M2 4h11M5 4V2.5h5V4M3.5 4v9a1.5 1.5 0 001.5 1.5h5a1.5 1.5 0 001.5-1.5V4',
                       destructive: true,
-                      onClick: () => handleDeleteCharacter(i),
+                      onClick: () => handleDeleteCharacter(char.id),
                     },
                   ]} />
                 </div>

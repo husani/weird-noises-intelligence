@@ -153,36 +153,165 @@ export function downloadVisualAsset(showId, assetId) {
   return request(`/shows/${showId}/visual/${assetId}/download`)
 }
 
-// Show data
-export function getShowData(showId, params = {}) {
-  const qs = new URLSearchParams()
-  if (params.version_id) qs.set('version_id', params.version_id)
-  return request(`/shows/${showId}/data?${qs}`)
+// Characters
+export function listCharacters(showId) {
+  return request(`/shows/${showId}/characters`)
 }
 
-export function getShowDataByType(showId, dataType) {
-  return request(`/shows/${showId}/data/${dataType}`)
+export function createCharacter(showId, data) {
+  return request(`/shows/${showId}/characters`, { method: 'POST', body: JSON.stringify(data) })
 }
 
-export function createShowData(showId, data) {
-  return request(`/shows/${showId}/data`, { method: 'POST', body: JSON.stringify(data) })
+export function updateCharacter(showId, charId, data) {
+  return request(`/shows/${showId}/characters/${charId}`, { method: 'PUT', body: JSON.stringify(data) })
 }
 
-export function updateShowData(showId, dataId, data) {
-  return request(`/shows/${showId}/data/${dataId}`, { method: 'PUT', body: JSON.stringify(data) })
+export function deleteCharacter(showId, charId) {
+  return request(`/shows/${showId}/characters/${charId}`, { method: 'DELETE' })
 }
 
-export function deleteShowData(showId, dataId) {
-  return request(`/shows/${showId}/data/${dataId}`, { method: 'DELETE' })
+// Scenes
+export function listScenes(showId) {
+  return request(`/shows/${showId}/scenes`)
+}
+
+export function createScene(showId, data) {
+  return request(`/shows/${showId}/scenes`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updateScene(showId, sceneId, data) {
+  return request(`/shows/${showId}/scenes/${sceneId}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function deleteScene(showId, sceneId) {
+  return request(`/shows/${showId}/scenes/${sceneId}`, { method: 'DELETE' })
+}
+
+// Songs
+export function listSongs(showId) {
+  return request(`/shows/${showId}/songs`)
+}
+
+export function createSong(showId, data) {
+  return request(`/shows/${showId}/songs`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updateSong(showId, songId, data) {
+  return request(`/shows/${showId}/songs/${songId}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function deleteSong(showId, songId) {
+  return request(`/shows/${showId}/songs/${songId}`, { method: 'DELETE' })
+}
+
+// Emotional Arc
+export function listArcPoints(showId) {
+  return request(`/shows/${showId}/arc`)
+}
+
+export function replaceArcPoints(showId, points) {
+  return request(`/shows/${showId}/arc`, { method: 'PUT', body: JSON.stringify({ points }) })
+}
+
+// Runtime Estimate
+export function getRuntimeEstimate(showId) {
+  return request(`/shows/${showId}/runtime`)
+}
+
+export function updateRuntimeEstimate(showId, data) {
+  return request(`/shows/${showId}/runtime`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+// Cast Requirements
+export function getCastRequirements(showId) {
+  return request(`/shows/${showId}/cast-requirements`)
+}
+
+export function updateCastRequirements(showId, data) {
+  return request(`/shows/${showId}/cast-requirements`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+// Budget Estimate
+export function getBudgetEstimate(showId) {
+  return request(`/shows/${showId}/budget`)
+}
+
+export function updateBudgetEstimate(showId, data) {
+  return request(`/shows/${showId}/budget`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+// Comparables
+export function listComparables(showId) {
+  return request(`/shows/${showId}/comparables`)
+}
+
+export function createComparable(showId, data) {
+  return request(`/shows/${showId}/comparables`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updateComparable(showId, compId, data) {
+  return request(`/shows/${showId}/comparables/${compId}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function deleteComparable(showId, compId) {
+  return request(`/shows/${showId}/comparables/${compId}`, { method: 'DELETE' })
+}
+
+// Content Advisories
+export function listAdvisories(showId) {
+  return request(`/shows/${showId}/advisories`)
+}
+
+export function createAdvisory(showId, data) {
+  return request(`/shows/${showId}/advisories`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updateAdvisory(showId, advId, data) {
+  return request(`/shows/${showId}/advisories/${advId}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function deleteAdvisory(showId, advId) {
+  return request(`/shows/${showId}/advisories/${advId}`, { method: 'DELETE' })
+}
+
+// Logline Drafts
+export function listLoglineDrafts(showId) {
+  return request(`/shows/${showId}/logline-drafts`)
+}
+
+export function createLoglineDraft(showId, data) {
+  return request(`/shows/${showId}/logline-drafts`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function deleteLoglineDraft(showId, draftId) {
+  return request(`/shows/${showId}/logline-drafts/${draftId}`, { method: 'DELETE' })
+}
+
+// Summary Drafts
+export function listSummaryDrafts(showId) {
+  return request(`/shows/${showId}/summary-drafts`)
+}
+
+export function createSummaryDraft(showId, data) {
+  return request(`/shows/${showId}/summary-drafts`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function deleteSummaryDraft(showId, draftId) {
+  return request(`/shows/${showId}/summary-drafts/${draftId}`, { method: 'DELETE' })
+}
+
+// Version Diffs
+export function listVersionDiffs(showId) {
+  return request(`/shows/${showId}/version-diffs`)
+}
+
+export function getVersionDiff(showId, diffId) {
+  return request(`/shows/${showId}/version-diffs/${diffId}`)
 }
 
 // Reprocessing
 export function reprocessScript(showId, versionId) {
   return request(`/shows/${showId}/scripts/${versionId}/reprocess`, { method: 'POST' })
-}
-
-export function reprocessDataType(showId, versionId, dataType) {
-  return request(`/shows/${showId}/scripts/${versionId}/reprocess/${dataType}`, { method: 'POST' })
 }
 
 // Model options

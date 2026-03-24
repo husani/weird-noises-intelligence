@@ -9,13 +9,23 @@ from fastmcp import FastMCP
 from sqlalchemy.orm import joinedload
 
 from slate.backend.models import (
+    BudgetEstimate,
+    CastRequirements,
+    Character,
+    Comparable,
+    ContentAdvisory,
     DevelopmentMilestone,
+    LoglineDraft,
     MusicFile,
     Pitch,
+    RuntimeEstimate,
+    Scene,
     ScriptVersion,
     Show,
-    ShowData,
     SlateLookupValue,
+    Song,
+    SummaryDraft,
+    VersionDiff,
     VisualAsset,
 )
 
@@ -42,13 +52,14 @@ class SlateInterface:
         @mcp_server.tool
         def slate_get_show(show_id: int) -> dict:
             """Full show profile: identity, development stage, current script version,
-            milestones, visual identity assets, and all show data for the current version."""
+            milestones, visual identity assets, characters, scenes, songs, runtime,
+            cast requirements, budget estimate, comparables, and content advisories."""
             return self.get_show(show_id)
 
         @mcp_server.tool
         def slate_get_script(version_id: int) -> dict:
             """Script version details including file path, change notes,
-            music files, and show data derived from this version."""
+            and music files."""
             return self.get_script(version_id)
 
         @mcp_server.tool
@@ -58,13 +69,13 @@ class SlateInterface:
             return self.get_show_summary(show_id)
 
         @mcp_server.tool
-        def slate_get_characters(show_id: int) -> dict | None:
-            """Character breakdown for a show's current script version."""
+        def slate_get_characters(show_id: int) -> list[dict] | None:
+            """Character breakdown for a show."""
             return self.get_characters(show_id)
 
         @mcp_server.tool
-        def slate_get_structure(show_id: int) -> dict | None:
-            """Scene breakdown for a show's current script version."""
+        def slate_get_structure(show_id: int) -> list[dict] | None:
+            """Scene breakdown for a show."""
             return self.get_structure(show_id)
 
         @mcp_server.tool
@@ -75,8 +86,8 @@ class SlateInterface:
 
         @mcp_server.tool
         def slate_get_budget_estimate(show_id: int) -> dict | None:
-            """Budget estimate for a show's current script version, including
-            estimated range, cost factors, cast size impact, and technical complexity."""
+            """Budget estimate for a show, including estimated range, cost factors,
+            cast size impact, and technical complexity."""
             return self.get_budget_estimate(show_id)
 
     # --- Business logic methods ---
@@ -139,6 +150,14 @@ class SlateInterface:
                     joinedload(Show.script_versions),
                     joinedload(Show.milestones).joinedload(DevelopmentMilestone.milestone_type),
                     joinedload(Show.visual_assets).joinedload(VisualAsset.asset_type),
+                    joinedload(Show.characters),
+                    joinedload(Show.scenes),
+                    joinedload(Show.songs),
+                    joinedload(Show.arc_points),
+                    joinedload(Show.comparables),
+                    joinedload(Show.content_advisories),
+                    joinedload(Show.logline_drafts),
+                    joinedload(Show.summary_drafts),
                 )
                 .filter(Show.id == show_id)
                 .first()
@@ -148,18 +167,32 @@ class SlateInterface:
 
             current_version = show.script_versions[0] if show.script_versions else None
 
-            # Get show data for current version
-            show_data = []
-            if current_version:
-                show_data = (
-                    session.query(ShowData)
-                    .filter(
-                        ShowData.show_id == show_id,
-                        ShowData.source_type == "script_version",
-                        ShowData.source_id == current_version.id,
-                    )
-                    .all()
-                )
+            # One-to-one relationships (not eager-loaded via joinedload above
+            # because uselist=False + joinedload on the query works, but let's
+            # query explicitly for clarity)
+            runtime = (
+                session.query(RuntimeEstimate)
+                .filter(RuntimeEstimate.show_id == show_id)
+                .first()
+            )
+            cast_req = (
+                session.query(CastRequirements)
+                .filter(CastRequirements.show_id == show_id)
+                .first()
+            )
+            budget = (
+                session.query(BudgetEstimate)
+                .filter(BudgetEstimate.show_id == show_id)
+                .first()
+            )
+
+            # Version diffs
+            version_diffs = (
+                session.query(VersionDiff)
+                .filter(VersionDiff.show_id == show_id)
+                .order_by(VersionDiff.created_at.desc())
+                .all()
+            )
 
             return {
                 "id": show.id,
@@ -168,6 +201,7 @@ class SlateInterface:
                 "genre": show.genre,
                 "logline": show.logline,
                 "summary": show.summary,
+                "emotional_arc_summary": show.emotional_arc_summary,
                 "rights_status": self._lookup_dict(show.rights_status),
                 "development_stage": self._lookup_dict(show.development_stage),
                 "created_at": show.created_at.isoformat(),
@@ -196,15 +230,132 @@ class SlateInterface:
                     }
                     for a in show.visual_assets
                 ],
-                "show_data": [
+                "characters": [
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "description": c.description,
+                        "age_range": c.age_range,
+                        "gender": c.gender,
+                        "line_count": c.line_count,
+                        "vocal_range": c.vocal_range,
+                        "song_count": c.song_count,
+                        "dance_requirements": c.dance_requirements,
+                        "notes": c.notes,
+                        "sort_order": c.sort_order,
+                    }
+                    for c in show.characters
+                ],
+                "scenes": [
+                    {
+                        "id": s.id,
+                        "act_number": s.act_number,
+                        "scene_number": s.scene_number,
+                        "title": s.title,
+                        "location": s.location,
+                        "int_ext": s.int_ext,
+                        "time_of_day": s.time_of_day,
+                        "characters_present": s.characters_present,
+                        "description": s.description,
+                        "estimated_minutes": s.estimated_minutes,
+                        "sort_order": s.sort_order,
+                    }
+                    for s in show.scenes
+                ],
+                "songs": [
+                    {
+                        "id": sg.id,
+                        "title": sg.title,
+                        "act": sg.act,
+                        "scene": sg.scene,
+                        "characters": sg.characters,
+                        "song_type": sg.song_type,
+                        "description": sg.description,
+                        "sort_order": sg.sort_order,
+                    }
+                    for sg in show.songs
+                ],
+                "arc_points": [
+                    {
+                        "id": p.id,
+                        "position": p.position,
+                        "intensity": p.intensity,
+                        "label": p.label,
+                        "tone": p.tone,
+                        "sort_order": p.sort_order,
+                    }
+                    for p in show.arc_points
+                ],
+                "runtime_estimate": {
+                    "id": runtime.id,
+                    "total_minutes": runtime.total_minutes,
+                    "act_breakdown": runtime.act_breakdown,
+                    "notes": runtime.notes,
+                } if runtime else None,
+                "cast_requirements": {
+                    "id": cast_req.id,
+                    "minimum_cast_size": cast_req.minimum_cast_size,
+                    "recommended_cast_size": cast_req.recommended_cast_size,
+                    "doubling_possibilities": cast_req.doubling_possibilities,
+                    "musicians": cast_req.musicians,
+                    "musician_instruments": cast_req.musician_instruments,
+                    "locations_count": cast_req.locations_count,
+                    "notes": cast_req.notes,
+                } if cast_req else None,
+                "budget_estimate": {
+                    "id": budget.id,
+                    "estimated_range": budget.estimated_range,
+                    "factors": budget.factors,
+                    "cast_size_impact": budget.cast_size_impact,
+                    "technical_complexity": budget.technical_complexity,
+                    "location_complexity": budget.location_complexity,
+                    "post_production_notes": budget.post_production_notes,
+                    "notes": budget.notes,
+                } if budget else None,
+                "comparables": [
+                    {
+                        "id": c.id,
+                        "title": c.title,
+                        "relationship_type": c.relationship_type,
+                        "reasoning": c.reasoning,
+                    }
+                    for c in show.comparables
+                ],
+                "content_advisories": [
+                    {
+                        "id": a.id,
+                        "category": a.category,
+                        "description": a.description,
+                        "severity": a.severity,
+                    }
+                    for a in show.content_advisories
+                ],
+                "logline_drafts": [
                     {
                         "id": d.id,
-                        "data_type": d.data_type,
-                        "content": d.content,
-                        "generated_at": d.generated_at.isoformat() if d.generated_at else None,
-                        "model_used": d.model_used,
+                        "text": d.text,
+                        "tone": d.tone,
+                        "created_at": d.created_at.isoformat(),
                     }
-                    for d in show_data
+                    for d in show.logline_drafts
+                ],
+                "summary_drafts": [
+                    {
+                        "id": d.id,
+                        "summary_text": d.summary_text,
+                        "created_at": d.created_at.isoformat(),
+                    }
+                    for d in show.summary_drafts
+                ],
+                "version_diffs": [
+                    {
+                        "id": d.id,
+                        "current_version_id": d.current_version_id,
+                        "previous_version_id": d.previous_version_id,
+                        "summary": d.summary,
+                        "created_at": d.created_at.isoformat(),
+                    }
+                    for d in version_diffs
                 ],
             }
 
@@ -234,15 +385,6 @@ class SlateInterface:
             if not version:
                 return None
 
-            show_data = (
-                session.query(ShowData)
-                .filter(
-                    ShowData.source_type == "script_version",
-                    ShowData.source_id == version_id,
-                )
-                .all()
-            )
-
             return {
                 "id": version.id,
                 "show_id": version.show_id,
@@ -265,16 +407,6 @@ class SlateInterface:
                     }
                     for m in version.music_files
                 ],
-                "show_data": [
-                    {
-                        "id": d.id,
-                        "data_type": d.data_type,
-                        "content": d.content,
-                        "generated_at": d.generated_at.isoformat() if d.generated_at else None,
-                        "model_used": d.model_used,
-                    }
-                    for d in show_data
-                ],
             }
 
     def get_show_summary(self, show_id):
@@ -284,33 +416,13 @@ class SlateInterface:
                 .options(
                     joinedload(Show.medium),
                     joinedload(Show.development_stage),
+                    joinedload(Show.comparables),
                 )
                 .filter(Show.id == show_id)
                 .first()
             )
             if not show:
                 return None
-
-            # Get comparables from show data if they exist
-            current_version = (
-                session.query(ScriptVersion)
-                .filter(ScriptVersion.show_id == show_id)
-                .order_by(ScriptVersion.created_at.desc())
-                .first()
-            )
-            comparables = None
-            if current_version:
-                comp_data = (
-                    session.query(ShowData)
-                    .filter(
-                        ShowData.source_type == "script_version",
-                        ShowData.source_id == current_version.id,
-                        ShowData.data_type == "comparables",
-                    )
-                    .first()
-                )
-                if comp_data:
-                    comparables = comp_data.content
 
             return {
                 "id": show.id,
@@ -319,54 +431,66 @@ class SlateInterface:
                 "logline": show.logline,
                 "summary": show.summary,
                 "development_stage": self._lookup_dict(show.development_stage),
-                "comparables": comparables,
+                "comparables": [
+                    {
+                        "id": c.id,
+                        "title": c.title,
+                        "relationship_type": c.relationship_type,
+                        "reasoning": c.reasoning,
+                    }
+                    for c in show.comparables
+                ],
             }
 
     def get_characters(self, show_id):
         with self._session_factory() as session:
-            # Find current version
-            version = (
-                session.query(ScriptVersion)
-                .filter(ScriptVersion.show_id == show_id)
-                .order_by(ScriptVersion.created_at.desc())
-                .first()
+            chars = (
+                session.query(Character)
+                .filter(Character.show_id == show_id)
+                .order_by(Character.sort_order)
+                .all()
             )
-            if not version:
+            if not chars:
                 return None
-            data = (
-                session.query(ShowData)
-                .filter(
-                    ShowData.show_id == show_id,
-                    ShowData.source_type == "script_version",
-                    ShowData.source_id == version.id,
-                    ShowData.data_type == "character_breakdown",
-                )
-                .first()
-            )
-            return data.content if data else None
+            return [
+                {
+                    "name": c.name,
+                    "description": c.description,
+                    "age_range": c.age_range,
+                    "gender": c.gender,
+                    "line_count": c.line_count,
+                    "vocal_range": c.vocal_range,
+                    "song_count": c.song_count,
+                    "dance_requirements": c.dance_requirements,
+                    "notes": c.notes,
+                }
+                for c in chars
+            ]
 
     def get_structure(self, show_id):
         with self._session_factory() as session:
-            # Find current version
-            version = (
-                session.query(ScriptVersion)
-                .filter(ScriptVersion.show_id == show_id)
-                .order_by(ScriptVersion.created_at.desc())
-                .first()
+            scenes = (
+                session.query(Scene)
+                .filter(Scene.show_id == show_id)
+                .order_by(Scene.sort_order)
+                .all()
             )
-            if not version:
+            if not scenes:
                 return None
-            data = (
-                session.query(ShowData)
-                .filter(
-                    ShowData.show_id == show_id,
-                    ShowData.source_type == "script_version",
-                    ShowData.source_id == version.id,
-                    ShowData.data_type == "scene_breakdown",
-                )
-                .first()
-            )
-            return data.content if data else None
+            return [
+                {
+                    "act_number": s.act_number,
+                    "scene_number": s.scene_number,
+                    "title": s.title,
+                    "location": s.location,
+                    "int_ext": s.int_ext,
+                    "time_of_day": s.time_of_day,
+                    "characters_present": s.characters_present,
+                    "description": s.description,
+                    "estimated_minutes": s.estimated_minutes,
+                }
+                for s in scenes
+            ]
 
     def get_pitch(self, show_id, audience_type="general"):
         with self._session_factory() as session:
@@ -402,23 +526,19 @@ class SlateInterface:
 
     def get_budget_estimate(self, show_id):
         with self._session_factory() as session:
-            # Find current version
-            version = (
-                session.query(ScriptVersion)
-                .filter(ScriptVersion.show_id == show_id)
-                .order_by(ScriptVersion.created_at.desc())
+            est = (
+                session.query(BudgetEstimate)
+                .filter(BudgetEstimate.show_id == show_id)
                 .first()
             )
-            if not version:
+            if not est:
                 return None
-            data = (
-                session.query(ShowData)
-                .filter(
-                    ShowData.show_id == show_id,
-                    ShowData.source_type == "script_version",
-                    ShowData.source_id == version.id,
-                    ShowData.data_type == "budget_estimate",
-                )
-                .first()
-            )
-            return data.content if data else None
+            return {
+                "estimated_range": est.estimated_range,
+                "factors": est.factors,
+                "cast_size_impact": est.cast_size_impact,
+                "technical_complexity": est.technical_complexity,
+                "location_complexity": est.location_complexity,
+                "post_production_notes": est.post_production_notes,
+                "notes": est.notes,
+            }

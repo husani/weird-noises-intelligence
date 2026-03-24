@@ -1,12 +1,12 @@
 /**
  * Show > Visual Identity — asset gallery with upload, download, delete, set primary.
- * Shows visual analysis alongside assets when available.
+ * Visual analysis fields are on the asset record itself (no separate ShowData blob).
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Modal from '@shared/components/Modal'
 import SelectArrow from '@shared/components/SelectArrow'
-import { listVisualAssets, uploadVisualAsset, updateVisualAsset, deleteVisualAsset, downloadVisualAsset, getLookupValues, getShowData } from '@slate/api'
+import { listVisualAssets, uploadVisualAsset, updateVisualAsset, deleteVisualAsset, downloadVisualAsset, getLookupValues } from '@slate/api'
 
 export default function ShowVisual({ show, onUpdate }) {
   const [assets, setAssets] = useState([])
@@ -17,7 +17,6 @@ export default function ShowVisual({ show, onUpdate }) {
   const [uploadForm, setUploadForm] = useState({ label: '', asset_type_id: '', version: '' })
   const [uploadFile, setUploadFile] = useState(null)
   const [error, setError] = useState(null)
-  const [visualAnalysis, setVisualAnalysis] = useState({})
   const fileRef = useRef(null)
 
   const load = useCallback(async () => {
@@ -35,28 +34,7 @@ export default function ShowVisual({ show, onUpdate }) {
     }
   }, [show.id])
 
-  const loadAnalysis = useCallback(async () => {
-    try {
-      const res = await getShowData(show.id)
-      const allData = [
-        ...(res.script_data || []),
-        ...(res.music_data || []),
-        ...(res.visual_data || []),
-      ]
-      const analysisMap = {}
-      allData.forEach(d => {
-        if (d.data_type === 'visual_analysis' && d.source_type === 'visual_asset' && d.source_id) {
-          analysisMap[d.source_id] = d.content
-        }
-      })
-      setVisualAnalysis(analysisMap)
-    } catch (err) {
-      // Ignore errors loading analysis
-    }
-  }, [show.id])
-
   useEffect(() => { load() }, [load])
-  useEffect(() => { loadAnalysis() }, [loadAnalysis])
 
   function openUploadModal() {
     setUploadForm({ label: '', asset_type_id: '', version: '' })
@@ -81,7 +59,6 @@ export default function ShowVisual({ show, onUpdate }) {
       setUploadFile(null)
       setUploadForm({ label: '', asset_type_id: '', version: '' })
       load()
-      loadAnalysis()
       onUpdate()
     } catch (err) {
       setError(err.message)
@@ -154,7 +131,6 @@ export default function ShowVisual({ show, onUpdate }) {
         ) : (
           <div className="asset-gallery">
             {assets.map(a => {
-              const analysis = visualAnalysis[a.id]
               const isAssetProcessing = a.processing_status === 'processing'
 
               return (
@@ -193,39 +169,40 @@ export default function ShowVisual({ show, onUpdate }) {
                     </div>
                     <div className="asset-card-type">{a.asset_type?.display_label || 'Asset'}</div>
                   </div>
-                  {analysis && (
+                  {/* Analysis fields live directly on the asset record */}
+                  {(a.analysis_mood || a.analysis_tone || a.analysis_visual_themes || a.analysis_color_palette || a.analysis_communicates) && (
                     <div className="slate-visual-analysis">
-                      {analysis.mood && (
+                      {a.analysis_mood && (
                         <div className="slate-visual-analysis-row">
                           <span className="type-label">Mood</span>
-                          <span className="text-secondary">{analysis.mood}</span>
+                          <span className="text-secondary">{a.analysis_mood}</span>
                         </div>
                       )}
-                      {analysis.tone && (
+                      {a.analysis_tone && (
                         <div className="slate-visual-analysis-row">
                           <span className="type-label">Tone</span>
-                          <span className="text-secondary">{analysis.tone}</span>
+                          <span className="text-secondary">{a.analysis_tone}</span>
                         </div>
                       )}
-                      {analysis.visual_themes && (
+                      {a.analysis_visual_themes && (
                         <div className="slate-visual-analysis-row">
                           <span className="type-label">Themes</span>
                           <span className="text-secondary">
-                            {Array.isArray(analysis.visual_themes) ? analysis.visual_themes.join(', ') : analysis.visual_themes}
+                            {Array.isArray(a.analysis_visual_themes) ? a.analysis_visual_themes.join(', ') : a.analysis_visual_themes}
                           </span>
                         </div>
                       )}
-                      {analysis.color_palette && (
+                      {a.analysis_color_palette && (
                         <div className="slate-visual-analysis-row">
                           <span className="type-label">Palette</span>
                           <span className="text-secondary">
-                            {Array.isArray(analysis.color_palette) ? analysis.color_palette.join(', ') : analysis.color_palette}
+                            {Array.isArray(a.analysis_color_palette) ? a.analysis_color_palette.join(', ') : a.analysis_color_palette}
                           </span>
                         </div>
                       )}
-                      {analysis.communicates && (
+                      {a.analysis_communicates && (
                         <div className="slate-visual-analysis-comm">
-                          <div className="prose text-secondary">{analysis.communicates}</div>
+                          <div className="prose text-secondary">{a.analysis_communicates}</div>
                         </div>
                       )}
                     </div>

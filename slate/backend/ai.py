@@ -4,9 +4,13 @@ AI pipeline for Slate.
 Handles script analysis, music analysis, visual asset analysis.
 All LLM calls go through call_llm, which reads behavior config
 from the slate_ai_behaviors table.
+
+Script analysis populates domain tables (SlateCharacter, SlateScene,
+SlateSong, etc.) instead of the old SlateShowData JSONB blob.
+Music and visual analysis write fields directly to their respective
+file/asset records.
 """
 
-import asyncio
 import base64
 import json
 import logging
@@ -18,13 +22,24 @@ from pydantic import BaseModel
 
 from slate.backend.models import (
     SlateAIBehavior,
+    SlateArcPoint,
+    SlateBudgetEstimate,
+    SlateCastRequirements,
+    SlateCharacter,
+    SlateComparable,
+    SlateContentAdvisory,
+    SlateLoglineDraft,
     SlateLookupValue,
     SlateMilestone,
     SlateMusicFile,
     SlatePitch,
+    SlateRuntimeEstimate,
+    SlateScene,
     SlateScriptVersion,
     SlateShow,
-    SlateShowData,
+    SlateSong,
+    SlateSummaryDraft,
+    SlateVersionDiff,
     SlateVisualAsset,
 )
 from shared.backend.ai.clients import get_anthropic_client, get_google_ai_client
@@ -510,19 +525,6 @@ ANALYSIS_GROUPS = [
     },
 ]
 
-# Individual analysis types that still use _run_analysis (not grouped)
-ANALYSIS_BEHAVIOR_MAP = {
-    "version_diff": "script_version_diff",
-    "music_analysis": "music_analysis",
-    "visual_analysis": "visual_analysis",
-}
-
-ANALYSIS_SCHEMA_MAP = {
-    "version_diff": VersionDiff,
-    "music_analysis": MusicAnalysisResult,
-    "visual_analysis": VisualAnalysisResult,
-}
-
 
 # --- Text extraction ---
 
@@ -609,6 +611,230 @@ def _extract_fdx_text(file_bytes: bytes) -> str:
     return "\n".join(lines)
 
 
+# --- Domain table storage helpers ---
+
+def _store_extraction_results(session_factory, show_id, data, is_musical):
+    """Parse extraction response and create domain entity rows."""
+    with session_factory() as session:
+        # Clear existing AI-derived data for this show
+        session.query(SlateCharacter).filter_by(show_id=show_id).delete()
+        session.query(SlateScene).filter_by(show_id=show_id).delete()
+        session.query(SlateSong).filter_by(show_id=show_id).delete()
+        session.query(SlateArcPoint).filter_by(show_id=show_id).delete()
+        session.query(SlateRuntimeEstimate).filter_by(show_id=show_id).delete()
+
+        # Characters
+        characters = data.get("character_breakdown", {}).get("characters", [])
+        for i, char in enumerate(characters):
+            session.add(SlateCharacter(
+                show_id=show_id,
+                name=char.get("name", ""),
+                description=char.get("description"),
+                age_range=char.get("age_range"),
+                gender=char.get("gender"),
+                line_count=char.get("line_count"),
+                vocal_range=char.get("vocal_range"),
+                song_count=char.get("song_count"),
+                dance_requirements=char.get("dance_requirements"),
+                notes=char.get("notes"),
+                sort_order=i,
+            ))
+
+        # Scenes
+        acts = data.get("scene_breakdown", {}).get("acts", [])
+        sort_idx = 0
+        for act in acts:
+            act_num = act.get("act_number")
+            for scene in act.get("scenes", []):
+                session.add(SlateScene(
+                    show_id=show_id,
+                    act_number=act_num,
+                    scene_number=scene.get("scene_number", sort_idx + 1),
+                    title=scene.get("title"),
+                    location=scene.get("location"),
+                    int_ext=scene.get("int_ext"),
+                    time_of_day=scene.get("time_of_day"),
+                    characters_present=scene.get("characters"),
+                    description=scene.get("description"),
+                    estimated_minutes=scene.get("estimated_minutes"),
+                    sort_order=sort_idx,
+                ))
+                sort_idx += 1
+
+        # Songs (musicals only)
+        if is_musical:
+            songs = data.get("song_list", {}).get("songs", [])
+            for i, song in enumerate(songs):
+                session.add(SlateSong(
+                    show_id=show_id,
+                    title=song.get("title", ""),
+                    act=song.get("act"),
+                    scene=song.get("scene"),
+                    characters=song.get("characters"),
+                    song_type=song.get("song_type"),
+                    description=song.get("description"),
+                    sort_order=i,
+                ))
+
+        # Emotional arc
+        arc_points = data.get("emotional_arc", {}).get("arc_points", [])
+        for i, point in enumerate(arc_points):
+            session.add(SlateArcPoint(
+                show_id=show_id,
+                position=point.get("position", 0),
+                intensity=point.get("intensity", 0),
+                label=point.get("label"),
+                tone=point.get("tone"),
+                sort_order=i,
+            ))
+
+        # Emotional arc summary on the show
+        arc_summary = data.get("emotional_arc", {}).get("summary")
+        if arc_summary:
+            show = session.query(SlateShow).get(show_id)
+            if show:
+                show.emotional_arc_summary = arc_summary
+
+        # Runtime estimate
+        runtime = data.get("runtime_estimate", {})
+        if runtime:
+            # Convert act_breakdown from list of dicts to JSON-compatible format
+            act_breakdown = runtime.get("act_breakdown")
+            if act_breakdown:
+                act_breakdown = [
+                    {"act": ab.get("act"), "minutes": ab.get("minutes")}
+                    for ab in act_breakdown
+                ]
+            session.add(SlateRuntimeEstimate(
+                show_id=show_id,
+                total_minutes=runtime.get("total_minutes"),
+                act_breakdown=act_breakdown,
+                notes=runtime.get("notes"),
+            ))
+
+        session.commit()
+
+    logger.info(f"Stored extraction results for show {show_id}")
+
+
+def _store_assessment_results(session_factory, show_id, data):
+    """Parse assessment response and create domain entity rows."""
+    with session_factory() as session:
+        session.query(SlateCastRequirements).filter_by(show_id=show_id).delete()
+        session.query(SlateBudgetEstimate).filter_by(show_id=show_id).delete()
+        session.query(SlateContentAdvisory).filter_by(show_id=show_id).delete()
+
+        # Cast requirements
+        cast = data.get("cast_requirements", {})
+        if cast:
+            session.add(SlateCastRequirements(
+                show_id=show_id,
+                minimum_cast_size=cast.get("minimum_cast_size"),
+                recommended_cast_size=cast.get("recommended_cast_size"),
+                doubling_possibilities=cast.get("doubling_possibilities"),
+                musicians=cast.get("musicians"),
+                musician_instruments=cast.get("musician_instruments"),
+                locations_count=cast.get("locations_count"),
+                notes=cast.get("notes"),
+            ))
+
+        # Budget estimate
+        budget = data.get("budget_estimate", {})
+        if budget:
+            session.add(SlateBudgetEstimate(
+                show_id=show_id,
+                estimated_range=budget.get("estimated_range"),
+                factors=budget.get("factors"),
+                cast_size_impact=budget.get("cast_size_impact"),
+                technical_complexity=budget.get("technical_complexity"),
+                location_complexity=budget.get("location_complexity"),
+                post_production_notes=budget.get("post_production_notes"),
+                notes=budget.get("notes"),
+            ))
+
+        # Content advisories
+        advisories = data.get("content_advisories", {}).get("advisories", [])
+        for adv in advisories:
+            session.add(SlateContentAdvisory(
+                show_id=show_id,
+                category=adv.get("category", ""),
+                description=adv.get("description"),
+                severity=adv.get("severity"),
+            ))
+
+        session.commit()
+
+    logger.info(f"Stored assessment results for show {show_id}")
+
+
+def _store_creative_results(session_factory, show_id, data):
+    """Parse creative generation response and create domain entity rows."""
+    with session_factory() as session:
+        session.query(SlateLoglineDraft).filter_by(show_id=show_id).delete()
+        session.query(SlateSummaryDraft).filter_by(show_id=show_id).delete()
+        session.query(SlateComparable).filter_by(show_id=show_id).delete()
+
+        # Logline drafts
+        logline_data = data.get("logline_draft", {})
+        options = logline_data.get("options", [])
+        for opt in options:
+            session.add(SlateLoglineDraft(
+                show_id=show_id,
+                text=opt.get("text", ""),
+                tone=opt.get("tone"),
+            ))
+
+        # Summary draft
+        summary_data = data.get("summary_draft", {})
+        summary_text = summary_data.get("summary")
+        if summary_text:
+            session.add(SlateSummaryDraft(
+                show_id=show_id,
+                summary_text=summary_text,
+            ))
+
+        # Comparables
+        comp_data = data.get("comparables", {})
+        comparables = comp_data.get("comparables", [])
+        for comp in comparables:
+            session.add(SlateComparable(
+                show_id=show_id,
+                title=comp.get("title", ""),
+                relationship_type=comp.get("relationship"),
+                reasoning=comp.get("reasoning"),
+            ))
+
+        session.commit()
+
+    logger.info(f"Stored creative results for show {show_id}")
+
+
+def _store_version_diff(session_factory, show_id, version_id, previous_version_id, data):
+    """Store version diff results in the SlateVersionDiff table."""
+    with session_factory() as session:
+        # Delete any existing diff for this version pair
+        session.query(SlateVersionDiff).filter_by(
+            show_id=show_id,
+            current_version_id=version_id,
+            previous_version_id=previous_version_id,
+        ).delete()
+
+        session.add(SlateVersionDiff(
+            show_id=show_id,
+            current_version_id=version_id,
+            previous_version_id=previous_version_id,
+            summary=data.get("summary"),
+            structural_changes=data.get("structural_changes"),
+            character_changes=data.get("character_changes"),
+            song_changes=data.get("song_changes"),
+            tone_shift=data.get("tone_shift"),
+            notes=data.get("notes"),
+        ))
+        session.commit()
+
+    logger.info(f"Stored version diff for version {version_id} vs {previous_version_id}")
+
+
 # --- Processing pipelines ---
 
 async def process_script(session_factory, version_id: int):
@@ -618,6 +844,9 @@ async def process_script(session_factory, version_id: int):
     calls: Core Analysis (reads the script), Production Analysis (derives
     from core), and Creative Positioning (derives from core). Then runs
     version_diff if a previous version exists.
+
+    Results are stored in domain tables (SlateCharacter, SlateScene, etc.)
+    instead of the old SlateShowData JSONB blob.
     """
     try:
         # 1. Get version record, set processing status
@@ -656,44 +885,43 @@ async def process_script(session_factory, version_id: int):
 
         is_musical = medium_label.lower() == "musical"
 
-        # 5. Run Core Analysis (reads the script)
-        core_context = {**context}
+        # 5. EXTRACTION CALL — read the script, discover structure
+        extraction_context = {
+            **context,
+            "is_musical": "true" if is_musical else "false",
+        }
         if not is_musical:
-            core_context["skip_songs"] = "true"
+            extraction_context["skip_songs"] = "true"
 
         logger.info(f"Running core analysis for version {version_id}")
         core_raw = await call_llm(
             behavior="script_core_analysis",
-            context=core_context,
+            context=extraction_context,
             file_parts=file_parts,
             response_schema=CoreAnalysis,
         )
         core_data = json.loads(core_raw)
+        _store_extraction_results(session_factory, show_id, core_data, is_musical)
 
-        _store_grouped_results(session_factory, show_id, version_id, core_data, "script_core_analysis")
-
-        # 6. Run Production Analysis (receives core analysis as context, not the script)
-        prod_context = {
-            "title": context["title"],
-            "medium": context["medium"],
-            "genre": context["genre"],
+        # 6. ASSESSMENT CALL — read the script, make production judgments
+        assessment_context = {
+            **context,
             "core_analysis": json.dumps(core_data, indent=2),
         }
 
         logger.info(f"Running production analysis for version {version_id}")
         prod_raw = await call_llm(
             behavior="script_production_analysis",
-            context=prod_context,
+            context=assessment_context,
+            file_parts=file_parts,
             response_schema=ProductionAnalysis,
         )
         prod_data = json.loads(prod_raw)
-        _store_grouped_results(session_factory, show_id, version_id, prod_data, "script_production_analysis")
+        _store_assessment_results(session_factory, show_id, prod_data)
 
-        # 7. Run Creative Positioning (also receives core analysis as context)
+        # 7. CREATIVE GENERATION CALL — read the script, write positioning
         creative_context = {
-            "title": context["title"],
-            "medium": context["medium"],
-            "genre": context["genre"],
+            **context,
             "core_analysis": json.dumps(core_data, indent=2),
         }
 
@@ -701,10 +929,11 @@ async def process_script(session_factory, version_id: int):
         creative_raw = await call_llm(
             behavior="script_creative_positioning",
             context=creative_context,
+            file_parts=file_parts,
             response_schema=CreativePositioning,
         )
         creative_data = json.loads(creative_raw)
-        _store_grouped_results(session_factory, show_id, version_id, creative_data, "script_creative_positioning")
+        _store_creative_results(session_factory, show_id, creative_data)
 
         # 8. If previous version exists, run version_diff
         with session_factory() as session:
@@ -717,21 +946,30 @@ async def process_script(session_factory, version_id: int):
                 .order_by(SlateScriptVersion.id.desc())
                 .first()
             )
+            previous_id = previous.id if previous else None
+            previous_file_path = previous.file_path if previous else None
+            previous_filename = previous.original_filename if previous else None
 
-        if previous:
+        if previous_id:
             try:
-                prev_bytes = download_file(previous.file_path)
+                prev_bytes = download_file(previous_file_path)
                 prev_text, prev_file_parts = extract_script_content(
-                    previous.original_filename, prev_bytes
+                    previous_filename, prev_bytes
                 )
                 diff_context = {
                     **context,
                     "previous_text": prev_text or "",
                 }
-                await _run_analysis(
-                    "version_diff", text, file_parts, diff_context,
-                    show_id, version_id, session_factory,
+
+                logger.info(f"Running version diff for version {version_id} vs {previous_id}")
+                diff_raw = await call_llm(
+                    behavior="script_version_diff",
+                    context=diff_context,
+                    file_parts=file_parts,
+                    response_schema=VersionDiff,
                 )
+                diff_data = json.loads(diff_raw)
+                _store_version_diff(session_factory, show_id, version_id, previous_id, diff_data)
             except Exception as e:
                 logger.error(f"Version diff failed for version {version_id}: {e}")
 
@@ -756,101 +994,8 @@ async def process_script(session_factory, version_id: int):
             logger.error(f"Failed to record error for version {version_id}")
 
 
-def _store_grouped_results(session_factory, show_id, version_id, grouped_data, behavior_name):
-    """Parse a grouped analysis response and store each data type as a separate ShowData record."""
-    with session_factory() as session:
-        behavior_row = session.query(SlateAIBehavior).filter_by(name=behavior_name).first()
-        model_used = behavior_row.model if behavior_row else "unknown"
-
-        for key, value in grouped_data.items():
-            if value is None:
-                continue
-            # The value is already a dict (parsed from JSON)
-            content = value if isinstance(value, dict) else value
-
-            # Delete existing record for this type/version
-            session.query(SlateShowData).filter_by(
-                show_id=show_id,
-                source_type="script_version",
-                source_id=version_id,
-                data_type=key,
-            ).delete()
-
-            session.add(SlateShowData(
-                show_id=show_id,
-                source_type="script_version",
-                source_id=version_id,
-                data_type=key,
-                content=content,
-                model_used=model_used,
-            ))
-        session.commit()
-
-    logger.info(f"Stored grouped results from {behavior_name} for version {version_id}")
-
-
-async def _run_analysis(
-    data_type: str,
-    text: str | None,
-    file_parts: list[dict] | None,
-    context: dict,
-    show_id: int,
-    version_id: int,
-    session_factory,
-):
-    """Run a single analysis type and store the result as SlateShowData."""
-    behavior_name = ANALYSIS_BEHAVIOR_MAP.get(data_type)
-    if not behavior_name:
-        raise ValueError(f"No behavior mapped for data_type: {data_type}")
-
-    schema = ANALYSIS_SCHEMA_MAP.get(data_type)
-
-    logger.info(f"Running {data_type} analysis for version {version_id}")
-
-    # Call LLM — pass file_parts for PDF scripts
-    raw = await call_llm(
-        behavior=behavior_name,
-        context=context,
-        file_parts=file_parts,
-        response_schema=schema,
-    )
-
-    # Parse response as JSON
-    try:
-        content = json.loads(raw)
-    except json.JSONDecodeError:
-        logger.warning(f"Non-JSON response for {data_type}, storing as raw text")
-        content = {"raw": raw}
-
-    # Read behavior to get model used
-    with session_factory() as session:
-        behavior_row = session.query(SlateAIBehavior).filter_by(name=behavior_name).first()
-        model_used = behavior_row.model if behavior_row else "unknown"
-
-    # Store as SlateShowData (delete existing record for this type/version first)
-    with session_factory() as session:
-        session.query(SlateShowData).filter_by(
-            show_id=show_id,
-            source_type="script_version",
-            source_id=version_id,
-            data_type=data_type,
-        ).delete()
-        session.add(SlateShowData(
-            show_id=show_id,
-            source_type="script_version",
-            source_id=version_id,
-            data_type=data_type,
-            content=content,
-            model_used=model_used,
-        ))
-        session.commit()
-
-    logger.info(f"Stored {data_type} for version {version_id}")
-    return content
-
-
 async def process_music(session_factory, music_id: int):
-    """Process a music file — download, analyze with LLM, store results."""
+    """Process a music file — download, analyze with LLM, write results to SlateMusicFile."""
     try:
         # 1. Get music record and show context
         with session_factory() as session:
@@ -862,6 +1007,7 @@ async def process_music(session_factory, music_id: int):
             script_version_id = music.script_version_id
             file_path = music.file_path
             original_filename = music.original_filename
+            track_name = music.track_name or ""
             session.commit()
 
         with session_factory() as session:
@@ -873,21 +1019,30 @@ async def process_music(session_factory, music_id: int):
             show_id = show.id
             medium_value = show.medium.value if show.medium else ""
             medium_label = show.medium.display_label if show.medium else "Unknown"
-            track_name = session.query(SlateMusicFile).get(music_id).track_name or ""
 
             # For musicals, get the song list so the LLM can connect this track to the show's structure
             song_context = ""
             if medium_value == "musical":
-                song_data = session.query(SlateShowData).filter_by(
-                    show_id=show_id,
-                    source_type="script_version",
-                    source_id=script_version_id,
-                    data_type="song_list",
-                ).first()
-                if song_data and song_data.content:
+                songs = (
+                    session.query(SlateSong)
+                    .filter_by(show_id=show_id)
+                    .order_by(SlateSong.sort_order)
+                    .all()
+                )
+                if songs:
+                    song_list = []
+                    for s in songs:
+                        song_list.append({
+                            "title": s.title,
+                            "act": s.act,
+                            "scene": s.scene,
+                            "characters": s.characters,
+                            "song_type": s.song_type,
+                            "description": s.description,
+                        })
                     song_context = (
                         "SONG LIST FROM SCRIPT ANALYSIS (connect this track to the song it corresponds to):\n"
-                        + json.dumps(song_data.content, indent=2)
+                        + json.dumps(song_list, indent=2)
                     )
 
             context = {
@@ -920,46 +1075,30 @@ async def process_music(session_factory, music_id: int):
         file_parts = [{"data": audio_bytes, "mime_type": mime_type}]
 
         # 3. Call LLM with music_analysis behavior
-        schema = ANALYSIS_SCHEMA_MAP["music_analysis"]
         raw = await call_llm(
             behavior="music_analysis",
             context=context,
             file_parts=file_parts,
-            response_schema=schema,
+            response_schema=MusicAnalysisResult,
         )
 
         try:
             content = json.loads(raw)
         except json.JSONDecodeError:
-            content = {"raw": raw}
+            content = {}
 
-        # Read model used
-        with session_factory() as session:
-            behavior_row = session.query(SlateAIBehavior).filter_by(name="music_analysis").first()
-            model_used = behavior_row.model if behavior_row else "unknown"
-
-        # 4. Store as SlateShowData
-        with session_factory() as session:
-            session.query(SlateShowData).filter_by(
-                show_id=show_id,
-                source_type="music_file",
-                source_id=music_id,
-                data_type="music_analysis",
-            ).delete()
-            session.add(SlateShowData(
-                show_id=show_id,
-                source_type="music_file",
-                source_id=music_id,
-                data_type="music_analysis",
-                content=content,
-                model_used=model_used,
-            ))
-            session.commit()
-
-        # 5. Set processing status to complete
+        # 4. Write analysis fields directly to the SlateMusicFile record
         with session_factory() as session:
             music = session.query(SlateMusicFile).get(music_id)
-            if music:
+            if music and content:
+                music.analysis_key = content.get("key")
+                music.analysis_tempo = content.get("tempo")
+                music.analysis_mood = content.get("mood")
+                music.analysis_instrumentation = content.get("instrumentation")
+                music.analysis_vocal_range = content.get("vocal_range_required")
+                music.analysis_function = content.get("function_in_show")
+                music.analysis_emotional_quality = content.get("emotional_quality")
+                music.analysis_notes = content.get("notes")
                 music.processing_status = "complete"
                 session.commit()
 
@@ -978,7 +1117,7 @@ async def process_music(session_factory, music_id: int):
 
 
 async def process_visual(session_factory, asset_id: int):
-    """Process a visual asset — download, analyze with LLM, store results."""
+    """Process a visual asset — download, analyze with LLM, write results to SlateVisualAsset."""
     try:
         # 1. Get asset record
         with session_factory() as session:
@@ -1027,46 +1166,29 @@ async def process_visual(session_factory, asset_id: int):
         file_parts = [{"data": image_bytes, "mime_type": mime_type}]
 
         # 3. Call LLM with visual_analysis behavior
-        schema = ANALYSIS_SCHEMA_MAP["visual_analysis"]
         raw = await call_llm(
             behavior="visual_analysis",
             context=context,
             file_parts=file_parts,
-            response_schema=schema,
+            response_schema=VisualAnalysisResult,
         )
 
         try:
             content = json.loads(raw)
         except json.JSONDecodeError:
-            content = {"raw": raw}
+            content = {}
 
-        # Read model used
-        with session_factory() as session:
-            behavior_row = session.query(SlateAIBehavior).filter_by(name="visual_analysis").first()
-            model_used = behavior_row.model if behavior_row else "unknown"
-
-        # 4. Store as SlateShowData
-        with session_factory() as session:
-            session.query(SlateShowData).filter_by(
-                show_id=show_id,
-                source_type="visual_asset",
-                source_id=asset_id,
-                data_type="visual_analysis",
-            ).delete()
-            session.add(SlateShowData(
-                show_id=show_id,
-                source_type="visual_asset",
-                source_id=asset_id,
-                data_type="visual_analysis",
-                content=content,
-                model_used=model_used,
-            ))
-            session.commit()
-
-        # 5. Set processing status to complete
+        # 4. Write analysis fields directly to the SlateVisualAsset record
         with session_factory() as session:
             asset = session.query(SlateVisualAsset).get(asset_id)
-            if asset:
+            if asset and content:
+                asset.analysis_color_palette = content.get("color_palette")
+                asset.analysis_mood = content.get("mood")
+                asset.analysis_tone = content.get("tone")
+                asset.analysis_typography = content.get("typography")
+                asset.analysis_visual_themes = content.get("visual_themes")
+                asset.analysis_communicates = content.get("communicates")
+                asset.analysis_notes = content.get("notes")
                 asset.processing_status = "complete"
                 session.commit()
 
@@ -1090,7 +1212,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     """Gather comprehensive show data for pitch generation and queries.
 
     Returns a dict with identity fields and all available show data
-    for the current script version.
+    from the domain tables for the current script version.
     """
     show = (
         session.query(SlateShow)
@@ -1112,52 +1234,283 @@ def _gather_show_context(session, show_id: int) -> dict:
         "development_stage": stage_label,
     }
 
-    # Get current script version
+    show_data_sections = []
+
+    # Characters
+    characters = (
+        session.query(SlateCharacter)
+        .filter_by(show_id=show_id)
+        .order_by(SlateCharacter.sort_order)
+        .all()
+    )
+    if characters:
+        char_list = []
+        for c in characters:
+            char_dict = {"name": c.name, "description": c.description}
+            if c.age_range:
+                char_dict["age_range"] = c.age_range
+            if c.gender:
+                char_dict["gender"] = c.gender
+            if c.line_count:
+                char_dict["line_count"] = c.line_count
+            if c.vocal_range:
+                char_dict["vocal_range"] = c.vocal_range
+            if c.song_count:
+                char_dict["song_count"] = c.song_count
+            if c.dance_requirements:
+                char_dict["dance_requirements"] = c.dance_requirements
+            if c.notes:
+                char_dict["notes"] = c.notes
+            char_list.append(char_dict)
+        show_data_sections.append(f"## character_breakdown\n{json.dumps({'characters': char_list}, indent=2)}")
+
+    # Scenes
+    scenes = (
+        session.query(SlateScene)
+        .filter_by(show_id=show_id)
+        .order_by(SlateScene.sort_order)
+        .all()
+    )
+    if scenes:
+        # Group by act
+        acts_dict = {}
+        for s in scenes:
+            act_num = s.act_number
+            if act_num not in acts_dict:
+                acts_dict[act_num] = []
+            scene_dict = {"scene_number": s.scene_number}
+            if s.title:
+                scene_dict["title"] = s.title
+            if s.location:
+                scene_dict["location"] = s.location
+            if s.int_ext:
+                scene_dict["int_ext"] = s.int_ext
+            if s.time_of_day:
+                scene_dict["time_of_day"] = s.time_of_day
+            if s.characters_present:
+                scene_dict["characters"] = s.characters_present
+            if s.description:
+                scene_dict["description"] = s.description
+            if s.estimated_minutes:
+                scene_dict["estimated_minutes"] = s.estimated_minutes
+            acts_dict[act_num].append(scene_dict)
+        acts_list = [{"act_number": k, "scenes": v} for k, v in acts_dict.items()]
+        show_data_sections.append(f"## scene_breakdown\n{json.dumps({'acts': acts_list}, indent=2)}")
+
+    # Songs
+    songs = (
+        session.query(SlateSong)
+        .filter_by(show_id=show_id)
+        .order_by(SlateSong.sort_order)
+        .all()
+    )
+    if songs:
+        song_list = []
+        for s in songs:
+            song_dict = {"title": s.title}
+            if s.act:
+                song_dict["act"] = s.act
+            if s.scene:
+                song_dict["scene"] = s.scene
+            if s.characters:
+                song_dict["characters"] = s.characters
+            if s.song_type:
+                song_dict["song_type"] = s.song_type
+            if s.description:
+                song_dict["description"] = s.description
+            song_list.append(song_dict)
+        show_data_sections.append(f"## song_list\n{json.dumps({'songs': song_list}, indent=2)}")
+
+    # Emotional arc
+    arc_points = (
+        session.query(SlateArcPoint)
+        .filter_by(show_id=show_id)
+        .order_by(SlateArcPoint.sort_order)
+        .all()
+    )
+    if arc_points:
+        points_list = [
+            {"position": p.position, "intensity": p.intensity, "label": p.label, "tone": p.tone}
+            for p in arc_points
+        ]
+        arc_data = {"arc_points": points_list}
+        if show.emotional_arc_summary:
+            arc_data["summary"] = show.emotional_arc_summary
+        show_data_sections.append(f"## emotional_arc\n{json.dumps(arc_data, indent=2)}")
+
+    # Runtime estimate
+    runtime = (
+        session.query(SlateRuntimeEstimate)
+        .filter_by(show_id=show_id)
+        .first()
+    )
+    if runtime:
+        runtime_dict = {"total_minutes": runtime.total_minutes}
+        if runtime.act_breakdown:
+            runtime_dict["act_breakdown"] = runtime.act_breakdown
+        if runtime.notes:
+            runtime_dict["notes"] = runtime.notes
+        show_data_sections.append(f"## runtime_estimate\n{json.dumps(runtime_dict, indent=2)}")
+
+    # Cast requirements
+    cast = (
+        session.query(SlateCastRequirements)
+        .filter_by(show_id=show_id)
+        .first()
+    )
+    if cast:
+        cast_dict = {}
+        if cast.minimum_cast_size:
+            cast_dict["minimum_cast_size"] = cast.minimum_cast_size
+        if cast.recommended_cast_size:
+            cast_dict["recommended_cast_size"] = cast.recommended_cast_size
+        if cast.doubling_possibilities:
+            cast_dict["doubling_possibilities"] = cast.doubling_possibilities
+        if cast.musicians:
+            cast_dict["musicians"] = cast.musicians
+        if cast.musician_instruments:
+            cast_dict["musician_instruments"] = cast.musician_instruments
+        if cast.locations_count:
+            cast_dict["locations_count"] = cast.locations_count
+        if cast.notes:
+            cast_dict["notes"] = cast.notes
+        show_data_sections.append(f"## cast_requirements\n{json.dumps(cast_dict, indent=2)}")
+
+    # Budget estimate
+    budget = (
+        session.query(SlateBudgetEstimate)
+        .filter_by(show_id=show_id)
+        .first()
+    )
+    if budget:
+        budget_dict = {}
+        if budget.estimated_range:
+            budget_dict["estimated_range"] = budget.estimated_range
+        if budget.factors:
+            budget_dict["factors"] = budget.factors
+        if budget.cast_size_impact:
+            budget_dict["cast_size_impact"] = budget.cast_size_impact
+        if budget.technical_complexity:
+            budget_dict["technical_complexity"] = budget.technical_complexity
+        if budget.location_complexity:
+            budget_dict["location_complexity"] = budget.location_complexity
+        if budget.post_production_notes:
+            budget_dict["post_production_notes"] = budget.post_production_notes
+        if budget.notes:
+            budget_dict["notes"] = budget.notes
+        show_data_sections.append(f"## budget_estimate\n{json.dumps(budget_dict, indent=2)}")
+
+    # Content advisories
+    advisories = (
+        session.query(SlateContentAdvisory)
+        .filter_by(show_id=show_id)
+        .all()
+    )
+    if advisories:
+        adv_list = [
+            {"category": a.category, "description": a.description, "severity": a.severity}
+            for a in advisories
+        ]
+        show_data_sections.append(f"## content_advisories\n{json.dumps({'advisories': adv_list}, indent=2)}")
+
+    # Comparables
+    comparables = (
+        session.query(SlateComparable)
+        .filter_by(show_id=show_id)
+        .all()
+    )
+    if comparables:
+        comp_list = [
+            {"title": c.title, "relationship": c.relationship_type, "reasoning": c.reasoning}
+            for c in comparables
+        ]
+        show_data_sections.append(f"## comparables\n{json.dumps({'comparables': comp_list}, indent=2)}")
+
+    # Logline drafts
+    loglines = (
+        session.query(SlateLoglineDraft)
+        .filter_by(show_id=show_id)
+        .all()
+    )
+    if loglines:
+        ll_list = [{"text": l.text, "tone": l.tone} for l in loglines]
+        show_data_sections.append(f"## logline_drafts\n{json.dumps({'options': ll_list}, indent=2)}")
+
+    # Summary drafts
+    summaries = (
+        session.query(SlateSummaryDraft)
+        .filter_by(show_id=show_id)
+        .all()
+    )
+    if summaries:
+        sum_list = [{"summary": s.summary_text} for s in summaries]
+        show_data_sections.append(f"## summary_drafts\n{json.dumps(sum_list, indent=2)}")
+
+    # Visual analysis data (from asset records)
+    visual_assets = (
+        session.query(SlateVisualAsset)
+        .filter_by(show_id=show_id)
+        .filter(SlateVisualAsset.processing_status == "complete")
+        .all()
+    )
+    for va in visual_assets:
+        va_dict = {}
+        if va.analysis_color_palette:
+            va_dict["color_palette"] = va.analysis_color_palette
+        if va.analysis_mood:
+            va_dict["mood"] = va.analysis_mood
+        if va.analysis_tone:
+            va_dict["tone"] = va.analysis_tone
+        if va.analysis_typography:
+            va_dict["typography"] = va.analysis_typography
+        if va.analysis_visual_themes:
+            va_dict["visual_themes"] = va.analysis_visual_themes
+        if va.analysis_communicates:
+            va_dict["communicates"] = va.analysis_communicates
+        if va.analysis_notes:
+            va_dict["notes"] = va.analysis_notes
+        if va_dict:
+            show_data_sections.append(
+                f"## visual_analysis (asset {va.id}: {va.label})\n{json.dumps(va_dict, indent=2)}"
+            )
+
+    # Music analysis data (from music file records)
     current_version = (
         session.query(SlateScriptVersion)
         .filter(SlateScriptVersion.show_id == show_id)
         .order_by(SlateScriptVersion.created_at.desc())
         .first()
     )
-
-    # Gather all show data from current version
-    show_data_sections = []
     if current_version:
-        all_data = (
-            session.query(SlateShowData)
-            .filter(
-                SlateShowData.show_id == show_id,
-                SlateShowData.source_type == "script_version",
-                SlateShowData.source_id == current_version.id,
-            )
+        music_files = (
+            session.query(SlateMusicFile)
+            .filter_by(script_version_id=current_version.id)
+            .filter(SlateMusicFile.processing_status == "complete")
+            .order_by(SlateMusicFile.sort_order)
             .all()
         )
-        for d in all_data:
-            show_data_sections.append(f"## {d.data_type}\n{json.dumps(d.content, indent=2)}")
-
-    # Visual analysis data
-    visual_data = (
-        session.query(SlateShowData)
-        .filter(
-            SlateShowData.show_id == show_id,
-            SlateShowData.source_type == "visual_asset",
-        )
-        .all()
-    )
-    for d in visual_data:
-        show_data_sections.append(f"## visual_analysis (asset {d.source_id})\n{json.dumps(d.content, indent=2)}")
-
-    # Music analysis data
-    music_data = (
-        session.query(SlateShowData)
-        .filter(
-            SlateShowData.show_id == show_id,
-            SlateShowData.source_type == "music_file",
-        )
-        .all()
-    )
-    for d in music_data:
-        show_data_sections.append(f"## music_analysis (track {d.source_id})\n{json.dumps(d.content, indent=2)}")
+        for mf in music_files:
+            mf_dict = {}
+            if mf.analysis_key:
+                mf_dict["key"] = mf.analysis_key
+            if mf.analysis_tempo:
+                mf_dict["tempo"] = mf.analysis_tempo
+            if mf.analysis_mood:
+                mf_dict["mood"] = mf.analysis_mood
+            if mf.analysis_instrumentation:
+                mf_dict["instrumentation"] = mf.analysis_instrumentation
+            if mf.analysis_vocal_range:
+                mf_dict["vocal_range"] = mf.analysis_vocal_range
+            if mf.analysis_function:
+                mf_dict["function"] = mf.analysis_function
+            if mf.analysis_emotional_quality:
+                mf_dict["emotional_quality"] = mf.analysis_emotional_quality
+            if mf.analysis_notes:
+                mf_dict["notes"] = mf.analysis_notes
+            if mf_dict:
+                show_data_sections.append(
+                    f"## music_analysis (track {mf.id}: {mf.track_name})\n{json.dumps(mf_dict, indent=2)}"
+                )
 
     # Milestones
     milestones = (

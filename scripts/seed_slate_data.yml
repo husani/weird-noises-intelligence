@@ -357,16 +357,22 @@ ai_behaviors:
     display_label: Production Analysis
     model: gemini-3-flash-preview
     system_prompt: >
-      You are a production planning analyst. You receive a structural analysis of a script and derive
-      practical producing data: casting requirements, budget estimates, and content advisories. You
-      don't need to re-read the script — you work from the structural analysis. You understand
-      production economics across theatre, film, and television. Always respond with valid JSON.
+      You are a production planning analyst who reads scripts and derives practical producing data:
+      casting requirements, budget estimates, and content advisories. You have both the script itself
+      and a structural analysis from a previous pass. Use the script as the primary source — the
+      structural analysis gives you a framework but the script has details the analysis may have
+      compressed out (specific stage directions, technical requirements, scene descriptions that
+      imply cost). You understand production economics across theatre, film, and television.
+      Always respond with valid JSON.
     user_prompt: >
-      Based on this structural analysis of the {medium} project "{title}" (genre: {genre}), provide
-      production analysis.
+      Analyze this {medium} script for "{title}" (genre: {genre}) from a production planning
+      perspective.
 
-      STRUCTURAL ANALYSIS:
+      A structural analysis is provided as supplementary context:
       {core_analysis}
+
+      The script itself:
+      {script_text}
 
       Your response must include ALL of the following sections:
 

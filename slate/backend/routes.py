@@ -2,7 +2,10 @@
 Slate API routes.
 
 All endpoints under /api/slate/*. Covers shows, script versions,
-music files, milestones, visual identity, lookup values, and settings.
+music files, domain entities (characters, scenes, songs, arc, runtime,
+cast requirements, budget, comparables, advisories, logline/summary drafts,
+version diffs), milestones, visual identity, pitches, lookup values,
+and settings.
 """
 
 import logging
@@ -17,17 +20,28 @@ from sqlalchemy.orm import joinedload
 from shared.backend.auth.dependencies import get_current_user
 from shared.backend.storage.gcs import delete_file, get_signed_url, upload_file
 from slate.backend.models import (
+    ArcPoint,
+    BudgetEstimate,
+    CastRequirements,
+    Character,
+    Comparable,
+    ContentAdvisory,
     DevelopmentMilestone,
+    LoglineDraft,
     MusicFile,
     Pitch,
     PitchMaterial,
+    RuntimeEstimate,
+    Scene,
     ScriptVersion,
     Show,
-    ShowData,
     SlateAIBehavior,
     SlateChangeHistory,
     SlateLookupValue,
     SlateSettings,
+    Song,
+    SummaryDraft,
+    VersionDiff,
     VisualAsset,
 )
 
@@ -115,17 +129,6 @@ class ReorderLookupValuesRequest(BaseModel):
     ids: list[int]
 
 
-class CreateShowDataRequest(BaseModel):
-    data_type: str
-    content: dict
-    source_type: str
-    source_id: int
-
-
-class UpdateShowDataRequest(BaseModel):
-    content: dict
-
-
 class UpdateSettingsRequest(BaseModel):
     settings: dict
 
@@ -149,6 +152,144 @@ class UpdatePitchRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str
+
+
+# --- Domain entity request models ---
+
+class CreateCharacterRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    age_range: Optional[str] = None
+    gender: Optional[str] = None
+    line_count: Optional[int] = None
+    vocal_range: Optional[str] = None
+    song_count: Optional[int] = None
+    dance_requirements: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class UpdateCharacterRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    age_range: Optional[str] = None
+    gender: Optional[str] = None
+    line_count: Optional[int] = None
+    vocal_range: Optional[str] = None
+    song_count: Optional[int] = None
+    dance_requirements: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CreateSceneRequest(BaseModel):
+    act_number: Optional[int] = None
+    scene_number: int
+    title: Optional[str] = None
+    location: Optional[str] = None
+    int_ext: Optional[str] = None
+    time_of_day: Optional[str] = None
+    characters_present: Optional[list[str]] = None
+    description: Optional[str] = None
+    estimated_minutes: Optional[float] = None
+
+
+class UpdateSceneRequest(BaseModel):
+    act_number: Optional[int] = None
+    scene_number: Optional[int] = None
+    title: Optional[str] = None
+    location: Optional[str] = None
+    int_ext: Optional[str] = None
+    time_of_day: Optional[str] = None
+    characters_present: Optional[list[str]] = None
+    description: Optional[str] = None
+    estimated_minutes: Optional[float] = None
+
+
+class CreateSongRequest(BaseModel):
+    title: str
+    act: Optional[int] = None
+    scene: Optional[int] = None
+    characters: Optional[list[str]] = None
+    song_type: Optional[str] = None
+    description: Optional[str] = None
+
+
+class UpdateSongRequest(BaseModel):
+    title: Optional[str] = None
+    act: Optional[int] = None
+    scene: Optional[int] = None
+    characters: Optional[list[str]] = None
+    song_type: Optional[str] = None
+    description: Optional[str] = None
+
+
+class ArcPointData(BaseModel):
+    position: float
+    intensity: float
+    label: Optional[str] = None
+    tone: Optional[str] = None
+
+
+class BulkArcRequest(BaseModel):
+    points: list[ArcPointData]
+
+
+class RuntimeEstimateRequest(BaseModel):
+    total_minutes: Optional[int] = None
+    act_breakdown: Optional[list[dict]] = None
+    notes: Optional[str] = None
+
+
+class CastRequirementsRequest(BaseModel):
+    minimum_cast_size: Optional[int] = None
+    recommended_cast_size: Optional[int] = None
+    doubling_possibilities: Optional[str] = None
+    musicians: Optional[int] = None
+    musician_instruments: Optional[list[str]] = None
+    locations_count: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class BudgetEstimateRequest(BaseModel):
+    estimated_range: Optional[str] = None
+    factors: Optional[list[dict]] = None
+    cast_size_impact: Optional[str] = None
+    technical_complexity: Optional[str] = None
+    location_complexity: Optional[str] = None
+    post_production_notes: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CreateComparableRequest(BaseModel):
+    title: str
+    relationship_type: Optional[str] = None
+    reasoning: Optional[str] = None
+
+
+class UpdateComparableRequest(BaseModel):
+    title: Optional[str] = None
+    relationship_type: Optional[str] = None
+    reasoning: Optional[str] = None
+
+
+class CreateContentAdvisoryRequest(BaseModel):
+    category: str
+    description: Optional[str] = None
+    severity: Optional[str] = None
+
+
+class UpdateContentAdvisoryRequest(BaseModel):
+    category: Optional[str] = None
+    description: Optional[str] = None
+    severity: Optional[str] = None
+
+
+class CreateLoglineDraftRequest(BaseModel):
+    text: str
+    tone: Optional[str] = None
+
+
+class CreateSummaryDraftRequest(BaseModel):
+    summary_text: str
 
 
 PITCH_MATERIAL_EXTENSIONS = {".pdf", ".docx", ".png", ".jpg", ".jpeg", ".pptx", ".key"}
@@ -571,6 +712,793 @@ def create_slate_router(interface, session_factory) -> APIRouter:
             session.commit()
             return {"reordered": True}
 
+    # ==================== CHARACTERS ====================
+
+    @router.get("/shows/{show_id}/characters")
+    def list_characters(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            chars = (
+                session.query(Character)
+                .filter(Character.show_id == show_id)
+                .order_by(Character.sort_order)
+                .all()
+            )
+            return {
+                "characters": [
+                    {
+                        "id": c.id,
+                        "name": c.name,
+                        "description": c.description,
+                        "age_range": c.age_range,
+                        "gender": c.gender,
+                        "line_count": c.line_count,
+                        "vocal_range": c.vocal_range,
+                        "song_count": c.song_count,
+                        "dance_requirements": c.dance_requirements,
+                        "notes": c.notes,
+                        "sort_order": c.sort_order,
+                        "created_at": c.created_at.isoformat(),
+                        "updated_at": c.updated_at.isoformat(),
+                    }
+                    for c in chars
+                ]
+            }
+
+    @router.post("/shows/{show_id}/characters")
+    def create_character(show_id: int, req: CreateCharacterRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            # Get next sort order
+            max_order = session.query(Character.sort_order).filter(
+                Character.show_id == show_id
+            ).order_by(Character.sort_order.desc()).first()
+            next_order = (max_order[0] + 1) if max_order else 0
+
+            char = Character(
+                show_id=show_id,
+                name=req.name,
+                description=req.description,
+                age_range=req.age_range,
+                gender=req.gender,
+                line_count=req.line_count,
+                vocal_range=req.vocal_range,
+                song_count=req.song_count,
+                dance_requirements=req.dance_requirements,
+                notes=req.notes,
+                sort_order=next_order,
+            )
+            session.add(char)
+            session.flush()
+            char_id = char.id
+            session.commit()
+            return {"id": char_id, "name": req.name}
+
+    @router.put("/shows/{show_id}/characters/{char_id}")
+    def update_character(
+        show_id: int, char_id: int, req: UpdateCharacterRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            char = session.query(Character).filter(
+                Character.id == char_id, Character.show_id == show_id
+            ).first()
+            if not char:
+                return {"error": "Character not found"}
+
+            updates = req.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                old_value = getattr(char, field)
+                if old_value != value:
+                    _log_change(session, "character", char_id, field, old_value, value, user["email"])
+                    setattr(char, field, value)
+
+            session.commit()
+            return {"updated": True}
+
+    @router.delete("/shows/{show_id}/characters/{char_id}")
+    def delete_character(show_id: int, char_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            char = session.query(Character).filter(
+                Character.id == char_id, Character.show_id == show_id
+            ).first()
+            if not char:
+                return {"error": "Character not found"}
+            session.delete(char)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== SCENES ====================
+
+    @router.get("/shows/{show_id}/scenes")
+    def list_scenes(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            scenes = (
+                session.query(Scene)
+                .filter(Scene.show_id == show_id)
+                .order_by(Scene.sort_order)
+                .all()
+            )
+            return {
+                "scenes": [
+                    {
+                        "id": s.id,
+                        "act_number": s.act_number,
+                        "scene_number": s.scene_number,
+                        "title": s.title,
+                        "location": s.location,
+                        "int_ext": s.int_ext,
+                        "time_of_day": s.time_of_day,
+                        "characters_present": s.characters_present,
+                        "description": s.description,
+                        "estimated_minutes": s.estimated_minutes,
+                        "sort_order": s.sort_order,
+                        "created_at": s.created_at.isoformat(),
+                        "updated_at": s.updated_at.isoformat(),
+                    }
+                    for s in scenes
+                ]
+            }
+
+    @router.post("/shows/{show_id}/scenes")
+    def create_scene(show_id: int, req: CreateSceneRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            max_order = session.query(Scene.sort_order).filter(
+                Scene.show_id == show_id
+            ).order_by(Scene.sort_order.desc()).first()
+            next_order = (max_order[0] + 1) if max_order else 0
+
+            scene = Scene(
+                show_id=show_id,
+                act_number=req.act_number,
+                scene_number=req.scene_number,
+                title=req.title,
+                location=req.location,
+                int_ext=req.int_ext,
+                time_of_day=req.time_of_day,
+                characters_present=req.characters_present,
+                description=req.description,
+                estimated_minutes=req.estimated_minutes,
+                sort_order=next_order,
+            )
+            session.add(scene)
+            session.flush()
+            scene_id = scene.id
+            session.commit()
+            return {"id": scene_id}
+
+    @router.put("/shows/{show_id}/scenes/{scene_id}")
+    def update_scene(
+        show_id: int, scene_id: int, req: UpdateSceneRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            scene = session.query(Scene).filter(
+                Scene.id == scene_id, Scene.show_id == show_id
+            ).first()
+            if not scene:
+                return {"error": "Scene not found"}
+
+            updates = req.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                old_value = getattr(scene, field)
+                if old_value != value:
+                    _log_change(session, "scene", scene_id, field, old_value, value, user["email"])
+                    setattr(scene, field, value)
+
+            session.commit()
+            return {"updated": True}
+
+    @router.delete("/shows/{show_id}/scenes/{scene_id}")
+    def delete_scene(show_id: int, scene_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            scene = session.query(Scene).filter(
+                Scene.id == scene_id, Scene.show_id == show_id
+            ).first()
+            if not scene:
+                return {"error": "Scene not found"}
+            session.delete(scene)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== SONGS ====================
+
+    @router.get("/shows/{show_id}/songs")
+    def list_songs(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            songs = (
+                session.query(Song)
+                .filter(Song.show_id == show_id)
+                .order_by(Song.sort_order)
+                .all()
+            )
+            return {
+                "songs": [
+                    {
+                        "id": s.id,
+                        "title": s.title,
+                        "act": s.act,
+                        "scene": s.scene,
+                        "characters": s.characters,
+                        "song_type": s.song_type,
+                        "description": s.description,
+                        "sort_order": s.sort_order,
+                        "created_at": s.created_at.isoformat(),
+                        "updated_at": s.updated_at.isoformat(),
+                    }
+                    for s in songs
+                ]
+            }
+
+    @router.post("/shows/{show_id}/songs")
+    def create_song(show_id: int, req: CreateSongRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            max_order = session.query(Song.sort_order).filter(
+                Song.show_id == show_id
+            ).order_by(Song.sort_order.desc()).first()
+            next_order = (max_order[0] + 1) if max_order else 0
+
+            song = Song(
+                show_id=show_id,
+                title=req.title,
+                act=req.act,
+                scene=req.scene,
+                characters=req.characters,
+                song_type=req.song_type,
+                description=req.description,
+                sort_order=next_order,
+            )
+            session.add(song)
+            session.flush()
+            song_id = song.id
+            session.commit()
+            return {"id": song_id, "title": req.title}
+
+    @router.put("/shows/{show_id}/songs/{song_id}")
+    def update_song(
+        show_id: int, song_id: int, req: UpdateSongRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            song = session.query(Song).filter(
+                Song.id == song_id, Song.show_id == show_id
+            ).first()
+            if not song:
+                return {"error": "Song not found"}
+
+            updates = req.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                old_value = getattr(song, field)
+                if old_value != value:
+                    _log_change(session, "song", song_id, field, old_value, value, user["email"])
+                    setattr(song, field, value)
+
+            session.commit()
+            return {"updated": True}
+
+    @router.delete("/shows/{show_id}/songs/{song_id}")
+    def delete_song(show_id: int, song_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            song = session.query(Song).filter(
+                Song.id == song_id, Song.show_id == show_id
+            ).first()
+            if not song:
+                return {"error": "Song not found"}
+            session.delete(song)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== EMOTIONAL ARC ====================
+
+    @router.get("/shows/{show_id}/arc")
+    def list_arc_points(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            points = (
+                session.query(ArcPoint)
+                .filter(ArcPoint.show_id == show_id)
+                .order_by(ArcPoint.sort_order)
+                .all()
+            )
+            return {
+                "arc_points": [
+                    {
+                        "id": p.id,
+                        "position": p.position,
+                        "intensity": p.intensity,
+                        "label": p.label,
+                        "tone": p.tone,
+                        "sort_order": p.sort_order,
+                        "created_at": p.created_at.isoformat(),
+                    }
+                    for p in points
+                ]
+            }
+
+    @router.put("/shows/{show_id}/arc")
+    def replace_arc_points(show_id: int, req: BulkArcRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            # Delete existing arc points
+            session.query(ArcPoint).filter(ArcPoint.show_id == show_id).delete()
+
+            # Insert new ones
+            for i, pt in enumerate(req.points):
+                session.add(ArcPoint(
+                    show_id=show_id,
+                    position=pt.position,
+                    intensity=pt.intensity,
+                    label=pt.label,
+                    tone=pt.tone,
+                    sort_order=i,
+                ))
+
+            session.commit()
+            return {"updated": True, "count": len(req.points)}
+
+    # ==================== RUNTIME ESTIMATE ====================
+
+    @router.get("/shows/{show_id}/runtime")
+    def get_runtime(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            est = session.query(RuntimeEstimate).filter(
+                RuntimeEstimate.show_id == show_id
+            ).first()
+            if not est:
+                return None
+            return {
+                "id": est.id,
+                "total_minutes": est.total_minutes,
+                "act_breakdown": est.act_breakdown,
+                "notes": est.notes,
+                "created_at": est.created_at.isoformat(),
+                "updated_at": est.updated_at.isoformat(),
+            }
+
+    @router.put("/shows/{show_id}/runtime")
+    def upsert_runtime(show_id: int, req: RuntimeEstimateRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            est = session.query(RuntimeEstimate).filter(
+                RuntimeEstimate.show_id == show_id
+            ).first()
+
+            if est:
+                updates = req.model_dump(exclude_unset=True)
+                for field, value in updates.items():
+                    old_value = getattr(est, field)
+                    if old_value != value:
+                        _log_change(session, "runtime_estimate", est.id, field, old_value, value, user["email"])
+                        setattr(est, field, value)
+            else:
+                est = RuntimeEstimate(
+                    show_id=show_id,
+                    total_minutes=req.total_minutes,
+                    act_breakdown=req.act_breakdown,
+                    notes=req.notes,
+                )
+                session.add(est)
+
+            session.commit()
+            return {"updated": True}
+
+    # ==================== CAST REQUIREMENTS ====================
+
+    @router.get("/shows/{show_id}/cast-requirements")
+    def get_cast_requirements(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            cr = session.query(CastRequirements).filter(
+                CastRequirements.show_id == show_id
+            ).first()
+            if not cr:
+                return None
+            return {
+                "id": cr.id,
+                "minimum_cast_size": cr.minimum_cast_size,
+                "recommended_cast_size": cr.recommended_cast_size,
+                "doubling_possibilities": cr.doubling_possibilities,
+                "musicians": cr.musicians,
+                "musician_instruments": cr.musician_instruments,
+                "locations_count": cr.locations_count,
+                "notes": cr.notes,
+                "created_at": cr.created_at.isoformat(),
+                "updated_at": cr.updated_at.isoformat(),
+            }
+
+    @router.put("/shows/{show_id}/cast-requirements")
+    def upsert_cast_requirements(show_id: int, req: CastRequirementsRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            cr = session.query(CastRequirements).filter(
+                CastRequirements.show_id == show_id
+            ).first()
+
+            if cr:
+                updates = req.model_dump(exclude_unset=True)
+                for field, value in updates.items():
+                    old_value = getattr(cr, field)
+                    if old_value != value:
+                        _log_change(session, "cast_requirements", cr.id, field, old_value, value, user["email"])
+                        setattr(cr, field, value)
+            else:
+                cr = CastRequirements(
+                    show_id=show_id,
+                    minimum_cast_size=req.minimum_cast_size,
+                    recommended_cast_size=req.recommended_cast_size,
+                    doubling_possibilities=req.doubling_possibilities,
+                    musicians=req.musicians,
+                    musician_instruments=req.musician_instruments,
+                    locations_count=req.locations_count,
+                    notes=req.notes,
+                )
+                session.add(cr)
+
+            session.commit()
+            return {"updated": True}
+
+    # ==================== BUDGET ESTIMATE ====================
+
+    @router.get("/shows/{show_id}/budget")
+    def get_budget(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            est = session.query(BudgetEstimate).filter(
+                BudgetEstimate.show_id == show_id
+            ).first()
+            if not est:
+                return None
+            return {
+                "id": est.id,
+                "estimated_range": est.estimated_range,
+                "factors": est.factors,
+                "cast_size_impact": est.cast_size_impact,
+                "technical_complexity": est.technical_complexity,
+                "location_complexity": est.location_complexity,
+                "post_production_notes": est.post_production_notes,
+                "notes": est.notes,
+                "created_at": est.created_at.isoformat(),
+                "updated_at": est.updated_at.isoformat(),
+            }
+
+    @router.put("/shows/{show_id}/budget")
+    def upsert_budget(show_id: int, req: BudgetEstimateRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            est = session.query(BudgetEstimate).filter(
+                BudgetEstimate.show_id == show_id
+            ).first()
+
+            if est:
+                updates = req.model_dump(exclude_unset=True)
+                for field, value in updates.items():
+                    old_value = getattr(est, field)
+                    if old_value != value:
+                        _log_change(session, "budget_estimate", est.id, field, old_value, value, user["email"])
+                        setattr(est, field, value)
+            else:
+                est = BudgetEstimate(
+                    show_id=show_id,
+                    estimated_range=req.estimated_range,
+                    factors=req.factors,
+                    cast_size_impact=req.cast_size_impact,
+                    technical_complexity=req.technical_complexity,
+                    location_complexity=req.location_complexity,
+                    post_production_notes=req.post_production_notes,
+                    notes=req.notes,
+                )
+                session.add(est)
+
+            session.commit()
+            return {"updated": True}
+
+    # ==================== COMPARABLES ====================
+
+    @router.get("/shows/{show_id}/comparables")
+    def list_comparables(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            comps = (
+                session.query(Comparable)
+                .filter(Comparable.show_id == show_id)
+                .order_by(Comparable.created_at.desc())
+                .all()
+            )
+            return {
+                "comparables": [
+                    {
+                        "id": c.id,
+                        "title": c.title,
+                        "relationship_type": c.relationship_type,
+                        "reasoning": c.reasoning,
+                        "created_at": c.created_at.isoformat(),
+                        "updated_at": c.updated_at.isoformat(),
+                    }
+                    for c in comps
+                ]
+            }
+
+    @router.post("/shows/{show_id}/comparables")
+    def create_comparable(show_id: int, req: CreateComparableRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            comp = Comparable(
+                show_id=show_id,
+                title=req.title,
+                relationship_type=req.relationship_type,
+                reasoning=req.reasoning,
+            )
+            session.add(comp)
+            session.flush()
+            comp_id = comp.id
+            session.commit()
+            return {"id": comp_id, "title": req.title}
+
+    @router.put("/shows/{show_id}/comparables/{comp_id}")
+    def update_comparable(
+        show_id: int, comp_id: int, req: UpdateComparableRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            comp = session.query(Comparable).filter(
+                Comparable.id == comp_id, Comparable.show_id == show_id
+            ).first()
+            if not comp:
+                return {"error": "Comparable not found"}
+
+            updates = req.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                old_value = getattr(comp, field)
+                if old_value != value:
+                    _log_change(session, "comparable", comp_id, field, old_value, value, user["email"])
+                    setattr(comp, field, value)
+
+            session.commit()
+            return {"updated": True}
+
+    @router.delete("/shows/{show_id}/comparables/{comp_id}")
+    def delete_comparable(show_id: int, comp_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            comp = session.query(Comparable).filter(
+                Comparable.id == comp_id, Comparable.show_id == show_id
+            ).first()
+            if not comp:
+                return {"error": "Comparable not found"}
+            session.delete(comp)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== CONTENT ADVISORIES ====================
+
+    @router.get("/shows/{show_id}/advisories")
+    def list_advisories(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            advs = (
+                session.query(ContentAdvisory)
+                .filter(ContentAdvisory.show_id == show_id)
+                .order_by(ContentAdvisory.created_at.desc())
+                .all()
+            )
+            return {
+                "advisories": [
+                    {
+                        "id": a.id,
+                        "category": a.category,
+                        "description": a.description,
+                        "severity": a.severity,
+                        "created_at": a.created_at.isoformat(),
+                        "updated_at": a.updated_at.isoformat(),
+                    }
+                    for a in advs
+                ]
+            }
+
+    @router.post("/shows/{show_id}/advisories")
+    def create_advisory(show_id: int, req: CreateContentAdvisoryRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            adv = ContentAdvisory(
+                show_id=show_id,
+                category=req.category,
+                description=req.description,
+                severity=req.severity,
+            )
+            session.add(adv)
+            session.flush()
+            adv_id = adv.id
+            session.commit()
+            return {"id": adv_id, "category": req.category}
+
+    @router.put("/shows/{show_id}/advisories/{adv_id}")
+    def update_advisory(
+        show_id: int, adv_id: int, req: UpdateContentAdvisoryRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            adv = session.query(ContentAdvisory).filter(
+                ContentAdvisory.id == adv_id, ContentAdvisory.show_id == show_id
+            ).first()
+            if not adv:
+                return {"error": "Content advisory not found"}
+
+            updates = req.model_dump(exclude_unset=True)
+            for field, value in updates.items():
+                old_value = getattr(adv, field)
+                if old_value != value:
+                    _log_change(session, "content_advisory", adv_id, field, old_value, value, user["email"])
+                    setattr(adv, field, value)
+
+            session.commit()
+            return {"updated": True}
+
+    @router.delete("/shows/{show_id}/advisories/{adv_id}")
+    def delete_advisory(show_id: int, adv_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            adv = session.query(ContentAdvisory).filter(
+                ContentAdvisory.id == adv_id, ContentAdvisory.show_id == show_id
+            ).first()
+            if not adv:
+                return {"error": "Content advisory not found"}
+            session.delete(adv)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== LOGLINE DRAFTS ====================
+
+    @router.get("/shows/{show_id}/logline-drafts")
+    def list_logline_drafts(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            drafts = (
+                session.query(LoglineDraft)
+                .filter(LoglineDraft.show_id == show_id)
+                .order_by(LoglineDraft.created_at.desc())
+                .all()
+            )
+            return {
+                "logline_drafts": [
+                    {
+                        "id": d.id,
+                        "text": d.text,
+                        "tone": d.tone,
+                        "created_at": d.created_at.isoformat(),
+                    }
+                    for d in drafts
+                ]
+            }
+
+    @router.post("/shows/{show_id}/logline-drafts")
+    def create_logline_draft(show_id: int, req: CreateLoglineDraftRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            draft = LoglineDraft(
+                show_id=show_id,
+                text=req.text,
+                tone=req.tone,
+            )
+            session.add(draft)
+            session.flush()
+            draft_id = draft.id
+            session.commit()
+            return {"id": draft_id}
+
+    @router.delete("/shows/{show_id}/logline-drafts/{draft_id}")
+    def delete_logline_draft(show_id: int, draft_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            draft = session.query(LoglineDraft).filter(
+                LoglineDraft.id == draft_id, LoglineDraft.show_id == show_id
+            ).first()
+            if not draft:
+                return {"error": "Logline draft not found"}
+            session.delete(draft)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== SUMMARY DRAFTS ====================
+
+    @router.get("/shows/{show_id}/summary-drafts")
+    def list_summary_drafts(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            drafts = (
+                session.query(SummaryDraft)
+                .filter(SummaryDraft.show_id == show_id)
+                .order_by(SummaryDraft.created_at.desc())
+                .all()
+            )
+            return {
+                "summary_drafts": [
+                    {
+                        "id": d.id,
+                        "summary_text": d.summary_text,
+                        "created_at": d.created_at.isoformat(),
+                    }
+                    for d in drafts
+                ]
+            }
+
+    @router.post("/shows/{show_id}/summary-drafts")
+    def create_summary_draft(show_id: int, req: CreateSummaryDraftRequest, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            draft = SummaryDraft(
+                show_id=show_id,
+                summary_text=req.summary_text,
+            )
+            session.add(draft)
+            session.flush()
+            draft_id = draft.id
+            session.commit()
+            return {"id": draft_id}
+
+    @router.delete("/shows/{show_id}/summary-drafts/{draft_id}")
+    def delete_summary_draft(show_id: int, draft_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            draft = session.query(SummaryDraft).filter(
+                SummaryDraft.id == draft_id, SummaryDraft.show_id == show_id
+            ).first()
+            if not draft:
+                return {"error": "Summary draft not found"}
+            session.delete(draft)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== VERSION DIFFS ====================
+
+    @router.get("/shows/{show_id}/version-diffs")
+    def list_version_diffs(show_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            diffs = (
+                session.query(VersionDiff)
+                .options(
+                    joinedload(VersionDiff.current_version),
+                    joinedload(VersionDiff.previous_version),
+                )
+                .filter(VersionDiff.show_id == show_id)
+                .order_by(VersionDiff.created_at.desc())
+                .all()
+            )
+            return {
+                "version_diffs": [
+                    {
+                        "id": d.id,
+                        "current_version_id": d.current_version_id,
+                        "current_version_label": d.current_version.version_label if d.current_version else None,
+                        "previous_version_id": d.previous_version_id,
+                        "previous_version_label": d.previous_version.version_label if d.previous_version else None,
+                        "summary": d.summary,
+                        "created_at": d.created_at.isoformat(),
+                    }
+                    for d in diffs
+                ]
+            }
+
+    @router.get("/shows/{show_id}/version-diffs/{diff_id}")
+    def get_version_diff(show_id: int, diff_id: int, user: dict = Depends(get_current_user)):
+        with session_factory() as session:
+            d = (
+                session.query(VersionDiff)
+                .options(
+                    joinedload(VersionDiff.current_version),
+                    joinedload(VersionDiff.previous_version),
+                )
+                .filter(VersionDiff.id == diff_id, VersionDiff.show_id == show_id)
+                .first()
+            )
+            if not d:
+                return {"error": "Version diff not found"}
+            return {
+                "id": d.id,
+                "current_version_id": d.current_version_id,
+                "current_version_label": d.current_version.version_label if d.current_version else None,
+                "previous_version_id": d.previous_version_id,
+                "previous_version_label": d.previous_version.version_label if d.previous_version else None,
+                "summary": d.summary,
+                "structural_changes": d.structural_changes,
+                "character_changes": d.character_changes,
+                "song_changes": d.song_changes,
+                "tone_shift": d.tone_shift,
+                "notes": d.notes,
+                "created_at": d.created_at.isoformat(),
+            }
+
+    # ==================== REPROCESSING ====================
+
+    @router.post("/shows/{show_id}/scripts/{version_id}/reprocess")
+    async def reprocess_script(
+        show_id: int,
+        version_id: int,
+        background_tasks: BackgroundTasks,
+        user: dict = Depends(get_current_user),
+    ):
+        from slate.backend.ai import process_script
+        background_tasks.add_task(process_script, session_factory, version_id)
+        return {"status": "processing", "version_id": version_id}
+
     # ==================== MILESTONES ====================
 
     @router.get("/milestones/recent")
@@ -810,267 +1738,6 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"error": "Visual asset not found"}
             url = get_signed_url(asset.file_path, expiration_minutes=60)
             return {"url": url}
-
-    # ==================== SHOW DATA ====================
-
-    @router.get("/shows/{show_id}/data")
-    def get_show_data(
-        show_id: int,
-        version_id: int = Query(None, description="Script version ID (default: latest)"),
-        user: dict = Depends(get_current_user),
-    ):
-        with session_factory() as session:
-            # If no version_id, find the latest script version for this show
-            if version_id is None:
-                latest = (
-                    session.query(ScriptVersion)
-                    .filter(ScriptVersion.show_id == show_id)
-                    .order_by(ScriptVersion.created_at.desc())
-                    .first()
-                )
-                version_id = latest.id if latest else None
-
-            results = {}
-
-            # Script version data
-            if version_id is not None:
-                script_data = (
-                    session.query(ShowData)
-                    .filter(
-                        ShowData.show_id == show_id,
-                        ShowData.source_type == "script_version",
-                        ShowData.source_id == version_id,
-                    )
-                    .all()
-                )
-                results["script_version"] = [
-                    {
-                        "id": d.id,
-                        "data_type": d.data_type,
-                        "content": d.content,
-                        "generated_at": d.generated_at.isoformat() if d.generated_at else None,
-                        "model_used": d.model_used,
-                        "source_type": d.source_type,
-                        "source_id": d.source_id,
-                    }
-                    for d in script_data
-                ]
-
-            # Music file data
-            music_data = (
-                session.query(ShowData)
-                .filter(
-                    ShowData.show_id == show_id,
-                    ShowData.source_type == "music_file",
-                )
-                .all()
-            )
-            results["music_file"] = [
-                {
-                    "id": d.id,
-                    "data_type": d.data_type,
-                    "content": d.content,
-                    "generated_at": d.generated_at.isoformat() if d.generated_at else None,
-                    "model_used": d.model_used,
-                    "source_type": d.source_type,
-                    "source_id": d.source_id,
-                }
-                for d in music_data
-            ]
-
-            # Visual asset data
-            visual_data = (
-                session.query(ShowData)
-                .filter(
-                    ShowData.show_id == show_id,
-                    ShowData.source_type == "visual_asset",
-                )
-                .all()
-            )
-            results["visual_asset"] = [
-                {
-                    "id": d.id,
-                    "data_type": d.data_type,
-                    "content": d.content,
-                    "generated_at": d.generated_at.isoformat() if d.generated_at else None,
-                    "model_used": d.model_used,
-                    "source_type": d.source_type,
-                    "source_id": d.source_id,
-                }
-                for d in visual_data
-            ]
-
-            return results
-
-    @router.get("/shows/{show_id}/data/{data_type}")
-    def get_show_data_by_type(
-        show_id: int,
-        data_type: str,
-        version_id: int = Query(None, description="Script version ID (default: latest)"),
-        user: dict = Depends(get_current_user),
-    ):
-        with session_factory() as session:
-            # If no version_id, find the latest script version for this show
-            if version_id is None:
-                latest = (
-                    session.query(ScriptVersion)
-                    .filter(ScriptVersion.show_id == show_id)
-                    .order_by(ScriptVersion.created_at.desc())
-                    .first()
-                )
-                version_id = latest.id if latest else None
-
-            if version_id is None:
-                return None
-
-            data = (
-                session.query(ShowData)
-                .filter(
-                    ShowData.show_id == show_id,
-                    ShowData.source_type == "script_version",
-                    ShowData.source_id == version_id,
-                    ShowData.data_type == data_type,
-                )
-                .first()
-            )
-            if not data:
-                return None
-
-            return {
-                "id": data.id,
-                "data_type": data.data_type,
-                "content": data.content,
-                "generated_at": data.generated_at.isoformat() if data.generated_at else None,
-                "model_used": data.model_used,
-                "source_type": data.source_type,
-                "source_id": data.source_id,
-            }
-
-    @router.post("/shows/{show_id}/data")
-    def create_show_data(
-        show_id: int,
-        req: CreateShowDataRequest,
-        user: dict = Depends(get_current_user),
-    ):
-        with session_factory() as session:
-            data = ShowData(
-                show_id=show_id,
-                data_type=req.data_type,
-                content=req.content,
-                source_type=req.source_type,
-                source_id=req.source_id,
-            )
-            session.add(data)
-            session.flush()
-            data_id = data.id
-            session.commit()
-            return {"id": data_id, "data_type": req.data_type}
-
-    @router.put("/shows/{show_id}/data/{data_id}")
-    def update_show_data(
-        show_id: int,
-        data_id: int,
-        req: UpdateShowDataRequest,
-        user: dict = Depends(get_current_user),
-    ):
-        with session_factory() as session:
-            data = session.query(ShowData).filter(
-                ShowData.id == data_id, ShowData.show_id == show_id
-            ).first()
-            if not data:
-                return {"error": "Show data not found"}
-
-            old_content = str(data.content)
-            data.content = req.content
-            _log_change(session, "show_data", data_id, "content", old_content, str(req.content), user["email"])
-
-            session.commit()
-            return {"updated": True}
-
-    @router.delete("/shows/{show_id}/data/{data_id}")
-    def delete_show_data(
-        show_id: int,
-        data_id: int,
-        user: dict = Depends(get_current_user),
-    ):
-        with session_factory() as session:
-            data = session.query(ShowData).filter(
-                ShowData.id == data_id, ShowData.show_id == show_id
-            ).first()
-            if not data:
-                return {"error": "Show data not found"}
-            session.delete(data)
-            session.commit()
-            return {"deleted": True}
-
-    # ==================== REPROCESSING ====================
-
-    @router.post("/shows/{show_id}/scripts/{version_id}/reprocess")
-    async def reprocess_script(
-        show_id: int,
-        version_id: int,
-        background_tasks: BackgroundTasks,
-        user: dict = Depends(get_current_user),
-    ):
-        from slate.backend.ai import process_script
-        background_tasks.add_task(process_script, session_factory, version_id)
-        return {"status": "processing", "version_id": version_id}
-
-    @router.post("/shows/{show_id}/scripts/{version_id}/reprocess/{data_type}")
-    async def reprocess_data_type(
-        show_id: int,
-        version_id: int,
-        data_type: str,
-        background_tasks: BackgroundTasks,
-        user: dict = Depends(get_current_user),
-    ):
-        # Delete existing ShowData record for this type/version
-        with session_factory() as session:
-            session.query(ShowData).filter_by(
-                show_id=show_id,
-                source_type="script_version",
-                source_id=version_id,
-                data_type=data_type,
-            ).delete()
-            session.commit()
-
-        from slate.backend.ai import _run_analysis, extract_script_content, SCRIPT_ANALYSIS_TYPES
-
-        async def _reprocess_one():
-            from slate.backend.ai import call_llm
-            from slate.backend.models import SlateScriptVersion, SlateShow
-            from shared.backend.storage.gcs import download_file as dl_file
-
-            with session_factory() as session:
-                version = session.query(ScriptVersion).get(version_id)
-                if not version:
-                    return
-                file_path = version.file_path
-                original_filename = version.original_filename
-
-            with session_factory() as session:
-                show = session.query(Show).get(show_id)
-                if not show:
-                    return
-                medium_label = show.medium.display_label if show.medium else "Unknown"
-                context = {
-                    "title": show.title,
-                    "medium": medium_label,
-                    "genre": show.genre or "Not specified",
-                    "script_text": "",
-                }
-
-            file_bytes = dl_file(file_path)
-            text, file_parts = extract_script_content(original_filename, file_bytes)
-            context["script_text"] = text or ""
-
-            await _run_analysis(
-                data_type, text, file_parts, context,
-                show_id, version_id, session_factory,
-            )
-
-        background_tasks.add_task(_reprocess_one)
-        return {"status": "processing", "version_id": version_id, "data_type": data_type}
 
     # ==================== MODEL OPTIONS ====================
 
