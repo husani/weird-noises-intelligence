@@ -368,6 +368,69 @@ class DiscoveryCandidateData(BaseModel):
 
 
 
+# --- Import schemas ---
+
+class ParsedProducer(BaseModel):
+    """A producer extracted from raw import input."""
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    organization: Optional[str] = None
+    organization_role: Optional[str] = None
+    city: Optional[str] = None
+    state_region: Optional[str] = None
+    country: Optional[str] = None
+    website: Optional[str] = None
+    social_links: Optional[list[dict]] = None
+
+
+class ResolvedOrg(BaseModel):
+    """An organization resolved against the existing database."""
+    name: str
+    existing_org_id: Optional[int] = None
+    create_new: bool = False
+    role_title: Optional[str] = None
+
+
+class ResolvedEmail(BaseModel):
+    """An email resolved against the existing database."""
+    email: str
+    existing_on_producer_id: Optional[int] = None
+
+
+class ExistingProducerSummary(BaseModel):
+    """Summary of an existing producer for merge conflict display."""
+    id: int
+    first_name: str
+    last_name: str
+    phone: Optional[str] = None
+    city: Optional[str] = None
+    state_region: Optional[str] = None
+    country: Optional[str] = None
+    website: Optional[str] = None
+    emails: list[str] = []
+    organizations: list[dict] = []
+
+
+class DedupResult(BaseModel):
+    """Dedup verdict for a single parsed row."""
+    row_index: int
+    verdict: str  # "clean", "match", "possible_match"
+    first_name: str
+    last_name: str
+    phone: Optional[str] = None
+    city: Optional[str] = None
+    state_region: Optional[str] = None
+    country: Optional[str] = None
+    website: Optional[str] = None
+    email: Optional[ResolvedEmail] = None
+    organization: Optional[ResolvedOrg] = None
+    social_links: Optional[list[dict]] = None
+    match_reasoning: Optional[str] = None
+    existing_producer: Optional[ExistingProducerSummary] = None
+
+
 def _log_change(session: Session, entity_type: str, entity_id: int, field: str,
                 old_val, new_val, changed_by: str):
     """Record a field-level change in change history."""

@@ -434,16 +434,20 @@ ai_behaviors:
     display_label: Creative Positioning
     model: gemini-3-flash-preview
     system_prompt: >
-      You are a development executive who positions creative works for the market. You receive a
-      structural analysis and write compelling loglines, summaries, and identify meaningful comparables.
+      You are a development executive who reads scripts and positions creative works for the market.
+      You have both the script itself and a structural analysis from a previous pass. Use the script
+      as the primary source — the voice, tone, and specific language of the script are what make
+      your loglines and summaries distinctive. The structural analysis gives you the framework.
       You understand how to describe and sell theatrical, film, and television projects to different
       audiences. Always respond with valid JSON.
     user_prompt: >
-      Based on this structural analysis of the {medium} project "{title}" (genre: {genre}), provide
-      creative positioning.
+      Read this {medium} script for "{title}" (genre: {genre}) and provide creative positioning.
 
-      STRUCTURAL ANALYSIS:
+      A structural analysis is provided as supplementary context:
       {core_analysis}
+
+      The script itself:
+      {script_text}
 
       Your response must include ALL of the following sections:
 

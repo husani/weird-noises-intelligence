@@ -119,7 +119,19 @@ export const checkDuplicates = (firstName, lastName, email = '', organization = 
 })
 
 // Import
-export const importSpreadsheet = (rows) => request('/import', {
+export const importParse = async (data) => {
+  // data can be { text }, { sheet_url }, or a FormData with a file
+  if (data instanceof FormData) {
+    const res = await fetch(`${BASE}/import/parse`, { method: 'POST', body: data })
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
+    return res.json()
+  }
+  return request('/import/parse', { method: 'POST', body: JSON.stringify(data) })
+}
+export const importDedup = (rows) => request('/import/dedup', {
+  method: 'POST', body: JSON.stringify({ rows }),
+})
+export const importConfirm = (rows) => request('/import/confirm', {
   method: 'POST', body: JSON.stringify({ rows }),
 })
 

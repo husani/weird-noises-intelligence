@@ -1031,7 +1031,7 @@ async def process_music(session_factory, music_id: int):
             if medium_value == "musical":
                 songs = (
                     session.query(SlateSong)
-                    .filter_by(show_id=show_id)
+                    .filter_by(version_id=script_version_id)
                     .order_by(SlateSong.sort_order)
                     .all()
                 )
@@ -1354,7 +1354,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Runtime estimate
     runtime = (
         session.query(SlateRuntimeEstimate)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .first()
     )
     if runtime:
@@ -1368,7 +1368,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Cast requirements
     cast = (
         session.query(SlateCastRequirements)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .first()
     )
     if cast:
@@ -1392,7 +1392,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Budget estimate
     budget = (
         session.query(SlateBudgetEstimate)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .first()
     )
     if budget:
@@ -1442,7 +1442,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Logline drafts
     loglines = (
         session.query(SlateLoglineDraft)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .all()
     )
     if loglines:
@@ -1452,7 +1452,7 @@ def _gather_show_context(session, show_id: int) -> dict:
     # Summary drafts
     summaries = (
         session.query(SlateSummaryDraft)
-        .filter_by(show_id=show_id)
+        .filter_by(version_id=latest_version.id)
         .all()
     )
     if summaries:

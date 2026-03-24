@@ -153,6 +153,21 @@ class ProducersInterface:
             if description is not None: data["description"] = description
             return self.update_show(show_id, data)
 
+        # --- Organization reads ---
+
+        @mcp_server.tool
+        def producers_search_organizations(search: str = "", limit: int = 50, offset: int = 0) -> dict:
+            """Search organizations by name. Returns paginated list with id, name, org_type,
+            website, city, state_region, country, description, producer_count."""
+            return self.list_organizations(search, limit, offset)
+
+        @mcp_server.tool
+        def producers_get_organization(organization_id: int) -> dict:
+            """Get a single organization with all its data including affiliated producers.
+            Returns: id, name, org_type, website, location, description, social_links,
+            emails, and list of affiliated producers with their roles and tenure."""
+            return self.get_organization(organization_id)
+
         # --- Venue reads ---
 
         @mcp_server.tool
@@ -1496,6 +1511,78 @@ class ProducersInterface:
             result = self.create_producer(row, user_email)
             created.append(result)
         return {"created": created, "duplicates": duplicates, "total": len(rows)}
+
+    def merge_import_row(self, producer_id: int, import_data: dict,
+                         resolved_fields: dict, user_email: str) -> dict:
+        """Merge import data into an existing producer record.
+
+        Fills empty scalar fields, adds new emails and org associations.
+        resolved_fields contains user choices for conflicts (field -> chosen value).
+        """
+        with self._session_factory() as session:
+            producer = session.get(Producer, producer_id)
+            if not producer:
+                return {"error": "Producer not found"}
+
+            # Scalar fields — fill empty or apply user-resolved conflicts
+            scalar_fields = ["phone", "city", "state_region", "country", "website"]
+            for field in scalar_fields:
+                import_val = import_data.get(field)
+                if not import_val:
+                    continue
+                existing_val = getattr(producer, field)
+                # Use resolved value if user picked one, otherwise fill empty
+                if field in resolved_fields:
+                    new_val = resolved_fields[field]
+                    if new_val != existing_val:
+                        from producers.backend.ai import _log_change
+                        _log_change(session, "producer", producer_id, field,
+                                    existing_val, new_val, user_email)
+                        setattr(producer, field, new_val)
+                elif not existing_val:
+                    from producers.backend.ai import _log_change
+                    _log_change(session, "producer", producer_id, field,
+                                None, import_val, user_email)
+                    setattr(producer, field, import_val)
+
+            # Email — add if not already on this producer
+            email = import_data.get("email")
+            if email:
+                existing_email = (
+                    session.query(EntityEmail)
+                    .filter_by(entity_type="producer", entity_id=producer_id, email=email)
+                    .first()
+                )
+                if not existing_email:
+                    session.add(EntityEmail(
+                        entity_type="producer", entity_id=producer_id,
+                        email=email, source="import", is_primary=False,
+                    ))
+
+            # Organization — add association if not already linked
+            org_data = import_data.get("organization")
+            if org_data and isinstance(org_data, dict):
+                org_id = org_data.get("existing_org_id")
+                if not org_id and org_data.get("create_new"):
+                    org = Organization(name=org_data["name"])
+                    session.add(org)
+                    session.flush()
+                    org_id = org.id
+                if org_id:
+                    existing_link = (
+                        session.query(ProducerOrganization)
+                        .filter_by(producer_id=producer_id, organization_id=org_id)
+                        .first()
+                    )
+                    if not existing_link:
+                        session.add(ProducerOrganization(
+                            producer_id=producer_id,
+                            organization_id=org_id,
+                            role_title=org_data.get("role_title"),
+                        ))
+
+            session.commit()
+            return {"id": producer_id, "merged": True}
 
     # --- Producer delete ---
 

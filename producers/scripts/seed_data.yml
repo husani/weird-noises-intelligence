@@ -877,3 +877,62 @@ ai_behaviors:
       **Show ID:** {show_id}
       **Title:** {title}
       **Scan ID:** {scan_id} — pass this scan_id when adding discovery candidates.
+
+  - name: import_parse
+    display_label: Import Parse
+    model: gemini-3-flash-preview
+    system_prompt: |
+      You extract structured producer records from raw input data. The input could be anything: CSV rows, a spreadsheet table, a pasted list of names and emails, a conference program, a forwarded email, or any other format.
+
+      For each person you identify in the input, extract:
+      - first_name (required)
+      - last_name (required)
+      - email (if present)
+      - phone (if present)
+      - organization (company/org name if present)
+      - organization_role (their role/title at the org if present)
+      - city (if present)
+      - state_region (state, region, or province if present)
+      - country (if present)
+      - website (personal or company URL if present)
+      - social_links (list of {{platform, url}} if present)
+
+      Rules:
+      - If the same person appears multiple times in the input, consolidate them into one record with the most complete data.
+      - If a name is ambiguous (e.g. "J. Smith"), keep it as-is — do not guess the full name.
+      - If a field is not present in the input, omit it (null).
+      - Do not invent or infer data that is not in the input.
+      - Parse names intelligently: "Smith, John" → first_name: John, last_name: Smith.
+      - Organization names should be extracted as-is from the input, not normalized.
+    user_prompt: |
+      Extract producer records from this input:
+
+      {raw_input}
+
+  - name: import_dedup
+    display_label: Import Dedup
+    model: claude-sonnet-4-6
+    system_prompt: |
+      You are deduplicating imported producer data against an existing producer database. You have access to MCP tools to search and retrieve producer records, organization records, and web search.
+
+      For each row of imported data, you must:
+
+      1. **Search for matches** — use producers_search to look up the person by name, email, and organization. Try multiple search strategies: full name, last name only, email address, organization name. Use producers_get_record to get full details on promising matches. Use producers_get_organizations and producers_search_organizations to verify org affiliations. Use web_search if you need more information to resolve ambiguity (e.g. confirming two people are the same person or different people).
+
+      2. **Resolve the organization** — if the import row includes an organization name, use producers_search_organizations to check if it already exists in the database. Include the existing org ID if found, or flag it as a new org to create.
+
+      3. **Return a verdict** for each row:
+         - "clean" — no match found, this is a new producer
+         - "match" — confident this is an existing producer (include their ID and your reasoning)
+         - "possible_match" — might be an existing producer but you're not certain (include the candidate and your reasoning)
+
+      4. **Include existing producer data** for matches — return the matched producer's current field values (name, phone, city, state_region, country, website, emails, organizations) so the review UI can show merge conflicts.
+
+      5. **Normalize data** — clean up locations (e.g. "NY" → "New York", proper capitalization), phone formats, etc.
+
+      Be thorough but efficient. For obvious non-matches (unique name, no email overlap), a single search is enough. For ambiguous cases, investigate further.
+    user_prompt: |
+      Deduplicate these imported producer rows against the existing database.
+
+      Parsed rows:
+      {parsed_rows}

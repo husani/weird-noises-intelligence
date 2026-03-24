@@ -107,8 +107,24 @@ class UpdateTagRequest(BaseModel):
     description: Optional[str] = None
 
 
-class ImportRequest(BaseModel):
+class ImportParseRequest(BaseModel):
+    text: Optional[str] = None
+    sheet_url: Optional[str] = None
+
+
+class ImportDedupRequest(BaseModel):
     rows: list[dict]
+
+
+class ImportConfirmRow(BaseModel):
+    action: str  # "create", "skip", "merge"
+    row_data: dict
+    merge_producer_id: Optional[int] = None
+    resolved_fields: Optional[dict] = None  # user-resolved conflict values
+
+
+class ImportConfirmRequest(BaseModel):
+    rows: list[ImportConfirmRow]
 
 
 class AIQueryRequest(BaseModel):
@@ -360,6 +376,70 @@ class UpdateIntelRequest(BaseModel):
     source_url: Optional[str] = None
 
 
+async def _normalize_import_input(req, file) -> str | dict:
+    """Normalize any import input (file, sheet URL, pasted text) to raw text for the parse LLM."""
+    import csv
+    import io
+    import re
+
+    # File upload
+    if file and file.filename:
+        content = await file.read()
+        filename = file.filename.lower()
+
+        if filename.endswith(".xlsx"):
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True)
+            ws = wb.active
+            rows = []
+            for row in ws.iter_rows(values_only=True):
+                rows.append("\t".join(str(c) if c is not None else "" for c in row))
+            wb.close()
+            return "\n".join(rows)
+
+        # CSV or TSV
+        text = content.decode("utf-8", errors="replace")
+        return text
+
+    if not req:
+        return {"error": "No input provided"}
+
+    # Google Sheet URL
+    if req.sheet_url:
+        from shared.backend.config import settings
+        import httpx
+
+        # Extract sheet ID from URL
+        match = re.search(r"/spreadsheets/d/([a-zA-Z0-9_-]+)", req.sheet_url)
+        if not match:
+            return {"error": "Could not extract sheet ID from URL"}
+        sheet_id = match.group(1)
+
+        if not settings.google_sheets_api_key:
+            return {"error": "Google Sheets API key not configured. Export the sheet as CSV and upload instead."}
+
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/A:ZZ?key={settings.google_sheets_api_key}"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=30)
+
+        if resp.status_code == 403 or resp.status_code == 404:
+            return {
+                "error": "This sheet is not publicly accessible. To import it: open the sheet in Google Sheets, go to File → Download → Comma Separated Values (.csv), then upload the downloaded file here."
+            }
+        if resp.status_code != 200:
+            return {"error": f"Failed to fetch sheet: {resp.status_code}"}
+
+        data = resp.json()
+        rows = data.get("values", [])
+        return "\n".join("\t".join(row) for row in rows)
+
+    # Pasted text
+    if req.text:
+        return req.text
+
+    return {"error": "No input provided"}
+
+
 def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> APIRouter:
     """Create the producers API router."""
 
@@ -439,17 +519,85 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
                          user: dict = Depends(get_current_user)):
         return interface.check_duplicates(req.first_name, req.last_name, req.email or "", req.organization or "")
 
-    @router.post("/import")
-    def import_spreadsheet(
-        req: ImportRequest,
-        background_tasks: BackgroundTasks,
+    # --- Import pipeline ---
+
+    @router.post("/import/parse")
+    async def import_parse(
+        req: ImportParseRequest = None,
+        file: UploadFile = File(None),
         user: dict = Depends(get_current_user),
     ):
-        result = interface.import_spreadsheet(req.rows, user["email"])
-        # Kick off research for all created producers
-        for created in result["created"]:
-            background_tasks.add_task(_run_research, session_factory, created["id"])
-        return result
+        """Parse raw input into structured producer rows."""
+        from producers.backend.ai import call_llm, ParsedProducer
+
+        raw_text = await _normalize_import_input(req, file)
+        if isinstance(raw_text, dict) and "error" in raw_text:
+            return raw_text
+
+        result = await call_llm(
+            "import_parse",
+            {"raw_input": raw_text},
+            response_schema=list[ParsedProducer],
+        )
+        import json
+        try:
+            parsed = json.loads(result)
+        except (json.JSONDecodeError, TypeError):
+            parsed = []
+        return {"rows": parsed, "raw_length": len(raw_text)}
+
+    @router.post("/import/dedup")
+    async def import_dedup(
+        req: ImportDedupRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        """Deduplicate parsed rows against the existing database."""
+        from producers.backend.ai import call_llm, DedupResult
+        import json
+
+        rows_text = json.dumps(req.rows, indent=2)
+        result = await call_llm(
+            "import_dedup",
+            {"parsed_rows": rows_text},
+            use_mcp=True,
+            response_schema=list[DedupResult],
+        )
+        try:
+            dedup_results = json.loads(result)
+        except (json.JSONDecodeError, TypeError):
+            dedup_results = []
+        return {"rows": dedup_results}
+
+    @router.post("/import/confirm")
+    def import_confirm(
+        req: ImportConfirmRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        """Execute confirmed import actions (create/merge/skip)."""
+        created = []
+        merged = []
+        skipped = 0
+
+        for row in req.rows:
+            if row.action == "skip":
+                skipped += 1
+                continue
+
+            if row.action == "create":
+                data = {**row.row_data, "intake_source": "import"}
+                result = interface.create_producer(data, user["email"])
+                created.append(result)
+
+            elif row.action == "merge" and row.merge_producer_id:
+                result = interface.merge_import_row(
+                    row.merge_producer_id,
+                    row.row_data,
+                    row.resolved_fields or {},
+                    user["email"],
+                )
+                merged.append(result)
+
+        return {"created": created, "merged": merged, "skipped": skipped}
 
     @router.post("/query")
     async def ai_query(req: AIQueryRequest, user: dict = Depends(get_current_user)):

@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str
     google_ai_api_key: str
 
+    # Google Sheets — for fetching public/link-shared sheets during import
+    google_sheets_api_key: str = ""
+
     # MCP — bearer token for authenticating MCP endpoint access
     mcp_secret: str
 
