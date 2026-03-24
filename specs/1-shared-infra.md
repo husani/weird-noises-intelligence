@@ -25,22 +25,27 @@ PostgreSQL, single instance, separate database per tool. The shared layer provid
 **What shared provides:**
 - A function that takes a database name and returns a SQLAlchemy engine connected to that database.
 - A session factory tied to an engine.
-- A declarative base class that all tool models inherit from. Each tool defines its own models using this base.
-- A function that creates all tables for a given engine and set of models.
-- Database creation is handled by `scripts/setup_db.py`, which creates the PostgreSQL database itself if it doesn't exist (not just the tables inside it). No manual `createdb` commands — the setup script handles everything.
+
+**What each tool provides:**
+- Its own `DeclarativeBase` class in its `models.py`. Each tool has an independent Base — no shared Base, no table name collisions between tools. Two tools can both have a `shows` table because they have separate Bases and separate databases.
+- Its own seed scripts in `{tool}/scripts/` — seed data YAML, seed script, test data script.
+
+**Table creation** is handled by `scripts/setup_db.py`, which creates each tool's PostgreSQL database if it doesn't exist, then calls `Base.metadata.create_all()` using each tool's own Base. No `create_tables` helper in shared — each Base knows its own tables.
 
 ```python
 # talent/backend/models.py
-from shared.backend.db import Base
+from sqlalchemy.orm import DeclarativeBase
+
+class Base(DeclarativeBase):
+    pass
 
 class Performer(Base):
     __tablename__ = "performers"
     # talent's own schema
 
 # talent/backend/interface.py or wherever startup happens
-from shared.backend.db import create_engine_for, create_tables
-engine = create_engine_for("talent")
-create_tables(engine, [Performer, ...])
+from shared.backend.db import create_engine_for
+engine = create_engine_for("intelligence_talent")
 ```
 
 ## Auth
