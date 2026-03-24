@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Modal from '@shared/components/Modal'
 import SelectArrow from '@shared/components/SelectArrow'
+import FileUpload from '@shared/components/FileUpload'
 import {
   listScripts, uploadScript, deleteScript, downloadScript,
   listMusic, uploadMusic, deleteMusic, downloadMusic,
@@ -361,17 +362,7 @@ export default function ShowScripts({ show, onUpdate }) {
           <form onSubmit={handleUpload} className="field-stack">
             <div>
               <label className="input-label">File *</label>
-              <div className="file-upload" onClick={() => fileRef.current?.click()}>
-                <div className="file-upload-icon">
-                  <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18 24V10M12 16l6-6 6 6"/><path d="M6 22v6a2 2 0 002 2h20a2 2 0 002-2v-6"/></svg>
-                </div>
-                <div className="file-upload-title">
-                  {uploadFile ? uploadFile.name : <>Drop file here or <span className="file-upload-link">browse</span></>}
-                </div>
-                <div className="file-upload-desc">PDF, DOCX, or FDX</div>
-              </div>
-              <input ref={fileRef} type="file" accept=".pdf,.docx,.fdx" hidden
-                onChange={e => setUploadFile(e.target.files[0])} />
+              <FileUpload file={uploadFile} onFile={setUploadFile} accept=".pdf,.docx,.fdx" description="PDF, DOCX, or FDX" />
             </div>
             <div>
               <label className="input-label">Version Number *</label>
@@ -402,17 +393,7 @@ export default function ShowScripts({ show, onUpdate }) {
           <form onSubmit={handleMusicUpload} className="field-stack">
             <div>
               <label className="input-label">File *</label>
-              <div className="file-upload" onClick={() => musicFileRef.current?.click()}>
-                <div className="file-upload-icon">
-                  <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18 24V10M12 16l6-6 6 6"/><path d="M6 22v6a2 2 0 002 2h20a2 2 0 002-2v-6"/></svg>
-                </div>
-                <div className="file-upload-title">
-                  {musicFile ? musicFile.name : <>Drop file here or <span className="file-upload-link">browse</span></>}
-                </div>
-                <div className="file-upload-desc">MP3, WAV, AIFF, M4A, or FLAC</div>
-              </div>
-              <input ref={musicFileRef} type="file" accept=".mp3,.wav,.aiff,.m4a,.flac" hidden
-                onChange={e => setMusicFile(e.target.files[0])} />
+              <FileUpload file={musicFile} onFile={setMusicFile} accept=".mp3,.wav,.aiff,.m4a,.flac" description="MP3, WAV, AIFF, M4A, or FLAC" />
             </div>
             <div>
               <label className="input-label">Track Name *</label>

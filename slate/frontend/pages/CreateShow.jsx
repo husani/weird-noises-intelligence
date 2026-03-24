@@ -4,9 +4,10 @@
  * The user fills out one form and hits one button.
  */
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import SelectArrow from '@shared/components/SelectArrow'
+import FileUpload from '@shared/components/FileUpload'
 import { createShow, uploadScript, getLookupValues } from '@slate/api'
 
 export default function CreateShow() {
@@ -21,7 +22,6 @@ export default function CreateShow() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
   const navigate = useNavigate()
-  const fileRef = useRef(null)
 
   useEffect(() => {
     Promise.all([
@@ -122,21 +122,12 @@ export default function CreateShow() {
 
             <div>
               <label className="input-label">Script</label>
-              <div className="file-upload" onClick={() => fileRef.current?.click()}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) setScriptFile(f) }}>
-                <div className="file-upload-icon">
-                  <svg width="36" height="36" viewBox="0 0 36 36" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M18 24V10M12 16l6-6 6 6" /><path d="M6 22v6a2 2 0 002 2h20a2 2 0 002-2v-6" />
-                  </svg>
-                </div>
-                <div className="file-upload-title">
-                  {scriptFile ? scriptFile.name : <>Drop script here or <span className="file-upload-link">browse</span></>}
-                </div>
-                <div className="file-upload-desc">PDF, DOCX, or FDX — uploaded as Version 1</div>
-              </div>
-              <input ref={fileRef} type="file" accept=".pdf,.docx,.fdx" hidden
-                onChange={e => setScriptFile(e.target.files[0])} />
+              <FileUpload
+                file={scriptFile}
+                onFile={setScriptFile}
+                accept=".pdf,.docx,.fdx"
+                description="PDF, DOCX, or FDX — uploaded as Version 1"
+              />
             </div>
 
             {error && <div className="field-error">{error}</div>}
