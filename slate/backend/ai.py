@@ -617,17 +617,16 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
     """Parse extraction response and create domain entity rows for this version."""
     with session_factory() as session:
         # Clear existing data for this version (in case of reprocessing)
-        session.query(SlateCharacter).filter_by(show_id=show_id, version_id=version_id).delete()
-        session.query(SlateScene).filter_by(show_id=show_id, version_id=version_id).delete()
-        session.query(SlateSong).filter_by(show_id=show_id, version_id=version_id).delete()
-        session.query(SlateArcPoint).filter_by(show_id=show_id, version_id=version_id).delete()
-        session.query(SlateRuntimeEstimate).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateCharacter).filter_by(version_id=version_id).delete()
+        session.query(SlateScene).filter_by(version_id=version_id).delete()
+        session.query(SlateSong).filter_by(version_id=version_id).delete()
+        session.query(SlateArcPoint).filter_by(version_id=version_id).delete()
+        session.query(SlateRuntimeEstimate).filter_by(version_id=version_id).delete()
 
         # Characters
         characters = data.get("character_breakdown", {}).get("characters", [])
         for i, char in enumerate(characters):
             session.add(SlateCharacter(
-                show_id=show_id,
                 version_id=version_id,
                 name=char.get("name", ""),
                 description=char.get("description"),
@@ -648,7 +647,6 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
             act_num = act.get("act_number")
             for scene in act.get("scenes", []):
                 session.add(SlateScene(
-                    show_id=show_id,
                     version_id=version_id,
                     act_number=act_num,
                     scene_number=scene.get("scene_number", sort_idx + 1),
@@ -668,7 +666,6 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
             songs = data.get("song_list", {}).get("songs", [])
             for i, song in enumerate(songs):
                 session.add(SlateSong(
-                    show_id=show_id,
                     version_id=version_id,
                     title=song.get("title", ""),
                     act=song.get("act"),
@@ -683,7 +680,6 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
         arc_points = data.get("emotional_arc", {}).get("arc_points", [])
         for i, point in enumerate(arc_points):
             session.add(SlateArcPoint(
-                show_id=show_id,
                 version_id=version_id,
                 position=point.get("position", 0),
                 intensity=point.get("intensity", 0),
@@ -710,7 +706,6 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
                     for ab in act_breakdown
                 ]
             session.add(SlateRuntimeEstimate(
-                show_id=show_id,
                 version_id=version_id,
                 total_minutes=runtime.get("total_minutes"),
                 act_breakdown=act_breakdown,
@@ -725,15 +720,14 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
 def _store_assessment_results(session_factory, show_id, version_id, data):
     """Parse assessment response and create domain entity rows for this version."""
     with session_factory() as session:
-        session.query(SlateCastRequirements).filter_by(show_id=show_id, version_id=version_id).delete()
-        session.query(SlateBudgetEstimate).filter_by(show_id=show_id, version_id=version_id).delete()
-        session.query(SlateContentAdvisory).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateCastRequirements).filter_by(version_id=version_id).delete()
+        session.query(SlateBudgetEstimate).filter_by(version_id=version_id).delete()
+        session.query(SlateContentAdvisory).filter_by(version_id=version_id).delete()
 
         # Cast requirements
         cast = data.get("cast_requirements", {})
         if cast:
             session.add(SlateCastRequirements(
-                show_id=show_id,
                 version_id=version_id,
                 minimum_cast_size=cast.get("minimum_cast_size"),
                 recommended_cast_size=cast.get("recommended_cast_size"),
@@ -748,7 +742,6 @@ def _store_assessment_results(session_factory, show_id, version_id, data):
         budget = data.get("budget_estimate", {})
         if budget:
             session.add(SlateBudgetEstimate(
-                show_id=show_id,
                 version_id=version_id,
                 estimated_range=budget.get("estimated_range"),
                 factors=budget.get("factors"),
@@ -763,7 +756,6 @@ def _store_assessment_results(session_factory, show_id, version_id, data):
         advisories = data.get("content_advisories", {}).get("advisories", [])
         for adv in advisories:
             session.add(SlateContentAdvisory(
-                show_id=show_id,
                 version_id=version_id,
                 category=adv.get("category", ""),
                 description=adv.get("description"),
@@ -778,16 +770,15 @@ def _store_assessment_results(session_factory, show_id, version_id, data):
 def _store_creative_results(session_factory, show_id, version_id, data):
     """Parse creative generation response and create domain entity rows for this version."""
     with session_factory() as session:
-        session.query(SlateLoglineDraft).filter_by(show_id=show_id, version_id=version_id).delete()
-        session.query(SlateSummaryDraft).filter_by(show_id=show_id, version_id=version_id).delete()
-        session.query(SlateComparable).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateLoglineDraft).filter_by(version_id=version_id).delete()
+        session.query(SlateSummaryDraft).filter_by(version_id=version_id).delete()
+        session.query(SlateComparable).filter_by(version_id=version_id).delete()
 
         # Logline drafts
         logline_data = data.get("logline_draft", {})
         options = logline_data.get("options", [])
         for opt in options:
             session.add(SlateLoglineDraft(
-                show_id=show_id,
                 version_id=version_id,
                 text=opt.get("text", ""),
                 tone=opt.get("tone"),
@@ -798,7 +789,6 @@ def _store_creative_results(session_factory, show_id, version_id, data):
         summary_text = summary_data.get("summary")
         if summary_text:
             session.add(SlateSummaryDraft(
-                show_id=show_id,
                 version_id=version_id,
                 summary_text=summary_text,
             ))
@@ -808,7 +798,6 @@ def _store_creative_results(session_factory, show_id, version_id, data):
         comparables = comp_data.get("comparables", [])
         for comp in comparables:
             session.add(SlateComparable(
-                show_id=show_id,
                 version_id=version_id,
                 title=comp.get("title", ""),
                 relationship_type=comp.get("relationship"),

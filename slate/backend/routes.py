@@ -732,7 +732,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"characters": []}
             chars = (
                 session.query(Character)
-                .filter(Character.show_id == show_id, Character.version_id == vid)
+                .filter(Character.version_id == vid)
                 .order_by(Character.sort_order)
                 .all()
             )
@@ -792,7 +792,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     ):
         with session_factory() as session:
             char = session.query(Character).filter(
-                Character.id == char_id, Character.show_id == show_id
+                Character.id == char_id
             ).first()
             if not char:
                 return {"error": "Character not found"}
@@ -811,7 +811,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def delete_character(show_id: int, char_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             char = session.query(Character).filter(
-                Character.id == char_id, Character.show_id == show_id
+                Character.id == char_id
             ).first()
             if not char:
                 return {"error": "Character not found"}
@@ -829,7 +829,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"scenes": []}
             scenes = (
                 session.query(Scene)
-                .filter(Scene.show_id == show_id, Scene.version_id == vid)
+                .filter(Scene.version_id == vid)
                 .order_by(Scene.sort_order)
                 .all()
             )
@@ -888,7 +888,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     ):
         with session_factory() as session:
             scene = session.query(Scene).filter(
-                Scene.id == scene_id, Scene.show_id == show_id
+                Scene.id == scene_id
             ).first()
             if not scene:
                 return {"error": "Scene not found"}
@@ -907,7 +907,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def delete_scene(show_id: int, scene_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             scene = session.query(Scene).filter(
-                Scene.id == scene_id, Scene.show_id == show_id
+                Scene.id == scene_id
             ).first()
             if not scene:
                 return {"error": "Scene not found"}
@@ -925,7 +925,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"songs": []}
             songs = (
                 session.query(Song)
-                .filter(Song.show_id == show_id, Song.version_id == vid)
+                .filter(Song.version_id == vid)
                 .order_by(Song.sort_order)
                 .all()
             )
@@ -978,7 +978,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     ):
         with session_factory() as session:
             song = session.query(Song).filter(
-                Song.id == song_id, Song.show_id == show_id
+                Song.id == song_id
             ).first()
             if not song:
                 return {"error": "Song not found"}
@@ -997,7 +997,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def delete_song(show_id: int, song_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             song = session.query(Song).filter(
-                Song.id == song_id, Song.show_id == show_id
+                Song.id == song_id
             ).first()
             if not song:
                 return {"error": "Song not found"}
@@ -1015,7 +1015,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"points": []}
             points = (
                 session.query(ArcPoint)
-                .filter(ArcPoint.show_id == show_id, ArcPoint.version_id == vid)
+                .filter(ArcPoint.version_id == vid)
                 .order_by(ArcPoint.sort_order)
                 .all()
             )
@@ -1215,7 +1215,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"comparables": []}
             comps = (
                 session.query(Comparable)
-                .filter(Comparable.show_id == show_id, Comparable.version_id == vid)
+                .filter(Comparable.version_id == vid)
                 .order_by(Comparable.created_at.desc())
                 .all()
             )
@@ -1255,7 +1255,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     ):
         with session_factory() as session:
             comp = session.query(Comparable).filter(
-                Comparable.id == comp_id, Comparable.show_id == show_id
+                Comparable.id == comp_id
             ).first()
             if not comp:
                 return {"error": "Comparable not found"}
@@ -1274,7 +1274,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def delete_comparable(show_id: int, comp_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             comp = session.query(Comparable).filter(
-                Comparable.id == comp_id, Comparable.show_id == show_id
+                Comparable.id == comp_id
             ).first()
             if not comp:
                 return {"error": "Comparable not found"}
@@ -1292,7 +1292,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"advisories": []}
             advs = (
                 session.query(ContentAdvisory)
-                .filter(ContentAdvisory.show_id == show_id, ContentAdvisory.version_id == vid)
+                .filter(ContentAdvisory.version_id == vid)
                 .order_by(ContentAdvisory.created_at.desc())
                 .all()
             )
@@ -1332,7 +1332,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     ):
         with session_factory() as session:
             adv = session.query(ContentAdvisory).filter(
-                ContentAdvisory.id == adv_id, ContentAdvisory.show_id == show_id
+                ContentAdvisory.id == adv_id
             ).first()
             if not adv:
                 return {"error": "Content advisory not found"}
@@ -1351,7 +1351,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def delete_advisory(show_id: int, adv_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             adv = session.query(ContentAdvisory).filter(
-                ContentAdvisory.id == adv_id, ContentAdvisory.show_id == show_id
+                ContentAdvisory.id == adv_id
             ).first()
             if not adv:
                 return {"error": "Content advisory not found"}
@@ -1369,7 +1369,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"drafts": []}
             drafts = (
                 session.query(LoglineDraft)
-                .filter(LoglineDraft.show_id == show_id, LoglineDraft.version_id == vid)
+                .filter(LoglineDraft.version_id == vid)
                 .order_by(LoglineDraft.created_at.desc())
                 .all()
             )
@@ -1403,7 +1403,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def delete_logline_draft(show_id: int, draft_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             draft = session.query(LoglineDraft).filter(
-                LoglineDraft.id == draft_id, LoglineDraft.show_id == show_id
+                LoglineDraft.id == draft_id
             ).first()
             if not draft:
                 return {"error": "Logline draft not found"}
@@ -1421,7 +1421,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"drafts": []}
             drafts = (
                 session.query(SummaryDraft)
-                .filter(SummaryDraft.show_id == show_id, SummaryDraft.version_id == vid)
+                .filter(SummaryDraft.version_id == vid)
                 .order_by(SummaryDraft.created_at.desc())
                 .all()
             )
@@ -1453,7 +1453,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def delete_summary_draft(show_id: int, draft_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             draft = session.query(SummaryDraft).filter(
-                SummaryDraft.id == draft_id, SummaryDraft.show_id == show_id
+                SummaryDraft.id == draft_id
             ).first()
             if not draft:
                 return {"error": "Summary draft not found"}
