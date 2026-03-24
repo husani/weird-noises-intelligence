@@ -5,8 +5,12 @@ Minimal model for verifying DB infrastructure.
 """
 
 from sqlalchemy import Column, DateTime, Integer, String, func
+from sqlalchemy.orm import DeclarativeBase
 
-from shared.backend.db import Base
+
+class Base(DeclarativeBase):
+    """Skeleton's own declarative base."""
+    pass
 
 
 class SkeletonRecord(Base):

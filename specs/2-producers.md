@@ -191,23 +191,27 @@ AI discovery is a scheduled background job. Runs weekly by default — cadence c
 
 ## Import
 
-Bulk intake pipeline. Accepts any input, uses AI to parse it into structured data, uses AI with full MCP and web search to deduplicate against the existing database, and gives the user control over what gets created and what gets merged.
+Bulk intake pipeline. Accepts any input, uses AI to parse it into structured data, uses AI with full MCP and web search to deduplicate and resolve against the existing database, and gives the user control over what gets created and what gets merged.
 
 ### Input
 
 The import page has a single intake zone. Three input methods, all feeding the same pipeline:
 
 - **File upload** — CSV, XLSX, TSV, any tabular format.
-- **Google Sheet URL** — paste a sharing link. The system fetches the sheet contents via the Google Sheets API using the user's OAuth token.
+- **Google Sheet URL** — paste a sharing link. The system fetches the sheet contents via the Google Sheets API with an API key. If the sheet is private (not link-accessible), the system tells the user how to export it as CSV and upload instead.
 - **Pasted text** — names from a conference program, a forwarded email, a copied table, a Slack thread. Any format.
 
 ### Parse
 
-The raw input goes to an LLM for structured extraction. The LLM reads whatever it was given and pulls out producer records — each with whatever fields it can identify: name, email, phone, organization, role, location, website, notes. Uses structured output (response schema) for clean typed data. Synchronous, with a loading state in the UI.
+The raw input goes to an LLM for structured extraction. The LLM reads whatever it was given and pulls out producer records — each with whatever fields it can identify: name, email, phone, organization, role, location, website. Duplicates within the input itself are consolidated. Uses structured output (response schema) for clean typed data. Synchronous, with a loading state in the UI.
+
+The user sees the parsed results and can correct errors before proceeding. If the parser misread a name or assigned a field incorrectly, the user fixes it here.
 
 ### Dedup
 
 The parsed rows go to a second LLM call with full MCP access and web search. The LLM can search the producer database, pull full records, check org affiliations, look at production history, and search the web to resolve ambiguity. It decides what tools it needs based on what it finds — some rows are trivial, others require real investigation.
+
+Beyond matching, the dedup LLM also resolves data against the existing database — matching organization names to existing Organization records (or flagging them as new), normalizing locations, identifying existing email records. Its structured response maps directly to database operations so that the confirm step is purely mechanical code execution.
 
 For each parsed row, the LLM returns a verdict: **clean** (no match in the database), **match** (this is an existing producer, with who and why), or **possible match** (ambiguous, with the candidate and reasoning).
 
@@ -227,20 +231,19 @@ When the user merges an import row into an existing producer:
 - **Emails** — add the import email if it doesn't already exist on the producer.
 - **Organizations** — add the association if the producer isn't already affiliated. If the association exists but the role differs, surface the conflict.
 - **Tags** — add any the producer doesn't already have.
-- **Notes** — create an Interaction record attributed to the importing user.
 
 Existing data is never overwritten without the user explicitly choosing the import value.
 
 ### Confirm
 
-The user confirms the batch. Clean rows are created, merge rows are merged. Created records get `intake_source: "import"`.
+The user confirms the batch. Code executes the confirmed actions — creating producers, linking organizations, adding emails. Created records get `intake_source: "import"`.
 
 ### AI Behaviors
 
 Two entries in the `ai_behaviors` table:
 
 - **`import_parse`** — extracts structured producer data from raw input. Structured output. Fast/cheap model.
-- **`import_dedup`** — reasons about matches between parsed rows and existing producers. MCP access and web search. Capable model.
+- **`import_dedup`** — reasons about matches between parsed rows and existing producers, resolves data against existing database records. MCP access and web search. Capable model.
 
 Both configurable at runtime via the AI Configuration page.
 

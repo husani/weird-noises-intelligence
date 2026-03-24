@@ -16,7 +16,7 @@ from pathlib import Path
 import yaml
 
 # Add project root to path so imports work
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from shared.backend.db import create_engine_for, create_session_factory
 from producers.backend.models import AIBehavior, SocialPlatform, LookupValue

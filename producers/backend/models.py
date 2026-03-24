@@ -23,9 +23,12 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import DeclarativeBase, relationship
 
-from shared.backend.db import Base
+
+class Base(DeclarativeBase):
+    """Producers' own declarative base."""
+    pass
 
 
 def _utcnow():

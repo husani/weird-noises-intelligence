@@ -294,6 +294,34 @@ lookup_values:
         display_label: Other
         description: Other pitch material
 
+  version_label:
+    entity_type: show_version
+    values:
+      - value: first_draft
+        display_label: First Draft
+        description: Initial complete draft
+      - value: workshop_draft
+        display_label: Workshop Draft
+        description: Draft prepared for or revised after a workshop
+      - value: post_workshop_draft
+        display_label: Post-Workshop Draft
+        description: Revised draft incorporating workshop feedback
+      - value: reading_draft
+        display_label: Reading Draft
+        description: Draft prepared for a staged reading or table read
+      - value: pre_production_draft
+        display_label: Pre-Production Draft
+        description: Draft locked for pre-production
+      - value: production_draft
+        display_label: Production Draft
+        description: Draft used in production
+      - value: revised_draft
+        display_label: Revised Draft
+        description: General revision
+      - value: final_draft
+        display_label: Final Draft
+        description: Final version
+
 ai_behaviors:
   - name: script_core_analysis
     display_label: Core Analysis

@@ -1,12 +1,12 @@
 """
-Create all tool databases and their tables from model definitions.
+Create all tool databases and their tables.
 
 For each tool, this script:
 1. Connects to the default 'postgres' database
 2. Creates the tool database if it doesn't exist
-3. Creates all tables from the tool's model definitions
+3. Creates all tables using the tool's own Base
 
-Does NOT populate tables with seed data — use seed_data.py for that.
+Does NOT populate tables with seed data — use each tool's seed script for that.
 
 Usage:
     poetry run python scripts/setup_db.py
@@ -16,31 +16,27 @@ import sys
 from pathlib import Path
 from urllib.parse import quote_plus
 
-# Add project root to path so imports work
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import create_engine, text
 
 from shared.backend.config import settings
-from shared.backend.db import create_engine_for, create_tables
-from skeleton_a.backend.models import SkeletonRecord
-from producers.backend.models import ALL_MODELS as PRODUCER_MODELS
-from slate.backend.models import ALL_MODELS as SLATE_MODELS
+from shared.backend.db import create_engine_for
 
+# Import each tool's Base and models (importing models registers them with the Base)
+from skeleton_a.backend.models import Base as SkeletonBase
+from producers.backend.models import Base as ProducersBase
+from slate.backend.models import Base as SlateBase
 
 TOOLS = [
-    ("intelligence_skeleton", [SkeletonRecord]),
-    ("intelligence_producers", PRODUCER_MODELS),
-    ("intelligence_slate", SLATE_MODELS),
+    ("intelligence_skeleton", SkeletonBase),
+    ("intelligence_producers", ProducersBase),
+    ("intelligence_slate", SlateBase),
 ]
 
 
 def ensure_databases():
-    """Create each tool database if it doesn't already exist.
-
-    Connects to the default 'postgres' database with AUTOCOMMIT isolation
-    (CREATE DATABASE cannot run inside a transaction).
-    """
+    """Create each tool database if it doesn't already exist."""
     password = quote_plus(settings.db_password) if settings.db_password else ""
     url = (
         f"postgresql://{settings.db_user}:{password}"
@@ -55,7 +51,6 @@ def ensure_databases():
                 {"name": db_name},
             ).scalar()
             if not exists:
-                # Database names are hardcoded constants, not user input
                 conn.execute(text(f'CREATE DATABASE "{db_name}"'))
                 print(f"Created database: {db_name}")
             else:
@@ -67,11 +62,11 @@ def ensure_databases():
 def main():
     ensure_databases()
     print()
-    for db_name, models in TOOLS:
+    for db_name, base in TOOLS:
         print(f"Creating tables in {db_name}...")
         engine = create_engine_for(db_name)
-        create_tables(engine, models)
-        table_names = [m.__tablename__ for m in models]
+        base.metadata.create_all(bind=engine)
+        table_names = sorted(base.metadata.tables.keys())
         print(f"  {len(table_names)} table(s): {', '.join(table_names)}")
     print("Done.")
 

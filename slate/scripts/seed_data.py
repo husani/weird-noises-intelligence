@@ -15,12 +15,12 @@ from pathlib import Path
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from shared.backend.db import create_engine_for, create_session_factory
 from slate.backend.models import SlateAIBehavior, SlateLookupValue
 
-DATA_FILE = Path(__file__).parent / "seed_slate_data.yml"
+DATA_FILE = Path(__file__).parent / "seed_data.yml"
 
 
 def seed_lookup_values(session, lookup_data, force=False):

@@ -1,7 +1,7 @@
 """
 Drop all tables, recreate them, and seed reference data.
 
-Convenience wrapper for development: runs setup_db.py then seed_data.py.
+Convenience wrapper for development: runs setup_db.py then seed scripts.
 All data is destroyed — this is only safe because all current data is test data.
 
 Usage:
@@ -11,15 +11,14 @@ Usage:
 import sys
 from pathlib import Path
 
-# Add project root to path so imports work
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import text
 
-from shared.backend.db import Base, create_engine_for
+from shared.backend.db import create_engine_for
 from scripts.setup_db import TOOLS, ensure_databases, main as setup_main
-from scripts.seed_data import main as seed_main
-from scripts.seed_slate_data import main as seed_slate_main
+from producers.scripts.seed_data import main as seed_producers_main
+from slate.scripts.seed_data import main as seed_slate_main
 
 
 def drop_all_tables():
@@ -40,10 +39,9 @@ def main():
     print()
     setup_main()
     print()
-    # seed_data.main() uses argparse, so override sys.argv
     orig_argv = sys.argv
     sys.argv = ["seed_data.py", "--force"]
-    seed_main()
+    seed_producers_main()
     print()
     sys.argv = ["seed_slate_data.py", "--force"]
     seed_slate_main()

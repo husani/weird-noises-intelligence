@@ -20,7 +20,7 @@ from slate.backend.models import (
     Pitch,
     RuntimeEstimate,
     Scene,
-    ScriptVersion,
+    ShowVersion,
     Show,
     SlateLookupValue,
     Song,
@@ -157,9 +157,9 @@ class SlateInterface:
 
             # Just the latest script version
             current_version = (
-                session.query(ScriptVersion)
+                session.query(ShowVersion)
                 .filter_by(show_id=show_id)
-                .order_by(ScriptVersion.created_at.desc())
+                .order_by(ShowVersion.version_number.desc())
                 .first()
             )
 
@@ -177,10 +177,10 @@ class SlateInterface:
                 "id": show.id,
                 "title": show.title,
                 "medium": self._lookup_dict(show.medium),
-                "genre": show.genre,
-                "logline": show.logline,
-                "summary": show.summary,
-                "emotional_arc_summary": show.emotional_arc_summary,
+                "genre": current_version.genre if current_version else None,
+                "logline": current_version.logline if current_version else None,
+                "summary": current_version.summary if current_version else None,
+                "emotional_arc_summary": current_version.emotional_arc_summary if current_version else None,
                 "rights_status": self._lookup_dict(show.rights_status),
                 "development_stage": self._lookup_dict(show.development_stage),
                 "created_at": show.created_at.isoformat(),
@@ -193,14 +193,14 @@ class SlateInterface:
                         "date": m.date.isoformat() if m.date else None,
                         "description": m.description,
                         "milestone_type": self._lookup_dict(m.milestone_type),
-                        "script_version_id": m.script_version_id,
+                        "version_id": m.version_id,
                     }
                     for m in milestones
                 ],
             }
 
     def _version_dict(self, v):
-        """Serialize a ScriptVersion."""
+        """Serialize a ShowVersion."""
         if not v:
             return None
         return {
@@ -215,11 +215,11 @@ class SlateInterface:
     def get_script(self, version_id):
         with self._session_factory() as session:
             version = (
-                session.query(ScriptVersion)
+                session.query(ShowVersion)
                 .options(
-                    joinedload(ScriptVersion.music_files).joinedload(MusicFile.track_type),
+                    joinedload(ShowVersion.music_files).joinedload(MusicFile.track_type),
                 )
-                .filter(ScriptVersion.id == version_id)
+                .filter(ShowVersion.id == version_id)
                 .first()
             )
             if not version:
@@ -263,10 +263,11 @@ class SlateInterface:
             if not show:
                 return None
 
-            vid = self._latest_version_id(session, show_id)
+            latest_version = session.query(ShowVersion).filter_by(show_id=show_id).order_by(ShowVersion.version_number.desc()).first()
+            vid = latest_version.id if latest_version else None
             comparables = []
             if vid:
-                comps = session.query(Comparable).filter_by(show_id=show_id, script_version_id=vid).all()
+                comps = session.query(Comparable).filter_by(version_id=vid).all()
                 comparables = [
                     {"id": c.id, "title": c.title, "relationship_type": c.relationship_type, "reasoning": c.reasoning}
                     for c in comps
@@ -276,15 +277,15 @@ class SlateInterface:
                 "id": show.id,
                 "title": show.title,
                 "medium": self._lookup_dict(show.medium),
-                "logline": show.logline,
-                "summary": show.summary,
+                "logline": latest_version.logline if latest_version else None,
+                "summary": latest_version.summary if latest_version else None,
                 "development_stage": self._lookup_dict(show.development_stage),
                 "comparables": comparables,
             }
 
     def _latest_version_id(self, session, show_id):
         """Get the latest script version ID for a show."""
-        v = session.query(ScriptVersion.id).filter_by(show_id=show_id).order_by(ScriptVersion.created_at.desc()).first()
+        v = session.query(ShowVersion.id).filter_by(show_id=show_id).order_by(ShowVersion.version_number.desc()).first()
         return v[0] if v else None
 
     def get_characters(self, show_id):
@@ -292,7 +293,7 @@ class SlateInterface:
             vid = self._latest_version_id(session, show_id)
             if not vid:
                 return None
-            chars = session.query(Character).filter_by(show_id=show_id, script_version_id=vid).order_by(Character.sort_order).all()
+            chars = session.query(Character).filter_by(version_id=vid).order_by(Character.sort_order).all()
             if not chars:
                 return None
             return [
@@ -315,7 +316,7 @@ class SlateInterface:
             vid = self._latest_version_id(session, show_id)
             if not vid:
                 return None
-            scenes = session.query(Scene).filter_by(show_id=show_id, script_version_id=vid).order_by(Scene.sort_order).all()
+            scenes = session.query(Scene).filter_by(version_id=vid).order_by(Scene.sort_order).all()
             if not scenes:
                 return None
             return [
@@ -370,7 +371,7 @@ class SlateInterface:
             vid = self._latest_version_id(session, show_id)
             if not vid:
                 return None
-            est = session.query(BudgetEstimate).filter_by(show_id=show_id, script_version_id=vid).first()
+            est = session.query(BudgetEstimate).filter_by(version_id=vid).first()
             if not est:
                 return None
             return {

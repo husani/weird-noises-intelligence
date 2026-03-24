@@ -35,7 +35,7 @@ from slate.backend.models import (
     SlatePitch,
     SlateRuntimeEstimate,
     SlateScene,
-    SlateScriptVersion,
+    SlateShowVersion,
     SlateShow,
     SlateSong,
     SlateSummaryDraft,
@@ -617,18 +617,18 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
     """Parse extraction response and create domain entity rows for this version."""
     with session_factory() as session:
         # Clear existing data for this version (in case of reprocessing)
-        session.query(SlateCharacter).filter_by(show_id=show_id, script_version_id=version_id).delete()
-        session.query(SlateScene).filter_by(show_id=show_id, script_version_id=version_id).delete()
-        session.query(SlateSong).filter_by(show_id=show_id, script_version_id=version_id).delete()
-        session.query(SlateArcPoint).filter_by(show_id=show_id, script_version_id=version_id).delete()
-        session.query(SlateRuntimeEstimate).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateCharacter).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateScene).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateSong).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateArcPoint).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateRuntimeEstimate).filter_by(show_id=show_id, version_id=version_id).delete()
 
         # Characters
         characters = data.get("character_breakdown", {}).get("characters", [])
         for i, char in enumerate(characters):
             session.add(SlateCharacter(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 name=char.get("name", ""),
                 description=char.get("description"),
                 age_range=char.get("age_range"),
@@ -649,7 +649,7 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
             for scene in act.get("scenes", []):
                 session.add(SlateScene(
                     show_id=show_id,
-                    script_version_id=version_id,
+                    version_id=version_id,
                     act_number=act_num,
                     scene_number=scene.get("scene_number", sort_idx + 1),
                     title=scene.get("title"),
@@ -669,7 +669,7 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
             for i, song in enumerate(songs):
                 session.add(SlateSong(
                     show_id=show_id,
-                    script_version_id=version_id,
+                    version_id=version_id,
                     title=song.get("title", ""),
                     act=song.get("act"),
                     scene=song.get("scene"),
@@ -684,7 +684,7 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
         for i, point in enumerate(arc_points):
             session.add(SlateArcPoint(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 position=point.get("position", 0),
                 intensity=point.get("intensity", 0),
                 label=point.get("label"),
@@ -711,7 +711,7 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
                 ]
             session.add(SlateRuntimeEstimate(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 total_minutes=runtime.get("total_minutes"),
                 act_breakdown=act_breakdown,
                 notes=runtime.get("notes"),
@@ -725,16 +725,16 @@ def _store_extraction_results(session_factory, show_id, version_id, data, is_mus
 def _store_assessment_results(session_factory, show_id, version_id, data):
     """Parse assessment response and create domain entity rows for this version."""
     with session_factory() as session:
-        session.query(SlateCastRequirements).filter_by(show_id=show_id, script_version_id=version_id).delete()
-        session.query(SlateBudgetEstimate).filter_by(show_id=show_id, script_version_id=version_id).delete()
-        session.query(SlateContentAdvisory).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateCastRequirements).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateBudgetEstimate).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateContentAdvisory).filter_by(show_id=show_id, version_id=version_id).delete()
 
         # Cast requirements
         cast = data.get("cast_requirements", {})
         if cast:
             session.add(SlateCastRequirements(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 minimum_cast_size=cast.get("minimum_cast_size"),
                 recommended_cast_size=cast.get("recommended_cast_size"),
                 doubling_possibilities=cast.get("doubling_possibilities"),
@@ -749,7 +749,7 @@ def _store_assessment_results(session_factory, show_id, version_id, data):
         if budget:
             session.add(SlateBudgetEstimate(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 estimated_range=budget.get("estimated_range"),
                 factors=budget.get("factors"),
                 cast_size_impact=budget.get("cast_size_impact"),
@@ -764,7 +764,7 @@ def _store_assessment_results(session_factory, show_id, version_id, data):
         for adv in advisories:
             session.add(SlateContentAdvisory(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 category=adv.get("category", ""),
                 description=adv.get("description"),
                 severity=adv.get("severity"),
@@ -778,9 +778,9 @@ def _store_assessment_results(session_factory, show_id, version_id, data):
 def _store_creative_results(session_factory, show_id, version_id, data):
     """Parse creative generation response and create domain entity rows for this version."""
     with session_factory() as session:
-        session.query(SlateLoglineDraft).filter_by(show_id=show_id, script_version_id=version_id).delete()
-        session.query(SlateSummaryDraft).filter_by(show_id=show_id, script_version_id=version_id).delete()
-        session.query(SlateComparable).filter_by(show_id=show_id, script_version_id=version_id).delete()
+        session.query(SlateLoglineDraft).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateSummaryDraft).filter_by(show_id=show_id, version_id=version_id).delete()
+        session.query(SlateComparable).filter_by(show_id=show_id, version_id=version_id).delete()
 
         # Logline drafts
         logline_data = data.get("logline_draft", {})
@@ -788,7 +788,7 @@ def _store_creative_results(session_factory, show_id, version_id, data):
         for opt in options:
             session.add(SlateLoglineDraft(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 text=opt.get("text", ""),
                 tone=opt.get("tone"),
             ))
@@ -799,7 +799,7 @@ def _store_creative_results(session_factory, show_id, version_id, data):
         if summary_text:
             session.add(SlateSummaryDraft(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 summary_text=summary_text,
             ))
 
@@ -809,7 +809,7 @@ def _store_creative_results(session_factory, show_id, version_id, data):
         for comp in comparables:
             session.add(SlateComparable(
                 show_id=show_id,
-                script_version_id=version_id,
+                version_id=version_id,
                 title=comp.get("title", ""),
                 relationship_type=comp.get("relationship"),
                 reasoning=comp.get("reasoning"),
@@ -862,7 +862,7 @@ async def process_script(session_factory, version_id: int):
     try:
         # 1. Get version record, set processing status
         with session_factory() as session:
-            version = session.query(SlateScriptVersion).get(version_id)
+            version = session.query(SlateShowVersion).get(version_id)
             if not version:
                 logger.error(f"Script version {version_id} not found")
                 return
@@ -887,10 +887,18 @@ async def process_script(session_factory, version_id: int):
                 logger.error(f"Show {show_id} not found for version {version_id}")
                 return
             medium_label = show.medium.display_label if show.medium else "Unknown"
+            # Genre comes from the previous version (this version's genre will be set by the AI)
+            prev_version = (
+                session.query(SlateShowVersion)
+                .filter(SlateShowVersion.show_id == show_id, SlateShowVersion.id != version_id)
+                .order_by(SlateShowVersion.version_number.desc())
+                .first()
+            )
+            genre = prev_version.genre if prev_version and prev_version.genre else "Not specified"
             context = {
                 "title": show.title,
                 "medium": medium_label,
-                "genre": show.genre or "Not specified",
+                "genre": genre,
                 "script_text": text or "",
             }
 
@@ -949,12 +957,12 @@ async def process_script(session_factory, version_id: int):
         # 8. If previous version exists, run version_diff
         with session_factory() as session:
             previous = (
-                session.query(SlateScriptVersion)
+                session.query(SlateShowVersion)
                 .filter(
-                    SlateScriptVersion.show_id == show_id,
-                    SlateScriptVersion.id < version_id,
+                    SlateShowVersion.show_id == show_id,
+                    SlateShowVersion.id < version_id,
                 )
-                .order_by(SlateScriptVersion.id.desc())
+                .order_by(SlateShowVersion.id.desc())
                 .first()
             )
             previous_id = previous.id if previous else None
@@ -986,7 +994,7 @@ async def process_script(session_factory, version_id: int):
 
         # 9. Set processing status to complete
         with session_factory() as session:
-            version = session.query(SlateScriptVersion).get(version_id)
+            version = session.query(SlateShowVersion).get(version_id)
             if version:
                 version.processing_status = "complete"
                 session.commit()
@@ -996,7 +1004,7 @@ async def process_script(session_factory, version_id: int):
         logger.error(f"Script processing failed for version {version_id}: {e}")
         try:
             with session_factory() as session:
-                version = session.query(SlateScriptVersion).get(version_id)
+                version = session.query(SlateShowVersion).get(version_id)
                 if version:
                     version.processing_status = "failed"
                     version.processing_error = str(e)
@@ -1015,16 +1023,16 @@ async def process_music(session_factory, music_id: int):
                 logger.error(f"Music file {music_id} not found")
                 return
             music.processing_status = "processing"
-            script_version_id = music.script_version_id
+            version_id = music.version_id
             file_path = music.file_path
             original_filename = music.original_filename
             track_name = music.track_name or ""
             session.commit()
 
         with session_factory() as session:
-            version = session.query(SlateScriptVersion).get(script_version_id)
+            version = session.query(SlateShowVersion).get(version_id)
             if not version:
-                logger.error(f"Script version {script_version_id} not found for music {music_id}")
+                logger.error(f"Script version {version_id} not found for music {music_id}")
                 return
             show = session.query(SlateShow).get(version.show_id)
             show_id = show.id
@@ -1059,7 +1067,7 @@ async def process_music(session_factory, music_id: int):
             context = {
                 "title": show.title,
                 "medium": medium_label,
-                "genre": show.genre or "Not specified",
+                "genre": latest_version.genre if latest_version else "Not specified",
                 "track_name": track_name,
                 "song_context": song_context,
             }
@@ -1152,7 +1160,7 @@ async def process_visual(session_factory, asset_id: int):
             context = {
                 "title": show.title,
                 "medium": medium_label,
-                "genre": show.genre or "Not specified",
+                "genre": latest_version.genre if latest_version else "Not specified",
             }
 
         # 2. Download image from GCS
@@ -1233,15 +1241,22 @@ def _gather_show_context(session, show_id: int) -> dict:
     if not show:
         return {}
 
+    latest_version = (
+        session.query(SlateShowVersion)
+        .filter_by(show_id=show_id)
+        .order_by(SlateShowVersion.version_number.desc())
+        .first()
+    )
+
     medium_label = show.medium.display_label if show.medium else "Unknown"
     stage_label = show.development_stage.display_label if show.development_stage else "Unknown"
 
     ctx = {
         "title": show.title,
         "medium": medium_label,
-        "genre": show.genre or "Not specified",
-        "logline": show.logline or "Not available",
-        "summary": show.summary or "Not available",
+        "genre": latest_version.genre if latest_version else "Not specified",
+        "logline": latest_version.logline if latest_version else "Not available",
+        "summary": latest_version.summary if latest_version else "Not available",
         "development_stage": stage_label,
     }
 
@@ -1487,15 +1502,15 @@ def _gather_show_context(session, show_id: int) -> dict:
 
     # Music analysis data (from music file records)
     current_version = (
-        session.query(SlateScriptVersion)
-        .filter(SlateScriptVersion.show_id == show_id)
-        .order_by(SlateScriptVersion.created_at.desc())
+        session.query(SlateShowVersion)
+        .filter(SlateShowVersion.show_id == show_id)
+        .order_by(SlateShowVersion.created_at.desc())
         .first()
     )
     if current_version:
         music_files = (
             session.query(SlateMusicFile)
-            .filter_by(script_version_id=current_version.id)
+            .filter_by(version_id=current_version.id)
             .filter(SlateMusicFile.processing_status == "complete")
             .order_by(SlateMusicFile.sort_order)
             .all()

@@ -33,7 +33,7 @@ from slate.backend.models import (
     PitchMaterial,
     RuntimeEstimate,
     Scene,
-    ScriptVersion,
+    ShowVersion,
     Show,
     SlateAIBehavior,
     SlateChangeHistory,
@@ -75,7 +75,7 @@ class UpdateShowRequest(BaseModel):
     development_stage_id: Optional[int] = None
 
 
-class UpdateScriptVersionRequest(BaseModel):
+class UpdateShowVersionRequest(BaseModel):
     version_label: Optional[str] = None
     change_notes: Optional[str] = None
 
@@ -91,7 +91,7 @@ class CreateMilestoneRequest(BaseModel):
     date: str  # ISO date string
     description: Optional[str] = None
     milestone_type_id: Optional[int] = None
-    script_version_id: Optional[int] = None
+    version_id: Optional[int] = None
 
 
 class UpdateMilestoneRequest(BaseModel):
@@ -99,7 +99,7 @@ class UpdateMilestoneRequest(BaseModel):
     date: Optional[str] = None
     description: Optional[str] = None
     milestone_type_id: Optional[int] = None
-    script_version_id: Optional[int] = None
+    version_id: Optional[int] = None
 
 
 class UpdateVisualAssetRequest(BaseModel):
@@ -154,18 +154,19 @@ class QueryRequest(BaseModel):
     query: str
 
 
-def _resolve_version(session, show_id, version_id=None):
-    """Resolve a version ID — if None, return the latest version for the show."""
-    if version_id:
-        return version_id
-    v = session.query(ScriptVersion.id).filter_by(show_id=show_id).order_by(ScriptVersion.created_at.desc()).first()
+def _resolve_version(session, show_id, version_number=None):
+    """Resolve a version number to a database ID. If None, return the latest."""
+    if version_number:
+        v = session.query(ShowVersion.id).filter_by(show_id=show_id, version_number=version_number).first()
+        return v[0] if v else None
+    v = session.query(ShowVersion.id).filter_by(show_id=show_id).order_by(ShowVersion.version_number.desc()).first()
     return v[0] if v else None
 
 
 # --- Domain entity request models ---
 
 class CreateCharacterRequest(BaseModel):
-    script_version_id: int
+    version_id: int
     name: str
     description: Optional[str] = None
     age_range: Optional[str] = None
@@ -467,10 +468,10 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     def list_scripts(show_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
             versions = (
-                session.query(ScriptVersion)
-                .options(joinedload(ScriptVersion.music_files))
-                .filter(ScriptVersion.show_id == show_id)
-                .order_by(ScriptVersion.created_at.desc())
+                session.query(ShowVersion)
+                .options(joinedload(ShowVersion.music_files))
+                .filter(ShowVersion.show_id == show_id)
+                .order_by(ShowVersion.version_number.desc())
                 .all()
             )
             return {
@@ -508,7 +509,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
         upload_file(blob_path, data, content_type=content_type)
 
         with session_factory() as session:
-            version = ScriptVersion(
+            version = ShowVersion(
                 show_id=show_id,
                 version_label=version_label,
                 file_path=blob_path,
@@ -532,12 +533,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
 
     @router.put("/shows/{show_id}/scripts/{version_id}")
     def update_script(
-        show_id: int, version_id: int, req: UpdateScriptVersionRequest,
+        show_id: int, version_id: int, req: UpdateShowVersionRequest,
         user: dict = Depends(get_current_user),
     ):
         with session_factory() as session:
-            version = session.query(ScriptVersion).filter(
-                ScriptVersion.id == version_id, ScriptVersion.show_id == show_id
+            version = session.query(ShowVersion).filter(
+                ShowVersion.id == version_id, ShowVersion.show_id == show_id
             ).first()
             if not version:
                 return {"error": "Script version not found"}
@@ -555,8 +556,8 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     @router.delete("/shows/{show_id}/scripts/{version_id}")
     def delete_script(show_id: int, version_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
-            version = session.query(ScriptVersion).filter(
-                ScriptVersion.id == version_id, ScriptVersion.show_id == show_id
+            version = session.query(ShowVersion).filter(
+                ShowVersion.id == version_id, ShowVersion.show_id == show_id
             ).first()
             if not version:
                 return {"error": "Script version not found"}
@@ -572,8 +573,8 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     @router.get("/shows/{show_id}/scripts/{version_id}/download")
     def download_script(show_id: int, version_id: int, user: dict = Depends(get_current_user)):
         with session_factory() as session:
-            version = session.query(ScriptVersion).filter(
-                ScriptVersion.id == version_id, ScriptVersion.show_id == show_id
+            version = session.query(ShowVersion).filter(
+                ShowVersion.id == version_id, ShowVersion.show_id == show_id
             ).first()
             if not version:
                 return {"error": "Script version not found"}
@@ -588,7 +589,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
             files = (
                 session.query(MusicFile)
                 .options(joinedload(MusicFile.track_type))
-                .filter(MusicFile.script_version_id == version_id)
+                .filter(MusicFile.version_id == version_id)
                 .order_by(MusicFile.sort_order)
                 .all()
             )
@@ -631,12 +632,12 @@ def create_slate_router(interface, session_factory) -> APIRouter:
         with session_factory() as session:
             # Get next sort order
             max_order = session.query(MusicFile.sort_order).filter(
-                MusicFile.script_version_id == version_id
+                MusicFile.version_id == version_id
             ).order_by(MusicFile.sort_order.desc()).first()
             next_order = (max_order[0] + 1) if max_order else 0
 
             music = MusicFile(
-                script_version_id=version_id,
+                version_id=version_id,
                 file_path=blob_path,
                 original_filename=file.filename,
                 track_name=track_name,
@@ -662,7 +663,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     ):
         with session_factory() as session:
             music = session.query(MusicFile).filter(
-                MusicFile.id == music_id, MusicFile.script_version_id == version_id
+                MusicFile.id == music_id, MusicFile.version_id == version_id
             ).first()
             if not music:
                 return {"error": "Music file not found"}
@@ -681,7 +682,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     ):
         with session_factory() as session:
             music = session.query(MusicFile).filter(
-                MusicFile.id == music_id, MusicFile.script_version_id == version_id
+                MusicFile.id == music_id, MusicFile.version_id == version_id
             ).first()
             if not music:
                 return {"error": "Music file not found"}
@@ -700,7 +701,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     ):
         with session_factory() as session:
             music = session.query(MusicFile).filter(
-                MusicFile.id == music_id, MusicFile.script_version_id == version_id
+                MusicFile.id == music_id, MusicFile.version_id == version_id
             ).first()
             if not music:
                 return {"error": "Music file not found"}
@@ -716,7 +717,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
         with session_factory() as session:
             for i, music_id in enumerate(ids):
                 session.query(MusicFile).filter(
-                    MusicFile.id == music_id, MusicFile.script_version_id == version_id
+                    MusicFile.id == music_id, MusicFile.version_id == version_id
                 ).update({"sort_order": i})
             session.commit()
             return {"reordered": True}
@@ -731,7 +732,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"characters": []}
             chars = (
                 session.query(Character)
-                .filter(Character.show_id == show_id, Character.script_version_id == vid)
+                .filter(Character.show_id == show_id, Character.version_id == vid)
                 .order_by(Character.sort_order)
                 .all()
             )
@@ -828,7 +829,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"scenes": []}
             scenes = (
                 session.query(Scene)
-                .filter(Scene.show_id == show_id, Scene.script_version_id == vid)
+                .filter(Scene.show_id == show_id, Scene.version_id == vid)
                 .order_by(Scene.sort_order)
                 .all()
             )
@@ -924,7 +925,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"songs": []}
             songs = (
                 session.query(Song)
-                .filter(Song.show_id == show_id, Song.script_version_id == vid)
+                .filter(Song.show_id == show_id, Song.version_id == vid)
                 .order_by(Song.sort_order)
                 .all()
             )
@@ -1014,7 +1015,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"points": []}
             points = (
                 session.query(ArcPoint)
-                .filter(ArcPoint.show_id == show_id, ArcPoint.script_version_id == vid)
+                .filter(ArcPoint.show_id == show_id, ArcPoint.version_id == vid)
                 .order_by(ArcPoint.sort_order)
                 .all()
             )
@@ -1214,7 +1215,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"comparables": []}
             comps = (
                 session.query(Comparable)
-                .filter(Comparable.show_id == show_id, Comparable.script_version_id == vid)
+                .filter(Comparable.show_id == show_id, Comparable.version_id == vid)
                 .order_by(Comparable.created_at.desc())
                 .all()
             )
@@ -1291,7 +1292,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"advisories": []}
             advs = (
                 session.query(ContentAdvisory)
-                .filter(ContentAdvisory.show_id == show_id, ContentAdvisory.script_version_id == vid)
+                .filter(ContentAdvisory.show_id == show_id, ContentAdvisory.version_id == vid)
                 .order_by(ContentAdvisory.created_at.desc())
                 .all()
             )
@@ -1368,7 +1369,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"drafts": []}
             drafts = (
                 session.query(LoglineDraft)
-                .filter(LoglineDraft.show_id == show_id, LoglineDraft.script_version_id == vid)
+                .filter(LoglineDraft.show_id == show_id, LoglineDraft.version_id == vid)
                 .order_by(LoglineDraft.created_at.desc())
                 .all()
             )
@@ -1420,7 +1421,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"drafts": []}
             drafts = (
                 session.query(SummaryDraft)
-                .filter(SummaryDraft.show_id == show_id, SummaryDraft.script_version_id == vid)
+                .filter(SummaryDraft.show_id == show_id, SummaryDraft.version_id == vid)
                 .order_by(SummaryDraft.created_at.desc())
                 .all()
             )
@@ -1586,7 +1587,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                         "date": m.date.isoformat() if m.date else None,
                         "description": m.description,
                         "milestone_type": _lookup_dict(m.milestone_type),
-                        "script_version_id": m.script_version_id,
+                        "version_id": m.version_id,
                         "script_version_label": m.script_version.version_label if m.script_version else None,
                         "created_at": m.created_at.isoformat(),
                     }
@@ -1603,7 +1604,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 date=datetime.fromisoformat(req.date).date(),
                 description=req.description,
                 milestone_type_id=req.milestone_type_id,
-                script_version_id=req.script_version_id,
+                version_id=req.version_id,
             )
             session.add(milestone)
             session.flush()
