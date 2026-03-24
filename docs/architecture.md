@@ -44,9 +44,10 @@ LLM APIs
             layout/       Nav bar, tool switcher, page wrapper
             auth/         Login page, OAuth flow, auth guards
             components/   Reusable UI: ActionMenu, Alert, Badge, Button, DataTable,
-                          Drawer, EmptyState, LocationAutocomplete, Modal, PlatformIcon,
-                          ProducerDrawer, SectionCard, SortHeader, Spinner, StatusIndicator,
-                          TableControls, Tabs
+                          Drawer, DropdownSelect, EmptyState, EntityNav (route + anchor modes),
+                          LocationAutocomplete, Modal, PlatformIcon, ProducerDrawer,
+                          SectionCard, SelectArrow, SortHeader, Spinner, StageProgression,
+                          StatusIndicator, TableControls, Tabs
             hooks/        useLookupValues
             pages/        Home, LoginPage
             styles/       base.css (imports components.css, layouts.css)
@@ -179,6 +180,8 @@ producers/frontend/styles/
 ```
 
 `main.jsx` imports `@shared/styles/base.css`. `ProducersPage.jsx` imports `@producers/styles/producers.css`. CSS custom properties (`style={{ '--var': value }}`) are the only acceptable use of inline styles — for passing computed values to CSS classes.
+
+Shared CSS includes structural layout patterns: `.field-stack` (vertical form fields with gap), `.section-stack` (vertical sections with gap), `.form-actions` (button row), `.filter-row` (search + filter dropdowns), `.batch-bar` (selected items action bar), `.checkbox` (styled replacement for native checkbox), `.dropdown-select-*` (custom select dropdown), `.entity-nav-sticky` (sticky anchor nav mode), `.page-loading` (centered spinner). Use these instead of inventing tool-specific equivalents.
 
 ### Vite Aliases
 

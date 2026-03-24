@@ -28,6 +28,7 @@ This is not optional. Skipping this step has been a persistent failure across ev
 - **NEVER create spacing utility classes** (e.g. `mb-16`, `mt-8`, `tool-mb-24`). Spacing comes from structural containers with gap, component padding, or layout classes — not per-element margin utilities. If you need spacing between form fields, use a flex column container with gap. If you need spacing between page sections, use a flex column container with gap. One container class, not a class per element.
 - **NEVER invent CSS classes without checking the design system first.** If you need a pattern (button variant, card layout, form structure, spacing), check `specs/mockups/design-system.html` for an existing solution. If nothing exists, flag it as "needs new CSS" in your design plan — do not silently create classes. If a pattern is genuinely missing from the design system and is reusable across tools, add it to `shared/frontend/styles/components.css`, not to the tool's CSS.
 - **NEVER copy-paste components across files.** If two pages need the same component (a select arrow SVG, a stage progression indicator, a form field), make it a shared component or a tool-level component — not duplicated code in multiple page files.
+- **NEVER conditionally hide sections or fields.** All sections always render — show empty states when there's no data. All fields always show, including empty ones (display dashes). The user needs to see what's there AND what's missing.
 
 ## Platform Philosophy
 

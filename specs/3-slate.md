@@ -328,7 +328,10 @@ When a script version is uploaded, the system reads it and populates the show's 
 1. Set `processing_status = "processing"` on the script version
 2. Read the script file from GCS
 3. For PDF: pass file bytes directly to Gemini (native PDF support). For DOCX: extract text via python-docx. For FDX: parse the XML (dialogue, action, scene headings are tagged elements).
-4. Derive each data type as a separate LLM call (can be parallelized)
+4. Derive show data in three grouped LLM calls (grouped by what naturally fits together):
+   - **Core analysis**: characters, scenes, songs (musicals), emotional arc, runtime — structural data that's deeply interdependent, derived from one reading of the script
+   - **Production analysis**: cast requirements, budget estimate, content advisories — practical producing data derived from the structural analysis (receives core analysis output as context, not the raw script again)
+   - **Creative positioning**: logline options, summary, comparables — marketing and positioning, also receives core analysis as context
 5. Store results in the Show Data table
 6. If this isn't the first version, generate a version diff against the previous version
 7. Set `processing_status = "complete"` (or "failed" with error detail)

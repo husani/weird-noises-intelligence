@@ -13,22 +13,13 @@ import {
   getLookupValues, getShowData, reprocessScript,
 } from '@slate/api'
 
-const DATA_TYPES = [
-  { key: 'character_breakdown', label: 'Character Breakdown' },
-  { key: 'scene_breakdown', label: 'Scene Breakdown' },
-  { key: 'emotional_arc', label: 'Emotional Arc' },
-  { key: 'runtime_estimate', label: 'Runtime Estimate' },
-  { key: 'cast_requirements', label: 'Cast Requirements' },
-  { key: 'budget_estimate', label: 'Budget Estimate' },
-  { key: 'logline_draft', label: 'Logline Draft' },
-  { key: 'summary_draft', label: 'Summary Draft' },
-  { key: 'comparables', label: 'Comparables' },
-  { key: 'content_advisories', label: 'Content Advisories' },
+const ANALYSIS_GROUPS = [
+  { key: 'core', label: 'Core Analysis', types: ['character_breakdown', 'scene_breakdown', 'emotional_arc', 'runtime_estimate'] },
+  { key: 'production', label: 'Production Analysis', types: ['cast_requirements', 'budget_estimate', 'content_advisories'] },
+  { key: 'creative', label: 'Creative Positioning', types: ['logline_draft', 'summary_draft', 'comparables'] },
 ]
 
-const MUSICAL_DATA_TYPES = [
-  { key: 'song_list', label: 'Song List' },
-]
+const MUSICAL_EXTRA_CORE_TYPES = ['song_list']
 
 export default function ShowScripts({ show, onUpdate }) {
   const [versions, setVersions] = useState([])
@@ -53,9 +44,16 @@ export default function ShowScripts({ show, onUpdate }) {
 
   const isMusical = show.medium?.value === 'musical'
 
-  const allDataTypes = isMusical
-    ? [...DATA_TYPES, ...MUSICAL_DATA_TYPES]
-    : DATA_TYPES
+  // Build groups with musical song_list injected into core group
+  const analysisGroups = ANALYSIS_GROUPS.map(group => {
+    if (group.key === 'core' && isMusical) {
+      return { ...group, types: [...group.types.slice(0, 2), 'song_list', ...group.types.slice(2)] }
+    }
+    return group
+  })
+
+  // Flat list of all data type keys for progress counting
+  const allDataTypeKeys = analysisGroups.flatMap(g => g.types)
 
   const load = useCallback(async () => {
     try {
@@ -258,9 +256,12 @@ export default function ShowScripts({ show, onUpdate }) {
 
   function renderProcessingPanel(version) {
     const vCompleted = completedTypes[version.id] || completedTypes['current'] || []
-    const completedCount = allDataTypes.filter(dt => vCompleted.includes(dt.key)).length
-    const totalCount = allDataTypes.length
+    const completedCount = allDataTypeKeys.filter(key => vCompleted.includes(key)).length
+    const totalCount = allDataTypeKeys.length
     const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+    // Determine group statuses: complete (all types done), processing (first incomplete group), pending
+    let foundFirstIncomplete = false
 
     return (
       <div className="processing-panel">
@@ -274,42 +275,37 @@ export default function ShowScripts({ show, onUpdate }) {
           </div>
         </div>
         <div className="processing-steps">
-          {allDataTypes.map(dt => {
-            const isComplete = vCompleted.includes(dt.key)
-            let statusClass = 'processing-step-icon-pending'
-            if (isComplete) statusClass = 'processing-step-icon-complete'
-            else if (completedCount < totalCount && !isComplete) {
-              // First non-complete types after all complete ones are "processing"
-              const firstPendingIdx = allDataTypes.findIndex(d => !vCompleted.includes(d.key))
-              const thisIdx = allDataTypes.indexOf(dt)
-              if (thisIdx <= firstPendingIdx + 1) statusClass = 'processing-step-icon-processing'
+          {analysisGroups.map(group => {
+            const groupComplete = group.types.every(t => vCompleted.includes(t))
+            let groupStatus = 'pending'
+            if (groupComplete) {
+              groupStatus = 'complete'
+            } else if (!foundFirstIncomplete) {
+              groupStatus = 'processing'
+              foundFirstIncomplete = true
             }
 
+            const statusClass = `processing-step-icon-${groupStatus}`
+
             return (
-              <div key={dt.key} className="processing-step">
+              <div key={group.key} className="processing-step">
                 <div className={`processing-step-icon ${statusClass}`}>
-                  {statusClass === 'processing-step-icon-complete' && (
+                  {groupStatus === 'complete' && (
                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <circle cx="9" cy="9" r="7" />
                       <path d="M6 9.5l2 2 4-4" />
                     </svg>
                   )}
-                  {statusClass === 'processing-step-icon-processing' && (
+                  {groupStatus === 'processing' && (
                     <div className="processing-step-spinner" />
                   )}
-                  {statusClass === 'processing-step-icon-pending' && (
+                  {groupStatus === 'pending' && (
                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <path d="M6 9h6" />
                     </svg>
                   )}
-                  {statusClass === 'processing-step-icon-failed' && (
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <circle cx="9" cy="9" r="7" />
-                      <path d="M6.5 6.5l5 5M11.5 6.5l-5 5" />
-                    </svg>
-                  )}
                 </div>
-                <span className="processing-step-name">{dt.label}</span>
+                <span className="processing-step-name">{group.label}</span>
               </div>
             )
           })}

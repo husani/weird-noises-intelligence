@@ -461,51 +461,63 @@ class VisualAnalysisResult(BaseModel):
     notes: Optional[str] = None
 
 
+# --- Grouped analysis schemas ---
+
+class CoreAnalysis(BaseModel):
+    character_breakdown: CharacterBreakdown
+    scene_breakdown: SceneBreakdown
+    song_list: Optional[SongList] = None
+    emotional_arc: EmotionalArc
+    runtime_estimate: RuntimeEstimate
+
+
+class ProductionAnalysis(BaseModel):
+    cast_requirements: CastRequirements
+    budget_estimate: BudgetEstimate
+    content_advisories: ContentAdvisories
+
+
+class CreativePositioning(BaseModel):
+    logline_draft: LoglineDraft
+    summary_draft: SummaryDraft
+    comparables: Comparables
+
+
 # --- Analysis configuration ---
 
-SCRIPT_ANALYSIS_TYPES = [
-    "character_breakdown",
-    "scene_breakdown",
-    "song_list",
-    "emotional_arc",
-    "runtime_estimate",
-    "cast_requirements",
-    "budget_estimate",
-    "logline_draft",
-    "summary_draft",
-    "comparables",
-    "content_advisories",
+# The three grouped analysis calls for script processing
+ANALYSIS_GROUPS = [
+    {
+        "name": "core",
+        "label": "Core Analysis",
+        "behavior": "script_core_analysis",
+        "schema": CoreAnalysis,
+        "data_types": ["character_breakdown", "scene_breakdown", "song_list", "emotional_arc", "runtime_estimate"],
+    },
+    {
+        "name": "production",
+        "label": "Production Analysis",
+        "behavior": "script_production_analysis",
+        "schema": ProductionAnalysis,
+        "data_types": ["cast_requirements", "budget_estimate", "content_advisories"],
+    },
+    {
+        "name": "creative",
+        "label": "Creative Positioning",
+        "behavior": "script_creative_positioning",
+        "schema": CreativePositioning,
+        "data_types": ["logline_draft", "summary_draft", "comparables"],
+    },
 ]
 
+# Individual analysis types that still use _run_analysis (not grouped)
 ANALYSIS_BEHAVIOR_MAP = {
-    "character_breakdown": "script_character_breakdown",
-    "scene_breakdown": "script_scene_breakdown",
-    "song_list": "script_song_list",
-    "emotional_arc": "script_emotional_arc",
-    "runtime_estimate": "script_runtime_estimate",
-    "cast_requirements": "script_cast_requirements",
-    "budget_estimate": "script_budget_estimate",
-    "logline_draft": "script_logline",
-    "summary_draft": "script_summary",
-    "comparables": "script_comparables",
-    "content_advisories": "script_content_advisories",
     "version_diff": "script_version_diff",
     "music_analysis": "music_analysis",
     "visual_analysis": "visual_analysis",
 }
 
 ANALYSIS_SCHEMA_MAP = {
-    "character_breakdown": CharacterBreakdown,
-    "scene_breakdown": SceneBreakdown,
-    "song_list": SongList,
-    "emotional_arc": EmotionalArc,
-    "runtime_estimate": RuntimeEstimate,
-    "cast_requirements": CastRequirements,
-    "budget_estimate": BudgetEstimate,
-    "logline_draft": LoglineDraft,
-    "summary_draft": SummaryDraft,
-    "comparables": Comparables,
-    "content_advisories": ContentAdvisories,
     "version_diff": VersionDiff,
     "music_analysis": MusicAnalysisResult,
     "visual_analysis": VisualAnalysisResult,
@@ -602,8 +614,10 @@ def _extract_fdx_text(file_bytes: bytes) -> str:
 async def process_script(session_factory, version_id: int):
     """Main script processing pipeline.
 
-    Downloads the script, extracts content, and runs all applicable
-    analysis types concurrently with a semaphore to limit parallelism.
+    Downloads the script, extracts content, and runs 3 grouped analysis
+    calls: Core Analysis (reads the script), Production Analysis (derives
+    from core), and Creative Positioning (derives from core). Then runs
+    version_diff if a previous version exists.
     """
     try:
         # 1. Get version record, set processing status
@@ -640,32 +654,59 @@ async def process_script(session_factory, version_id: int):
                 "script_text": text or "",
             }
 
-        # 5. Determine types to run (skip song_list for non-musicals)
-        types_to_run = list(SCRIPT_ANALYSIS_TYPES)
-        if medium_label.lower() != "musical":
-            types_to_run = [t for t in types_to_run if t != "song_list"]
+        is_musical = medium_label.lower() == "musical"
 
-        # 6. Run analyses concurrently with semaphore
-        sem = asyncio.Semaphore(3)
+        # 5. Run Core Analysis (reads the script)
+        core_context = {**context}
+        if not is_musical:
+            core_context["skip_songs"] = "true"
 
-        async def run_one(data_type):
-            async with sem:
-                return await _run_analysis(
-                    data_type, text, file_parts, context,
-                    show_id, version_id, session_factory,
-                )
-
-        results = await asyncio.gather(
-            *[run_one(dt) for dt in types_to_run],
-            return_exceptions=True,
+        logger.info(f"Running core analysis for version {version_id}")
+        core_raw = await call_llm(
+            behavior="script_core_analysis",
+            context=core_context,
+            file_parts=file_parts,
+            response_schema=CoreAnalysis,
         )
+        core_data = json.loads(core_raw)
 
-        # Log any failures
-        for dt, result in zip(types_to_run, results):
-            if isinstance(result, Exception):
-                logger.error(f"Analysis {dt} failed for version {version_id}: {result}")
+        _store_grouped_results(session_factory, show_id, version_id, core_data, "script_core_analysis")
 
-        # 7. If previous version exists, run version_diff
+        # 6. Run Production Analysis (receives core analysis as context, not the script)
+        prod_context = {
+            "title": context["title"],
+            "medium": context["medium"],
+            "genre": context["genre"],
+            "core_analysis": json.dumps(core_data, indent=2),
+        }
+
+        logger.info(f"Running production analysis for version {version_id}")
+        prod_raw = await call_llm(
+            behavior="script_production_analysis",
+            context=prod_context,
+            response_schema=ProductionAnalysis,
+        )
+        prod_data = json.loads(prod_raw)
+        _store_grouped_results(session_factory, show_id, version_id, prod_data, "script_production_analysis")
+
+        # 7. Run Creative Positioning (also receives core analysis as context)
+        creative_context = {
+            "title": context["title"],
+            "medium": context["medium"],
+            "genre": context["genre"],
+            "core_analysis": json.dumps(core_data, indent=2),
+        }
+
+        logger.info(f"Running creative positioning for version {version_id}")
+        creative_raw = await call_llm(
+            behavior="script_creative_positioning",
+            context=creative_context,
+            response_schema=CreativePositioning,
+        )
+        creative_data = json.loads(creative_raw)
+        _store_grouped_results(session_factory, show_id, version_id, creative_data, "script_creative_positioning")
+
+        # 8. If previous version exists, run version_diff
         with session_factory() as session:
             previous = (
                 session.query(SlateScriptVersion)
@@ -694,7 +735,7 @@ async def process_script(session_factory, version_id: int):
             except Exception as e:
                 logger.error(f"Version diff failed for version {version_id}: {e}")
 
-        # 8. Set processing status to complete
+        # 9. Set processing status to complete
         with session_factory() as session:
             version = session.query(SlateScriptVersion).get(version_id)
             if version:
@@ -713,6 +754,39 @@ async def process_script(session_factory, version_id: int):
                     session.commit()
         except Exception:
             logger.error(f"Failed to record error for version {version_id}")
+
+
+def _store_grouped_results(session_factory, show_id, version_id, grouped_data, behavior_name):
+    """Parse a grouped analysis response and store each data type as a separate ShowData record."""
+    with session_factory() as session:
+        behavior_row = session.query(SlateAIBehavior).filter_by(name=behavior_name).first()
+        model_used = behavior_row.model if behavior_row else "unknown"
+
+        for key, value in grouped_data.items():
+            if value is None:
+                continue
+            # The value is already a dict (parsed from JSON)
+            content = value if isinstance(value, dict) else value
+
+            # Delete existing record for this type/version
+            session.query(SlateShowData).filter_by(
+                show_id=show_id,
+                source_type="script_version",
+                source_id=version_id,
+                data_type=key,
+            ).delete()
+
+            session.add(SlateShowData(
+                show_id=show_id,
+                source_type="script_version",
+                source_id=version_id,
+                data_type=key,
+                content=content,
+                model_used=model_used,
+            ))
+        session.commit()
+
+    logger.info(f"Stored grouped results from {behavior_name} for version {version_id}")
 
 
 async def _run_analysis(
@@ -797,11 +871,31 @@ async def process_music(session_factory, music_id: int):
                 return
             show = session.query(SlateShow).get(version.show_id)
             show_id = show.id
+            medium_value = show.medium.value if show.medium else ""
             medium_label = show.medium.display_label if show.medium else "Unknown"
+            track_name = session.query(SlateMusicFile).get(music_id).track_name or ""
+
+            # For musicals, get the song list so the LLM can connect this track to the show's structure
+            song_context = ""
+            if medium_value == "musical":
+                song_data = session.query(SlateShowData).filter_by(
+                    show_id=show_id,
+                    source_type="script_version",
+                    source_id=script_version_id,
+                    data_type="song_list",
+                ).first()
+                if song_data and song_data.content:
+                    song_context = (
+                        "SONG LIST FROM SCRIPT ANALYSIS (connect this track to the song it corresponds to):\n"
+                        + json.dumps(song_data.content, indent=2)
+                    )
+
             context = {
                 "title": show.title,
                 "medium": medium_label,
                 "genre": show.genre or "Not specified",
+                "track_name": track_name,
+                "song_context": song_context,
             }
 
         # 2. Download audio from GCS

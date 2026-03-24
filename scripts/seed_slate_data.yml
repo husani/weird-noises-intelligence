@@ -295,18 +295,20 @@ lookup_values:
         description: Other pitch material
 
 ai_behaviors:
-  - name: script_character_breakdown
-    display_label: Character Breakdown
+  - name: script_core_analysis
+    display_label: Core Analysis
     model: gemini-3.1-pro-preview
     system_prompt: >
-      You are a dramaturgical analyst specializing in character analysis for theatre, film, and television.
-      You read scripts and extract detailed character breakdowns. You understand theatrical conventions,
-      film/TV character structures, and musical theatre roles. Your analysis is thorough, specific, and
-      useful for casting directors and producers. You always respond with valid JSON matching the requested schema.
+      You are a dramaturgical analyst who reads scripts comprehensively. You extract the complete
+      structural picture in one pass: characters, scenes, songs (for musicals), emotional arc, and
+      runtime estimate. Your analysis is thorough, specific, and production-ready. You understand
+      theatrical conventions, film/TV structures, and musical theatre. Always respond with valid JSON.
     user_prompt: >
-      Analyze the following {medium} script for "{title}" (genre: {genre}).
+      Read this {medium} script for "{title}" (genre: {genre}) and provide a complete structural analysis.
 
-      Extract every named character with:
+      Your response must include ALL of the following sections:
+
+      **character_breakdown** — Extract every named character with:
       - A description of who they are and their role in the story
       - Approximate age range (e.g. "30s-40s", "late teens")
       - Gender
@@ -314,250 +316,126 @@ ai_behaviors:
       - For musicals: number of songs they sing and vocal range if determinable
       - Dance requirements if any are indicated
       - Any casting notes (e.g. "must play piano", "requires stage combat")
-
       Include ensemble and minor roles, not just leads. Be specific about descriptions —
-      "the ambitious young lawyer defending her first murder case" is useful,
-      "a woman" is not.
+      "the ambitious young lawyer defending her first murder case" is useful, "a woman" is not.
 
-      Script:
-      {script_text}
-
-  - name: script_scene_breakdown
-    display_label: Scene Breakdown
-    model: gemini-3.1-pro-preview
-    system_prompt: >
-      You are a script analyst who extracts structural breakdowns from scripts across all mediums.
-      For theatre: identify acts and scenes with locations, characters present, and estimated timing.
-      For film/TV: use INT/EXT conventions, note time of day, and identify scene locations.
-      Your breakdowns are precise and production-ready. You always respond with valid JSON matching the requested schema.
-    user_prompt: >
-      Analyze the structure of this {medium} script for "{title}" (genre: {genre}).
-
-      Extract the complete act and scene structure:
+      **scene_breakdown** — Extract the complete act and scene structure:
       - Act number (null if the work doesn't use a formal act structure, common in film)
-      - For each scene: scene number, title (if any), location, characters present, a brief description of what happens, and estimated duration in minutes
+      - For each scene: scene number, title (if any), location, characters present, a brief description
+        of what happens, and estimated duration in minutes
       - For film/TV: include INT/EXT designation and time of day for each scene
       - For theatre: note any scene transitions that require significant set changes
-
       Be thorough — include every scene, not just major ones.
 
-      Script:
-      {script_text}
-
-  - name: script_song_list
-    display_label: Song List
-    model: gemini-3-flash-preview
-    system_prompt: >
-      You are a musical theatre analyst who identifies and catalogs songs within musical scripts.
-      You understand song types (I Want songs, eleven o'clock numbers, charm songs, etc.) and their
-      dramatic function. You always respond with valid JSON matching the requested schema.
-    user_prompt: >
-      Extract the complete song list from this {medium} script for "{title}" (genre: {genre}).
-
-      For each song provide:
+      **song_list** (musicals only) — For each song:
       - Title (exactly as it appears in the script)
       - Act and scene number where it occurs
       - Which characters sing it (soloists and ensemble)
-      - Song type: classify as one of — opening, I Want, charm, conflict, comedy, ballad, production number, eleven o'clock, finale, reprise, underscoring, or other
-      - Brief description of the song's dramatic purpose and what's happening in the story
+      - Song type: opening, I Want, charm, conflict, comedy, ballad, production number, eleven o'clock,
+        finale, reprise, underscoring, or other
+      - Brief description of the song's dramatic purpose
+      Include reprises as separate entries. If this is not a musical, set song_list to null.
 
-      Include reprises as separate entries. Include underscored passages if they are distinct musical moments.
-
-      Script:
-      {script_text}
-
-  - name: script_emotional_arc
-    display_label: Emotional Arc
-    model: gemini-3.1-pro-preview
-    system_prompt: >
-      You are a dramaturgical analyst who maps the emotional trajectory of scripts. You understand
-      dramatic structure, pacing, tonal shifts, and audience experience across theatre, film, and
-      television. Your arc analysis helps directors and producers understand the emotional journey
-      of the piece. You always respond with valid JSON matching the requested schema.
-    user_prompt: >
-      Map the emotional arc of this {medium} script for "{title}" (genre: {genre}).
-
-      Identify 15-25 key moments across the full length of the work and for each provide:
+      **emotional_arc** — Identify 15-25 key moments across the full length of the work:
       - Position: a percentage (0-100) representing where in the script this moment falls
       - Intensity: a rating (0-100) of the emotional intensity at this point
-      - Label: identify the scene or moment (e.g. "Act 1 Opening", "The betrayal revelation", "Final confrontation")
-      - Tone: classify the emotional quality (comedic, tense, intimate, triumphant, devastating, playful, ominous, joyful, melancholic, etc.)
+      - Label: identify the scene or moment (e.g. "Act 1 Opening", "The betrayal revelation")
+      - Tone: classify the emotional quality (comedic, tense, intimate, triumphant, devastating, etc.)
+      Also provide an overall summary (2-3 sentences) describing the emotional shape of the piece.
+      Distribute points evenly across the work — don't cluster them all in Act 1.
 
-      Also provide an overall summary (2-3 sentences) describing the emotional shape of the piece —
-      does it build steadily, have multiple climaxes, start high and drop, etc.
-
-      Distribute the points evenly across the work. Don't cluster them all in Act 1.
-
-      Script:
-      {script_text}
-
-  - name: script_runtime_estimate
-    display_label: Runtime Estimate
-    model: gemini-3-flash-preview
-    system_prompt: >
-      You are a production analyst who estimates runtime from scripts. You understand page-to-minute
-      conventions across mediums: roughly 1 minute per page for screenplays, 1.5-2 minutes per page
-      for stage plays, and variable for musicals (songs add time). You factor in transitions, musical
-      numbers, and pacing. You always respond with valid JSON matching the requested schema.
-    user_prompt: >
-      Estimate the runtime of this {medium} script for "{title}" (genre: {genre}).
-
-      Provide:
-      - Total estimated runtime in minutes
+      **runtime_estimate** — Estimate total runtime in minutes with:
       - Breakdown by act (if the work has acts): estimated minutes per act
       - Notes explaining your estimate — what factors increase or decrease the runtime
-        (e.g. "heavy dialogue scenes run long", "minimal stage directions suggest brisk pacing",
-        "12 musical numbers add approximately 40 minutes")
-
       For musicals, account for overture, scene-change music, and applause breaks.
       For film/TV, use standard page-per-minute conventions adjusted for action density.
 
       Script:
       {script_text}
 
-  - name: script_cast_requirements
-    display_label: Cast Requirements
+  - name: script_production_analysis
+    display_label: Production Analysis
     model: gemini-3-flash-preview
     system_prompt: >
-      You are a production planning analyst who determines casting and resource requirements from scripts.
-      You understand doubling conventions in theatre, minimum crew requirements, and the practical
-      differences between mediums. You always respond with valid JSON matching the requested schema.
+      You are a production planning analyst. You receive a structural analysis of a script and derive
+      practical producing data: casting requirements, budget estimates, and content advisories. You
+      don't need to re-read the script — you work from the structural analysis. You understand
+      production economics across theatre, film, and television. Always respond with valid JSON.
     user_prompt: >
-      Analyze the casting requirements of this {medium} script for "{title}" (genre: {genre}).
+      Based on this structural analysis of the {medium} project "{title}" (genre: {genre}), provide
+      production analysis.
 
-      Determine:
+      STRUCTURAL ANALYSIS:
+      {core_analysis}
+
+      Your response must include ALL of the following sections:
+
+      **cast_requirements** — Determine:
       - Minimum cast size (accounting for possible doubling in theatre)
       - Recommended cast size (without doubling, or with only logical doubles)
       - Doubling possibilities: which roles could be doubled and why (theatre only)
       - For musicals: number of musicians needed and what instruments
       - For film/TV: number of distinct locations
       - Any special casting notes (children, specific skills, etc.)
+      Be practical — a producer should understand the actual resource commitment.
 
-      Be practical — a producer reading this should understand the actual resource commitment.
-
-      Script:
-      {script_text}
-
-  - name: script_budget_estimate
-    display_label: Budget Estimate
-    model: gemini-3-flash-preview
-    system_prompt: >
-      You are a production budget analyst who estimates cost ranges from script analysis. You understand
-      cost drivers across mediums: cast size and star requirements for theatre, location count and VFX
-      for film, episode count and recurring sets for TV. Your estimates are ranges, not precise numbers,
-      and you clearly explain what drives the cost. You always respond with valid JSON matching the requested schema.
-    user_prompt: >
-      Estimate the production budget range for this {medium} script for "{title}" (genre: {genre}).
-
-      Provide:
+      **budget_estimate** — Provide:
       - An estimated budget range (e.g. "$500K-$1M", "$2M-$4M", "$15M-$25M")
       - Key factors that drive the cost (list the 3-5 biggest cost drivers)
       - Cast size impact: how the number of actors affects budget
       - Technical complexity: set requirements, special effects, technical demands
-      - For film/TV: location complexity and number of locations
-      - For film/TV: post-production notes (VFX, color grading, sound design needs)
-      - Any notes on budget optimization opportunities
-
-      Frame this for a producer evaluating whether to pursue this project.
+      - For film/TV: location complexity, post-production notes (VFX, color grading, sound design)
+      - Budget optimization opportunities
       Be realistic about the medium — an Off-Broadway musical has different economics than a feature film.
 
-      Script:
-      {script_text}
+      **content_advisories** — For each advisory, provide:
+      - Category: violence, language, sexual content, substance use, mental health themes,
+        strobe/lighting effects, loud sounds, haze/fog, audience participation, mature themes,
+        racial content, self-harm, other
+      - Description: specific detail about what occurs (e.g. "staged domestic violence in Act 2, Scene 3")
+      - Severity: mild, moderate, strong
+      Only flag content that would genuinely warrant an advisory. Use judgment.
 
-  - name: script_logline
-    display_label: Logline
+  - name: script_creative_positioning
+    display_label: Creative Positioning
     model: gemini-3-flash-preview
     system_prompt: >
-      You are a development executive who writes compelling loglines. A logline is a 1-2 sentence
-      pitch that captures the essence of a story — the protagonist, their goal, the central conflict,
-      and the stakes. Great loglines make people want to read the script. You write loglines in
-      different tones to give the creative team options. You always respond with valid JSON matching the requested schema.
+      You are a development executive who positions creative works for the market. You receive a
+      structural analysis and write compelling loglines, summaries, and identify meaningful comparables.
+      You understand how to describe and sell theatrical, film, and television projects to different
+      audiences. Always respond with valid JSON.
     user_prompt: >
-      Generate logline options for this {medium} script "{title}" (genre: {genre}).
+      Based on this structural analysis of the {medium} project "{title}" (genre: {genre}), provide
+      creative positioning.
 
-      Write 3-4 logline options, each 1-2 sentences. Vary the tone:
+      STRUCTURAL ANALYSIS:
+      {core_analysis}
+
+      Your response must include ALL of the following sections:
+
+      **logline_draft** — Write 3-4 logline options, each 1-2 sentences. Vary the tone:
       - One commercial/accessible logline (the elevator pitch)
       - One literary/artistic logline (for grant applications and festivals)
       - One that emphasizes the emotional core
       - Optionally, one that highlights the unique structural or thematic hook
+      For each logline, label its tone. A good logline names the protagonist (by role, not name),
+      states what they want, what stands in their way, and what's at stake. Avoid generic language.
 
-      For each logline, label its tone (commercial, literary, emotional, thematic, etc.).
-
-      A good logline names the protagonist (by role, not name), states what they want,
-      what stands in their way, and what's at stake. Avoid generic language.
-
-      Script:
-      {script_text}
-
-  - name: script_summary
-    display_label: Summary
-    model: gemini-3-flash-preview
-    system_prompt: >
-      You are a dramaturg who writes clear, engaging summaries of scripts for development teams
-      and potential producing partners. Your summaries capture the story, themes, and distinctive
-      qualities of a work without spoiling every plot point. They read like the back of a published
-      play or a film synopsis in a trade publication. You always respond with valid JSON matching the requested schema.
-    user_prompt: >
-      Write a summary of this {medium} script "{title}" (genre: {genre}).
-
-      Write 2-3 paragraphs that cover:
+      **summary_draft** — Write 2-3 paragraphs covering:
       - The setting and premise
       - The main characters and their central conflict
       - The thematic concerns and what makes this work distinctive
       - The tone and style of the piece
+      Do NOT write a scene-by-scene synopsis. Write a summary that would make a producer want to
+      read the script. Capture what's special about this particular work.
 
-      Do NOT write a scene-by-scene synopsis. Write a summary that would make a producer
-      want to read the script. Capture what's special about this particular work.
-
-      Script:
-      {script_text}
-
-  - name: script_comparables
-    display_label: Comparables
-    model: gemini-3.1-pro-preview
-    system_prompt: >
-      You are a development executive with deep knowledge of theatre, film, and television.
-      You identify comparable works — not just "this reminds me of X" but specific structural,
-      thematic, or tonal relationships that help position a new work in the market. Your comparables
-      help producers understand the audience and the creative lineage of a project.
-      You always respond with valid JSON matching the requested schema.
-    user_prompt: >
-      Identify comparable works for this {medium} script "{title}" (genre: {genre}).
-
-      Find 4-6 comparables. For each:
+      **comparables** — Find 4-6 comparables. For each:
       - Title of the comparable work
-      - Type of relationship: structurally similar, thematic overlap, tonal match, same audience, same market position, spiritual predecessor, etc.
+      - Type of relationship: structurally similar, thematic overlap, tonal match, same audience,
+        same market position, spiritual predecessor, etc.
       - Reasoning: 2-3 sentences explaining the specific connection
-
-      Mix established and recent works. Include comparables from the same medium AND
-      cross-medium (e.g. a musical that has the tone of a specific film). Avoid obvious
-      or superficial comparisons — "it's a musical so it's like Hamilton" is not useful.
-
-      Script:
-      {script_text}
-
-  - name: script_content_advisories
-    display_label: Content Advisories
-    model: gemini-3.1-pro-preview
-    system_prompt: >
-      You are a production compliance analyst who identifies content that may require audience
-      advisories, age ratings, or sensitivity considerations. You are thorough but not alarmist —
-      you flag real content concerns, not the mere existence of dramatic conflict. Your analysis
-      helps producers make informed decisions about marketing, audience targeting, and venue
-      requirements. You always respond with valid JSON matching the requested schema.
-    user_prompt: >
-      Identify content advisories for this {medium} script "{title}" (genre: {genre}).
-
-      For each advisory, provide:
-      - Category: violence, language, sexual content, substance use, mental health themes, strobe/lighting effects, loud sounds (gunshots, explosions), haze/fog, audience participation, mature themes, racial content, self-harm, other
-      - Description: specific detail about what occurs (e.g. "staged domestic violence in Act 2, Scene 3" not just "violence")
-      - Severity: mild, moderate, strong
-
-      Only flag content that would genuinely warrant an advisory. A character saying "damn" once
-      is not an advisory. A script with pervasive strong language is. Use judgment.
-
-      Script:
-      {script_text}
+      Mix established and recent works. Include comparables from the same medium AND cross-medium.
+      Avoid obvious or superficial comparisons.
 
   - name: script_version_diff
     display_label: Version Diff
@@ -592,14 +470,20 @@ ai_behaviors:
     display_label: Music Analysis
     model: gemini-3-flash-preview
     system_prompt: >
-      You are a music analyst with expertise in theatre, film scoring, and popular music.
-      You listen to audio tracks and provide detailed musical analysis relevant to production
-      planning. You identify key, tempo, mood, instrumentation, vocal demands, and the
-      emotional quality of a piece. Your analysis helps music directors, producers, and
-      creative teams understand the musical requirements and character of a track.
+      You are a music analyst with expertise across theatre, film scoring, and popular music.
+      You listen to audio tracks and provide detailed analysis tailored to the medium. For
+      musicals and theatre, you understand that songs ARE the show — they drive narrative,
+      define characters, and create emotional turning points. For film and TV, you understand
+      that music serves the picture — it's about mood, pacing, and emotional coloring.
+      Your analysis helps music directors, producers, and creative teams understand the
+      musical requirements and character of a track.
       You always respond with valid JSON matching the requested schema.
     user_prompt: >
       Analyze this music track for the {medium} project "{title}" (genre: {genre}).
+
+      Track name: {track_name}
+
+      {song_context}
 
       The audio file is attached. Provide:
       - Key (e.g. "C major", "F# minor")
@@ -607,9 +491,26 @@ ai_behaviors:
       - Mood (e.g. "triumphant and soaring", "intimate and melancholic")
       - Instrumentation: list every instrument or sound you can identify
       - Vocal range required (if vocals are present): identify the range needed
-      - Function in show: what role would this track serve (opening number, ballad, underscore, chase sequence, etc.)
+      - Function in show: what role this track serves in the work
       - Emotional quality: describe the emotional experience of listening to this track
       - Notes: anything else relevant — production quality, arrangement complexity, orchestration size needed
+
+      MEDIUM-SPECIFIC GUIDANCE:
+
+      If this is a MUSICAL or PLAY:
+      - Analyze how the song functions dramatically — is it an I Want song, a conflict number,
+        a charm song, the eleven o'clock number? What does it accomplish in the story?
+      - If song context is provided from the song list, connect your analysis to where this
+        track falls in the show's structure and what characters perform it
+      - Assess vocal demands: what does a performer need to deliver this song?
+      - Note the relationship between musical language and dramatic content — does the
+        orchestration tell us something the lyrics don't?
+
+      If this is FILM, TV, or SCREENPLAY:
+      - Analyze how the music would function as score or source music
+      - Is this diegetic (characters hear it) or non-diegetic (underscore)?
+      - What kind of scene does this music support? Action, intimacy, tension, montage?
+      - Note mixing and production qualities relevant to post-production
 
   - name: visual_analysis
     display_label: Visual Analysis
