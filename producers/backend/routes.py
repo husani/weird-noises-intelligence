@@ -320,10 +320,6 @@ class UpdateInteractionRequest(BaseModel):
     content: str
 
 
-class UpdateFollowUpRequest(BaseModel):
-    implied_action: Optional[str] = None
-    timeframe: Optional[str] = None
-    due_date: Optional[str] = None
 
 
 class MergeTagsRequest(BaseModel):
@@ -1375,22 +1371,6 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
                    user: dict = Depends(get_current_user)):
         return interface.remove_tag(producer_id, tag_name, user["email"])
 
-    @router.post("/{producer_id}/follow-ups/{signal_id}/resolve")
-    def resolve_follow_up(producer_id: int, signal_id: int,
-                           user: dict = Depends(get_current_user)):
-        return interface.resolve_follow_up(signal_id)
-
-    @router.put("/{producer_id}/follow-ups/{signal_id}")
-    def update_follow_up(producer_id: int, signal_id: int,
-                          req: UpdateFollowUpRequest,
-                          user: dict = Depends(get_current_user)):
-        return interface.update_follow_up(signal_id, req.model_dump(exclude_unset=True))
-
-    @router.delete("/{producer_id}/follow-ups/{signal_id}")
-    def delete_follow_up(producer_id: int, signal_id: int,
-                          user: dict = Depends(get_current_user)):
-        return interface.delete_follow_up(signal_id)
-
     @router.get("/{producer_id}/history")
     def get_history(producer_id: int, user: dict = Depends(get_current_user)):
         return interface.get_change_history("producer", producer_id)
@@ -1419,31 +1399,14 @@ def _run_research(session_factory, producer_id: int, is_refresh: bool = False):
 
 def _process_interaction(session_factory, interaction_id: int, producer_id: int,
                          content: str, author: str):
-    """Process an interaction after save — extract follow-ups, regenerate summary."""
-    import asyncio
-    from datetime import datetime, timezone
-
-    from producers.backend.ai import (
-        extract_follow_ups,
-        recompute_relationship_state,
-    )
+    """Process an interaction after save — recompute relationship state."""
+    from producers.backend.ai import recompute_relationship_state
     from producers.backend.models import Producer
 
     with session_factory() as session:
         producer = session.get(Producer, producer_id)
         if not producer:
             return
-
-        date_str = str(datetime.now(timezone.utc))
-
-        try:
-            producer_name = f"{producer.first_name} {producer.last_name}"
-            asyncio.run(extract_follow_ups(session, interaction_id, producer_id,
-                                           producer_name, content, date_str, author))
-        except Exception:
-            logger.exception("Failed to extract follow-ups for interaction %d", interaction_id)
-
-        # TODO: relationship summary regeneration pending pipeline redesign
 
         try:
             recompute_relationship_state(session, producer_id)

@@ -14,7 +14,6 @@ import {
   getHistory, refreshProducer, addTag, removeTag,
   getProducerTraits, getProducerIntel,
   addInteraction, editInteraction, deleteInteraction, transcribeAudio,
-  resolveFollowUp,
   addAffiliation, updateAffiliation, removeAffiliation,
   listOrganizations, gatherIntel,
   getProducerShows, listShows, addProducerToShow, removeProducerFromShow,
@@ -36,8 +35,6 @@ const STATE_CONFIG = {
   no_contact: { label: 'No contact', variant: 'neutral' },
   new: { label: 'New', variant: 'blue' },
   active: { label: 'Active', variant: 'sage' },
-  waiting: { label: 'Waiting', variant: 'warm' },
-  overdue: { label: 'Overdue', variant: 'rose' },
   gone_cold: { label: 'Gone cold', variant: 'neutral' },
 }
 
@@ -358,7 +355,6 @@ export default function ProducerDetail() {
   const currentOrg = organizations.find(o => !o.end_date)
   const location = [producer.city, producer.state_region, producer.country].filter(Boolean).join(', ')
   const hometown = [producer.hometown, producer.hometown_state, producer.hometown_country].filter(Boolean).join(', ')
-  const pendingFollowUps = relationship?.pending_follow_ups?.filter(f => !f.resolved) || []
   const INTEL_COLS = [
     { key: 'observation', label: 'Observation', render: v => <span className="prose">{v}</span> },
     { key: 'confidence', label: 'Confidence', render: v => v != null ? `${v}%` : null, className: 'cell-number' },
@@ -467,19 +463,6 @@ export default function ProducerDetail() {
 
       {/* Alerts */}
       {(producer.research_status === 'in_progress' || refreshing) && <Alert variant="info" title="Research in progress">{producer.research_status_detail || 'Page updates automatically.'}</Alert>}
-      {pendingFollowUps.length > 0 && (
-        <Alert variant="warning" title={`${pendingFollowUps.length} follow-up${pendingFollowUps.length > 1 ? 's' : ''}`}>
-          {pendingFollowUps.map(f => (
-            <div key={f.id} className="pd-followup-row">
-              {f.overdue && <span className="badge badge-rose">Overdue</span>}
-              <span>{f.implied_action}</span>
-              {f.timeframe && <span className="cell-muted">{f.timeframe}</span>}
-              <button className="link link-subtle" onClick={() => resolveFollowUp(id, f.id).then(loadAll)}>Resolve</button>
-            </div>
-          ))}
-        </Alert>
-      )}
-
       {/* Header */}
       <div className="page-header">
         <div className="page-title-row">
@@ -658,19 +641,6 @@ export default function ProducerDetail() {
                     </div>
                   ) : (
                     <div className="pd-interaction-content">{int.content}</div>
-                  )}
-                  {int.follow_up_signals?.length > 0 && (
-                    <div className="pd-interaction-followups">
-                      {int.follow_up_signals.map(f => (
-                        <div key={f.id} className={`pd-interaction-followup${f.resolved ? ' pd-interaction-followup-resolved' : ''}`}>
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            {f.resolved ? <path d="M2 5.5l2.5 2.5 3.5-4" /> : <path d="M5 2v6M2 5l3 3 3-3" />}
-                          </svg>
-                          <span>{f.implied_action}</span>
-                          {f.timeframe && <span className="cell-muted">{f.timeframe}</span>}
-                        </div>
-                      ))}
-                    </div>
                   )}
                 </li>
               ))}

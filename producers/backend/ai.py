@@ -26,7 +26,6 @@ from producers.backend.models import (
     DiscoveryCandidate,
     DiscoveryFocusArea,
     DiscoveryScan,
-    FollowUpSignal,
     IntelligenceProfile,
     Organization,
     Producer,
@@ -320,12 +319,6 @@ class DossierResearchResponse(BaseModel):
     organizations: Optional[list[OrganizationData]] = None
     sources_consulted: Optional[list[str]] = None
     research_gaps: Optional[list[str]] = None
-
-
-class FollowUpSignalData(BaseModel):
-    implied_action: str
-    timeframe: Optional[str] = None
-    due_date: Optional[str] = None
 
 
 class URLExtractionResponse(BaseModel):
@@ -1049,39 +1042,6 @@ def _upsert_organization(session: Session, producer_id: int, org_data: dict, cha
         session.flush()
 
 
-async def extract_follow_ups(session: Session, interaction_id: int, producer_id: int,
-                             producer_name: str, content: str, date: str, author: str):
-    """Extract follow-up signals from an interaction's text."""
-    response_text = await call_llm("follow_up_extraction", {
-        "producer_name": producer_name,
-        "date": date,
-        "author": author,
-        "content": content,
-    }, response_schema=list[FollowUpSignalData])
-    signals = json.loads(response_text)
-
-    if not signals or not isinstance(signals, list):
-        return
-
-    for signal_data in signals:
-        due_date = None
-        date_str = signal_data.get("due_date")
-        if date_str:
-            try:
-                due_date = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            except (ValueError, TypeError):
-                pass
-
-        session.add(FollowUpSignal(
-            interaction_id=interaction_id,
-            producer_id=producer_id,
-            implied_action=signal_data.get("implied_action", ""),
-            timeframe=signal_data.get("timeframe"),
-            due_date=due_date,
-        ))
-    session.flush()
-
-
 async def regenerate_relationship_summary(session: Session, producer_id: int):
     # TODO: dead code pending pipeline redesign
     """Regenerate the natural language relationship summary for a producer."""
@@ -1162,14 +1122,6 @@ def recompute_relationship_state(session: Session, producer_id: int):
         producer.last_contact_date = None
         producer.interaction_frequency = None
 
-    # Check for next follow-up due
-    pending = (session.query(FollowUpSignal)
-               .filter_by(producer_id=producer_id, resolved=False)
-               .filter(FollowUpSignal.due_date.isnot(None))
-               .order_by(FollowUpSignal.due_date)
-               .first())
-    producer.next_followup_due = pending.due_date if pending else None
-
     session.flush()
 
 
@@ -1184,14 +1136,6 @@ def get_relationship_state_label(producer: Producer, cold_threshold_days: int = 
 
     if not producer.interaction_count or producer.interaction_count == 0:
         return "no_contact"
-
-    # Check for overdue follow-ups
-    if producer.next_followup_due and producer.next_followup_due < now:
-        return "overdue"
-
-    # Check for pending follow-ups (waiting)
-    if producer.next_followup_due:
-        return "waiting"
 
     if producer.interaction_count <= 2:
         if producer.last_contact_date:

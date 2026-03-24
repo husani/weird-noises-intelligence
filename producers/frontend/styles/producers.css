@@ -946,16 +946,20 @@
   border-color: transparent;
 }
 
-/* File upload active state */
-.file-upload--active {
-  border-color: var(--accent-warm);
-  background: var(--accent-warm-subtle);
+/* Input body below tab bar */
+.import-input-body {
+  padding: 24px 0 16px;
+}
+
+/* URL input full-width */
+.import-url-input {
+  max-width: 100%;
 }
 
 /* Paste textarea full-width */
 .import-paste-area {
   max-width: 100%;
-  min-height: 140px;
+  min-height: 180px;
 }
 
 /* Inline spinner variant */
@@ -2590,16 +2594,6 @@
   border-bottom: none;
 }
 
-/* Follow-up row in alert */
-.pd-followup-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 0;
-  font-size: 0.9375rem;
-  font-weight: 300;
-}
-
 /* Interaction log */
 .pd-interaction-row {
   padding: 16px 0;
@@ -2624,24 +2618,6 @@
   color: var(--text-primary);
   line-height: 1.6;
   white-space: pre-wrap;
-}
-.pd-interaction-followups {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: 10px;
-}
-.pd-interaction-followup {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8125rem;
-  font-weight: 300;
-  color: var(--accent-warm);
-}
-.pd-interaction-followup svg { flex-shrink: 0; }
-.pd-interaction-followup-resolved {
-  color: var(--text-tertiary);
 }
 .pd-show-older {
   padding: 16px 0;

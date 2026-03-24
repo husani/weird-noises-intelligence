@@ -10,32 +10,34 @@ Slate uses the shared infrastructure (auth, DB, MCP, AI clients, GCS, scheduler)
 
 ## Data Model
 
-What Slate owns. Its own database (`intelligence_slate`). All tables defined here are built in Phase 1, even if the features that populate some of them come in later phases. This prevents schema retrofitting.
+What Slate owns. Its own database (`intelligence_slate`) with its own SQLAlchemy DeclarativeBase (no shared Base — each tool is independent).
 
 ### Show
 
-The top-level entity. A WN project.
+The top-level entity. A WN project. Thin record — just the project identity. Everything descriptive about the work (logline, summary, genre) lives on the version, not the show.
 
 - Title
 - Medium — musical, play, screenplay, teleplay, feature film, short film, limited series, other (lookup value)
-- Genre — prose
-- Logline — one-to-two sentence pitch (can be generated from script, human-refined)
-- Summary — longer description (can be generated from script, human-refined)
 - Rights status — original, optioned, public domain adaptation (lookup value)
-- Development stage — early development, internal read, workshop, staged reading, table read, seeking production, in pre-production, in production, running, in post-production, released, closed (lookup value). Lives on the show, not the script version. A show can have multiple script versions within the same stage. Stages are medium-aware — "running" applies to theatre, "in post-production" applies to film/TV. The lookup values cover all mediums; the frontend can filter by relevance.
+- Development stage — early development, internal read, workshop, staged reading, table read, seeking production, in pre-production, in production, running, in post-production, released, closed (lookup value). Stages are medium-aware via `applies_to` field on lookup values.
 - Created, updated timestamps
 
-### Script Versions
+### Show Versions
 
-Each show has an ordered history of script uploads. A script version is an uploaded file.
+The center of all domain data. Each show has versions (script uploads). A version is an uploaded script file plus all the data derived from or associated with it. Version number is user-controlled (set at upload, system suggests next number).
 
 - Show reference
-- Version label — human-readable ("First Draft", "Post-Workshop Draft", "Pre-Production Draft")
+- Version number — user-controlled integer (1, 2, 3...), unique per show
+- Version label — lookup value ("First Draft", "Workshop Draft", "Pre-Reading Draft", etc.)
 - File path (GCS) and original file name
 - Upload date
 - Change notes — what changed from the previous version (human-entered on upload)
 - Processing status — pending, processing, complete, failed
 - Processing error detail
+- Logline — one-to-two sentence pitch (version-level, changes between drafts)
+- Summary — longer description (version-level)
+- Genre — prose (version-level, can evolve between drafts)
+- Emotional arc summary — narrative summary of the emotional trajectory
 - Created timestamp
 
 ### Music Files

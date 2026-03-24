@@ -68,7 +68,7 @@ Awards attach to a producer, optionally linked to a specific production. An awar
 
 An interaction is a timestamped record of a touchpoint between WN and a producer. Fields: date (defaults to now), text content, author (the team member who logged it), audio URL (if recorded as voice memo — transcribed to text on save). Interactions are a flat chronological list. Internal assessments (observations about how a producer works, their reputation, their taste beyond what credits show) are just interactions — there is no separate data structure for them.
 
-Follow-up signals are extracted from the interaction text at save time by the AI. A follow-up signal has: the implied action or expectation, a rough timeframe (if detectable), a reference back to the source interaction, and a resolved/unresolved status. Follow-up signals auto-resolve when a new interaction is logged with that producer. Follow-up signals power the "relationships going cold" and "follow-ups due" features.
+Follow-up tracking is deferred — will be rebuilt as part of the AI pipeline rework, potentially with automatic interaction detection from email.
 
 ### Tags
 
@@ -262,11 +262,7 @@ Recomputed whenever interactions change. The state label is derived from the sto
 - **No contact** — in the system, never interacted with. Zero interactions.
 - **New** — one or two recent interactions. Relationship just starting.
 - **Active** — regular recent interactions. Things are in motion.
-- **Waiting** — last interaction has an unresolved follow-up signal.
-- **Overdue** — a follow-up signal's timeframe has passed without a new interaction.
 - **Gone cold** — used to interact, significant gap since last contact relative to previous frequency. Threshold configurable in settings.
-
-On the detail page, the relationship summary field provides the full natural language picture — stored, not generated on the fly. See Relationship Summary in the data model.
 
 ## Show Matching (Deferred)
 
@@ -415,10 +411,9 @@ Entity nav links: Overview, Intel, Shows & Productions, Organizations, Interacti
 - **Intel** — Section-card with `DataTable` (observation, confidence %, date, source domain link). "Gather Intel" button in header triggers background process with pulsing status indicator.
 - **Shows & Productions** — Section-card with unified `DataTable` combining IP-level show links and production-level credits. Columns: ActionMenu, title, venue, year, role, relationship type (Show badge / Production badge). Two "+ Add" links: add to show (search shows, pick role) and add to production (search productions, pick role). Clicking rows opens drawers (`ProductionDrawer` for productions, navigates for shows).
 - **Organizations** — Section-card with `DataTable` (ActionMenu, name, role, tenure). "+ Add" opens modal with org search + role + dates. Clicking rows opens `OrganizationDrawer`.
-- **Interactions** — Section-card with interaction log as `item-list` (not timeline). Each entry: date + author (small text), content (body text, pre-wrap), follow-up signals (small text with icons, warm for pending, muted for resolved). ActionMenu per row for edit/delete. Progressive loading — first 15 shown, "Show older" loads more.
+- **Interactions** — Section-card with interaction log as `item-list` (not timeline). Each entry: date + author (small text), content (body text, pre-wrap). ActionMenu per row for edit/delete. Progressive loading — first 15 shown, "Show older" loads more.
 - **Research Details** — Accessible via ActionMenu, opens a drawer showing research status, last researched date, intake source/URL/reasoning, sources consulted, research gaps. Research failure information shown here, not as a page-level alert.
 - **Change History** — Accessible via ActionMenu, opens a wide modal with `DataTable` (date, changed by, field, value).
-- **Follow-ups** — Shown as an alert (warning variant) below the entity nav when pending follow-ups exist. Each follow-up shows overdue badge if applicable, action text, timeframe, resolve button. Not a section — an alert.
 - **All sections always render** — empty states shown when no data, never conditionally hidden. All fields including empty ones are visible (gaps shown as dashes).
 
 **Add producer.** A form with two paths that converge. Enter a name and whatever you know (org, email, notes, tags), or paste a URL and let the AI extract identity. Duplicate candidates surface live as the name is typed. On submit, the record exists immediately and research runs async.

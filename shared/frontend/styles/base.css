@@ -80,6 +80,9 @@
   --font-body: 'Outfit', -apple-system, sans-serif;
 }
 
+/* ============ UTILITIES ============ */
+.hidden { display: none; }
+
 /* ============ BASE ELEMENTS ============ */
 html {
   font-size: 16px;

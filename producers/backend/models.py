@@ -121,7 +121,6 @@ class Producer(Base):
     last_contact_date = Column(DateTime(timezone=True), nullable=True)
     interaction_count = Column(Integer, default=0)
     interaction_frequency = Column(Float, nullable=True)  # avg days between interactions
-    next_followup_due = Column(DateTime(timezone=True), nullable=True)
 
     # Research status
     research_status = Column(String, default="pending")  # pending, in_progress, complete, failed
@@ -357,27 +356,6 @@ class Interaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     producer = relationship("Producer", back_populates="interactions")
-    follow_up_signals = relationship("FollowUpSignal", back_populates="interaction", cascade="all, delete-orphan")
-
-
-# --- Follow-up Signals ---
-
-class FollowUpSignal(Base):
-    """A follow-up extracted from interaction text by AI."""
-    __tablename__ = "follow_up_signals"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    interaction_id = Column(Integer, ForeignKey("interactions.id", ondelete="CASCADE"), nullable=False)
-    producer_id = Column(Integer, ForeignKey("producers.id", ondelete="CASCADE"), nullable=False, index=True)
-    implied_action = Column(Text, nullable=False)
-    timeframe = Column(String, nullable=True)  # e.g. "next week", "2 weeks"
-    due_date = Column(DateTime(timezone=True), nullable=True)
-    resolved = Column(Boolean, default=False)
-    resolved_at = Column(DateTime(timezone=True), nullable=True)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    interaction = relationship("Interaction", back_populates="follow_up_signals")
 
 
 # --- Tags ---
@@ -600,7 +578,6 @@ ALL_MODELS = [
     Venue,
     Award,
     Interaction,
-    FollowUpSignal,
     Tag,
     ProducerTag,
     ChangeHistory,

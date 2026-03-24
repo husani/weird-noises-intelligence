@@ -25,7 +25,6 @@ from producers.backend.models import (
     DiscoveryScan,
     EntityEmail,
     EntitySocialLink,
-    FollowUpSignal,
     IntelligenceProfile,
     Interaction,
     LookupValue,
@@ -380,7 +379,6 @@ class ProducersInterface:
                 "last_contact_date": str(producer.last_contact_date) if producer.last_contact_date else None,
                 "interaction_count": producer.interaction_count,
                 "interaction_frequency": producer.interaction_frequency,
-                "next_followup_due": str(producer.next_followup_due) if producer.next_followup_due else None,
                 "relationship_state": state_label,
                 "tags": tags,
                 "created_at": str(producer.created_at),
@@ -477,7 +475,6 @@ class ProducersInterface:
         with self._session_factory() as session:
             interactions = (session.query(Interaction)
                            .filter_by(producer_id=producer_id)
-                           .options(joinedload(Interaction.follow_up_signals))
                            .order_by(Interaction.date.desc())
                            .all())
             return [
@@ -486,16 +483,6 @@ class ProducersInterface:
                     "date": str(i.date) if i.date else None,
                     "content": i.content,
                     "author": i.author,
-                    "follow_up_signals": [
-                        {
-                            "id": f.id,
-                            "implied_action": f.implied_action,
-                            "timeframe": f.timeframe,
-                            "due_date": str(f.due_date) if f.due_date else None,
-                            "resolved": f.resolved,
-                        }
-                        for f in i.follow_up_signals
-                    ],
                 }
                 for i in interactions
             ]
@@ -510,26 +497,11 @@ class ProducersInterface:
             cold_threshold = self._get_cold_threshold(session)
             state_label = get_relationship_state_label(producer, cold_threshold)
 
-            pending_followups = (session.query(FollowUpSignal)
-                                .filter_by(producer_id=producer_id, resolved=False)
-                                .all())
-            now = datetime.now(timezone.utc)
-
             return {
                 "producer_id": producer_id,
                 "last_contact_date": str(producer.last_contact_date) if producer.last_contact_date else None,
                 "interaction_count": producer.interaction_count,
                 "interaction_frequency": producer.interaction_frequency,
-                "pending_follow_ups": [
-                    {
-                        "id": f.id,
-                        "implied_action": f.implied_action,
-                        "timeframe": f.timeframe,
-                        "due_date": str(f.due_date) if f.due_date else None,
-                        "overdue": f.due_date < now if f.due_date else False,
-                    }
-                    for f in pending_followups
-                ],
                 "state_label": state_label,
             }
 
@@ -754,19 +726,6 @@ class ProducersInterface:
             session.add(interaction)
             session.flush()
 
-            # Auto-resolve ALL pending follow-ups when a new interaction is logged.
-            # Spec: "Follow-up signals auto-resolve when a new interaction is logged
-            # with that producer."
-            now = datetime.now(timezone.utc)
-            pending = (session.query(FollowUpSignal)
-                       .filter(
-                           FollowUpSignal.producer_id == producer_id,
-                           FollowUpSignal.resolved == False,
-                       )
-                       .all())
-            for f in pending:
-                f.resolved = True
-                f.resolved_at = now
 
             # Recompute relationship state
             recompute_relationship_state(session, producer_id)
@@ -908,29 +867,6 @@ class ProducersInterface:
         with self._session_factory() as session:
             now = datetime.now(timezone.utc)
 
-            # Overdue follow-ups
-            overdue_followups = (session.query(FollowUpSignal)
-                                .filter(
-                                    FollowUpSignal.resolved == False,
-                                    FollowUpSignal.due_date < now,
-                                )
-                                .options(joinedload(FollowUpSignal.interaction))
-                                .limit(20)
-                                .all())
-
-            overdue_list = []
-            for f in overdue_followups:
-                producer = session.get(Producer, f.producer_id)
-                if producer:
-                    overdue_list.append({
-                        "producer_id": f.producer_id,
-                        "first_name": producer.first_name,
-                        "last_name": producer.last_name,
-                        "implied_action": f.implied_action,
-                        "due_date": str(f.due_date),
-                        "days_overdue": (now - f.due_date).days,
-                    })
-
             # Research in progress
             researching = (session.query(Producer)
                           .filter(Producer.research_status.in_(["pending", "in_progress"]))
@@ -991,7 +927,6 @@ class ProducersInterface:
                 })
 
             return {
-                "overdue_followups": overdue_list,
                 "researching": [
                     {"id": p.id, "first_name": p.first_name, "last_name": p.last_name, "status": p.research_status}
                     for p in researching
@@ -2466,42 +2401,9 @@ class ProducersInterface:
             interaction = session.get(Interaction, interaction_id)
             if not interaction:
                 return {"error": "Interaction not found"}
-            session.query(FollowUpSignal).filter_by(interaction_id=interaction_id).delete()
             session.delete(interaction)
             session.flush()
             recompute_relationship_state(session, producer_id)
-            session.commit()
-            return {"deleted": True}
-
-    # --- Follow-up signal management ---
-
-    def resolve_follow_up(self, signal_id: int) -> dict:
-        """Manually resolve a follow-up signal."""
-        with self._session_factory() as session:
-            signal = session.get(FollowUpSignal, signal_id)
-            if not signal:
-                return {"error": "Follow-up not found"}
-            signal.resolved = True
-            signal.resolved_at = datetime.now(timezone.utc)
-            session.commit()
-            return {"id": signal_id, "resolved": True}
-
-    def update_follow_up(self, signal_id: int, data: dict) -> dict:
-        """Update a follow-up signal (timeframe, action, due_date)."""
-        with self._session_factory() as session:
-            signal = session.get(FollowUpSignal, signal_id)
-            if not signal:
-                return {"error": "Follow-up not found"}
-            for field in ["implied_action", "timeframe", "due_date"]:
-                if field in data:
-                    setattr(signal, field, data[field])
-            session.commit()
-            return {"id": signal_id, "updated": True}
-
-    def delete_follow_up(self, signal_id: int) -> dict:
-        """Delete a follow-up signal."""
-        with self._session_factory() as session:
-            session.query(FollowUpSignal).filter_by(id=signal_id).delete()
             session.commit()
             return {"deleted": True}
 

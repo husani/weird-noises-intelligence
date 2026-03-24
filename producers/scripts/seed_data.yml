@@ -911,7 +911,7 @@ ai_behaviors:
 
   - name: import_dedup
     display_label: Import Dedup
-    model: claude-sonnet-4-6
+    model: gemini-3.1-pro-preview
     system_prompt: |
       You are deduplicating imported producer data against an existing producer database. You have access to MCP tools to search and retrieve producer records, organization records, and web search.
 

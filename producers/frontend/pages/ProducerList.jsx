@@ -8,8 +8,6 @@ const STATE_OPTIONS = [
   { value: 'no_contact', label: 'No contact' },
   { value: 'new', label: 'New' },
   { value: 'active', label: 'Active' },
-  { value: 'waiting', label: 'Waiting' },
-  { value: 'overdue', label: 'Overdue' },
   { value: 'gone_cold', label: 'Gone cold' },
 ]
 
@@ -17,8 +15,6 @@ const STATE_VARIANTS = {
   no_contact: 'neutral',
   new: 'blue',
   active: 'sage',
-  waiting: 'warm',
-  overdue: 'rose',
   gone_cold: 'neutral',
 }
 

@@ -76,7 +76,7 @@ export default function Dashboard() {
     })),
   ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 12)
 
-  const hasContent = data.overdue_followups.length > 0 || data.researching.length > 0 ||
+  const hasContent = data.researching.length > 0 ||
     intelUpdates.length > 0 || activityFeed.length > 0
 
   // Stagger index for entrance animation
@@ -94,10 +94,6 @@ export default function Dashboard() {
         <div className="stat-card stat-card--warm">
           <div className="stat-label">Producers</div>
           <div className="stat-value stat-value--warm">{data.total_producers}</div>
-        </div>
-        <div className="stat-card stat-card--rose">
-          <div className="stat-label">Overdue Follow-ups</div>
-          <div className="stat-value stat-value--rose">{data.overdue_followups.length}</div>
         </div>
         {data.researching.length > 0 && (
           <div className="stat-card stat-card--blue">
@@ -151,34 +147,6 @@ export default function Dashboard() {
                         <div className="intel-preview line-clamp-2">{u.new_value}</div>
                       )}
                       <div className="surfacing-time">{relativeTime(u.changed_at)}</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {/* Overdue follow-ups */}
-            {data.overdue_followups.length > 0 && (
-              <div className="surfacing-panel">
-                <div className="surfacing-header">
-                  <div className="surfacing-title">Overdue Follow-ups</div>
-                  <span className="surfacing-count">{data.overdue_followups.length}</span>
-                </div>
-                {data.overdue_followups.map((f, i) => (
-                  <Link key={i} to={`detail/${f.producer_id}`} className="surfacing-item no-underline">
-                    <div className="surfacing-icon surfacing-icon-rose">
-                      <ClockIcon />
-                    </div>
-                    <div className="surfacing-text">
-                      <strong>{f.first_name} {f.last_name}</strong> &mdash; {f.implied_action}
-                      <div className="surfacing-time">
-                        {f.days_overdue >= 30 && (
-                          <span className="status-dot pulse overdue-dot" />
-                        )}
-                        <span className={overdueClass(f.days_overdue)}>
-                          {f.days_overdue} days overdue
-                        </span>
-                      </div>
                     </div>
                   </Link>
                 ))}

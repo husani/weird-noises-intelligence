@@ -56,13 +56,6 @@ export const transcribeAudio = async (producerId, audioBlob) => {
   return res.json()
 }
 
-// Follow-ups
-export const resolveFollowUp = (producerId, signalId) => request(`/${producerId}/follow-ups/${signalId}/resolve`, { method: 'POST' })
-export const updateFollowUp = (producerId, signalId, data) => request(`/${producerId}/follow-ups/${signalId}`, {
-  method: 'PUT', body: JSON.stringify(data),
-})
-export const deleteFollowUp = (producerId, signalId) => request(`/${producerId}/follow-ups/${signalId}`, { method: 'DELETE' })
-
 // Productions & orgs
 export const getProductions = (id) => request(`/${id}/productions`)
 export const getOrganizations = (id) => request(`/${id}/organizations`)
