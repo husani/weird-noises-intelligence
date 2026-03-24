@@ -361,7 +361,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 joinedload(Show.medium),
                 joinedload(Show.development_stage),
                 joinedload(Show.rights_status),
-                joinedload(Show.script_versions),
+                joinedload(Show.versions),
             )
 
             if search:
@@ -397,11 +397,11 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                         "id": s.id,
                         "title": s.title,
                         "medium": _lookup_dict(s.medium),
-                        "genre": s.genre,
-                        "logline": s.logline,
+                        "genre": s.versions[0].genre if s.versions else None,
+                        "logline": s.versions[0].logline if s.versions else None,
                         "development_stage": _lookup_dict(s.development_stage),
                         "rights_status": _lookup_dict(s.rights_status),
-                        "current_script_version": s.script_versions[0].version_label if s.script_versions else None,
+                        "current_script_version": s.versions[0].version_label.display_label if s.versions and s.versions[0].version_label else (f"v{s.versions[0].version_number}" if s.versions else None),
                         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
                         "created_at": s.created_at.isoformat() if s.created_at else None,
                     }
