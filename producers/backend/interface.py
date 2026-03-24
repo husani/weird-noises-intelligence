@@ -353,6 +353,7 @@ class ProducersInterface:
                 "spouse_partner": producer.spouse_partner,
                 "languages": producer.languages,
                 "seasonal_location": producer.seasonal_location,
+                "description": producer.description,
                 "last_research_date": str(producer.last_research_date) if producer.last_research_date else None,
                 "research_sources_consulted": producer.research_sources_consulted,
                 "research_gaps": producer.research_gaps,

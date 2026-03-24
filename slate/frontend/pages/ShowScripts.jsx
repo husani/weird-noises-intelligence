@@ -1,5 +1,7 @@
 /**
  * Show > Scripts / Book & Score — script version management with music files.
+ * Shows processing status panel when a version is being analyzed.
+ * Polls for updates during processing.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
@@ -8,8 +10,25 @@ import SelectArrow from '@shared/components/SelectArrow'
 import {
   listScripts, uploadScript, deleteScript, downloadScript,
   listMusic, uploadMusic, deleteMusic, downloadMusic,
-  getLookupValues,
+  getLookupValues, getShowData, reprocessScript,
 } from '@slate/api'
+
+const DATA_TYPES = [
+  { key: 'character_breakdown', label: 'Character Breakdown' },
+  { key: 'scene_breakdown', label: 'Scene Breakdown' },
+  { key: 'emotional_arc', label: 'Emotional Arc' },
+  { key: 'runtime_estimate', label: 'Runtime Estimate' },
+  { key: 'cast_requirements', label: 'Cast Requirements' },
+  { key: 'budget_estimate', label: 'Budget Estimate' },
+  { key: 'logline_draft', label: 'Logline Draft' },
+  { key: 'summary_draft', label: 'Summary Draft' },
+  { key: 'comparables', label: 'Comparables' },
+  { key: 'content_advisories', label: 'Content Advisories' },
+]
+
+const MUSICAL_DATA_TYPES = [
+  { key: 'song_list', label: 'Song List' },
+]
 
 export default function ShowScripts({ show, onUpdate }) {
   const [versions, setVersions] = useState([])
@@ -26,10 +45,17 @@ export default function ShowScripts({ show, onUpdate }) {
   const [musicFile, setMusicFile] = useState(null)
   const [musicUploading, setMusicUploading] = useState(false)
   const [error, setError] = useState(null)
+  const [completedTypes, setCompletedTypes] = useState({})
+  const [musicAnalysis, setMusicAnalysis] = useState({})
   const fileRef = useRef(null)
   const musicFileRef = useRef(null)
+  const pollRef = useRef(null)
 
   const isMusical = show.medium?.value === 'musical'
+
+  const allDataTypes = isMusical
+    ? [...DATA_TYPES, ...MUSICAL_DATA_TYPES]
+    : DATA_TYPES
 
   const load = useCallback(async () => {
     try {
@@ -50,6 +76,59 @@ export default function ShowScripts({ show, onUpdate }) {
   }, [show.id])
 
   useEffect(() => { load() }, [load])
+
+  // Load show data to check processing status
+  const loadShowData = useCallback(async () => {
+    try {
+      const res = await getShowData(show.id)
+      const allData = [
+        ...(res.script_data || []),
+        ...(res.music_data || []),
+        ...(res.visual_data || []),
+      ]
+
+      // Track which data types are complete per version
+      const typesByVersion = {}
+      const musicAnalysisMap = {}
+      allData.forEach(d => {
+        const vId = d.version_id || 'current'
+        if (!typesByVersion[vId]) typesByVersion[vId] = new Set()
+        typesByVersion[vId].add(d.data_type)
+
+        if (d.data_type === 'music_analysis' && d.source_id) {
+          musicAnalysisMap[d.source_id] = d.content
+        }
+      })
+
+      const completed = {}
+      Object.entries(typesByVersion).forEach(([vId, types]) => {
+        completed[vId] = Array.from(types)
+      })
+      setCompletedTypes(completed)
+      setMusicAnalysis(musicAnalysisMap)
+    } catch (err) {
+      // Ignore errors in polling
+    }
+  }, [show.id])
+
+  useEffect(() => { loadShowData() }, [loadShowData])
+
+  // Poll when any version is processing
+  useEffect(() => {
+    const hasProcessing = versions.some(v => v.processing_status === 'processing')
+    if (hasProcessing) {
+      pollRef.current = setInterval(() => {
+        load()
+        loadShowData()
+      }, 4000)
+    }
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+    }
+  }, [versions, load, loadShowData])
 
   async function loadMusic(versionId) {
     if (musicByVersion[versionId]) return
@@ -113,6 +192,16 @@ export default function ShowScripts({ show, onUpdate }) {
     }
   }
 
+  async function handleReprocess(versionId) {
+    try {
+      await reprocessScript(show.id, versionId)
+      load()
+      onUpdate()
+    } catch (err) {
+      console.error('Reprocess failed:', err)
+    }
+  }
+
   async function handleMusicUpload(e) {
     e.preventDefault()
     if (!musicFile || !musicForm.track_name.trim()) return
@@ -167,6 +256,68 @@ export default function ShowScripts({ show, onUpdate }) {
     failed: 'status-rose',
   }
 
+  function renderProcessingPanel(version) {
+    const vCompleted = completedTypes[version.id] || completedTypes['current'] || []
+    const completedCount = allDataTypes.filter(dt => vCompleted.includes(dt.key)).length
+    const totalCount = allDataTypes.length
+    const progressPct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+    return (
+      <div className="processing-panel">
+        <div className="processing-panel-header">
+          <span className="processing-panel-title">Script Analysis</span>
+          <span className="processing-panel-count">{completedCount} of {totalCount} complete</span>
+        </div>
+        <div className="processing-panel-progress">
+          <div className="progress-bar-track">
+            <div className="progress-bar-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+        </div>
+        <div className="processing-steps">
+          {allDataTypes.map(dt => {
+            const isComplete = vCompleted.includes(dt.key)
+            let statusClass = 'processing-step-icon-pending'
+            if (isComplete) statusClass = 'processing-step-icon-complete'
+            else if (completedCount < totalCount && !isComplete) {
+              // First non-complete types after all complete ones are "processing"
+              const firstPendingIdx = allDataTypes.findIndex(d => !vCompleted.includes(d.key))
+              const thisIdx = allDataTypes.indexOf(dt)
+              if (thisIdx <= firstPendingIdx + 1) statusClass = 'processing-step-icon-processing'
+            }
+
+            return (
+              <div key={dt.key} className="processing-step">
+                <div className={`processing-step-icon ${statusClass}`}>
+                  {statusClass === 'processing-step-icon-complete' && (
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="9" cy="9" r="7" />
+                      <path d="M6 9.5l2 2 4-4" />
+                    </svg>
+                  )}
+                  {statusClass === 'processing-step-icon-processing' && (
+                    <div className="processing-step-spinner" />
+                  )}
+                  {statusClass === 'processing-step-icon-pending' && (
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M6 9h6" />
+                    </svg>
+                  )}
+                  {statusClass === 'processing-step-icon-failed' && (
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="9" cy="9" r="7" />
+                      <path d="M6.5 6.5l5 5M11.5 6.5l-5 5" />
+                    </svg>
+                  )}
+                </div>
+                <span className="processing-step-name">{dt.label}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="section-card">
@@ -195,6 +346,7 @@ export default function ShowScripts({ show, onUpdate }) {
               const isLatest = i === 0
               const isOpen = expanded === v.id
               const music = musicByVersion[v.id] || []
+              const isVersionProcessing = v.processing_status === 'processing'
 
               return (
                 <div key={v.id} className={`version-entry${isLatest ? ' version-entry-latest' : ''}${isOpen ? ' open' : ''}`}>
@@ -215,6 +367,14 @@ export default function ShowScripts({ show, onUpdate }) {
                   </div>
                   <div className={`version-entry-content${isOpen ? '' : ' collapsed'}`}>
                     {v.change_notes && <div>{v.change_notes}</div>}
+
+                    {/* Processing panel */}
+                    {isVersionProcessing && (
+                      <div className="slate-processing-wrapper">
+                        {renderProcessingPanel(v)}
+                      </div>
+                    )}
+
                     <div className="version-entry-nested">
                       <div className="file-item">
                         <svg className="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -223,6 +383,7 @@ export default function ShowScripts({ show, onUpdate }) {
                         </svg>
                         <span className="file-item-name">{v.original_filename}</span>
                         <button className="btn-link" onClick={() => handleDownload(v.id)}>Download</button>
+                        <button className="btn-link" onClick={() => handleReprocess(v.id)}>Reprocess</button>
                         <svg className="file-item-remove" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"
                           onClick={() => handleDelete(v.id)}>
                           <path d="M4 4l8 8M12 4l-8 8" />
@@ -230,18 +391,46 @@ export default function ShowScripts({ show, onUpdate }) {
                       </div>
 
                       {music.map(m => (
-                        <div key={m.id} className="file-item">
-                          <svg className="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <circle cx="10" cy="12" r="4" /><path d="M10 8V3M6 5l4-2 4 2" />
-                          </svg>
-                          <span className="file-item-name">{m.track_name}</span>
-                          <span className="file-item-meta">{m.original_filename}</span>
-                          {m.track_type && <span className="badge badge-neutral">{m.track_type.display_label}</span>}
-                          <button className="btn-link" onClick={() => handleMusicDownload(v.id, m.id)}>Download</button>
-                          <svg className="file-item-remove" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"
-                            onClick={() => handleMusicDelete(v.id, m.id)}>
-                            <path d="M4 4l8 8M12 4l-8 8" />
-                          </svg>
+                        <div key={m.id}>
+                          <div className="file-item">
+                            <svg className="file-item-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <circle cx="10" cy="12" r="4" /><path d="M10 8V3M6 5l4-2 4 2" />
+                            </svg>
+                            <span className="file-item-name">{m.track_name}</span>
+                            <span className="file-item-meta">{m.original_filename}</span>
+                            {m.track_type && <span className="badge badge-neutral">{m.track_type.display_label}</span>}
+                            <button className="btn-link" onClick={() => handleMusicDownload(v.id, m.id)}>Download</button>
+                            <svg className="file-item-remove" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"
+                              onClick={() => handleMusicDelete(v.id, m.id)}>
+                              <path d="M4 4l8 8M12 4l-8 8" />
+                            </svg>
+                          </div>
+                          {/* Music analysis inline */}
+                          {musicAnalysis[m.id] && (
+                            <div className="slate-music-analysis">
+                              {musicAnalysis[m.id].key && (
+                                <span className="type-meta">Key: {musicAnalysis[m.id].key}</span>
+                              )}
+                              {musicAnalysis[m.id].tempo && (
+                                <span className="type-meta">
+                                  <span className="slate-middot">&middot;</span>
+                                  Tempo: {musicAnalysis[m.id].tempo}
+                                </span>
+                              )}
+                              {musicAnalysis[m.id].mood && (
+                                <span className="type-meta">
+                                  <span className="slate-middot">&middot;</span>
+                                  Mood: {musicAnalysis[m.id].mood}
+                                </span>
+                              )}
+                              {musicAnalysis[m.id].function && (
+                                <span className="type-meta">
+                                  <span className="slate-middot">&middot;</span>
+                                  {musicAnalysis[m.id].function}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
 

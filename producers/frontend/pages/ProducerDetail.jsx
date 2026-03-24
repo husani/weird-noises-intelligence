@@ -1,18 +1,36 @@
+/**
+ * Producer detail — OrganizationDetail pattern with anchor nav.
+ */
+
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '@shared/auth/AuthGuard'
-import Modal from '@shared/components/Modal'
-import LocationAutocomplete from '@shared/components/LocationAutocomplete'
-import PlatformIcon from '@shared/components/PlatformIcon'
+import { useParams, useNavigate } from 'react-router-dom'
+import EntityNav from '@shared/components/EntityNav'
 import {
-  getProducer, updateProducer, deleteProducer as apiDeleteProducer,
-  getInteractions, addInteraction, editInteraction, deleteInteraction, transcribeAudio,
-  getProductions, getOrganizations, getRelationship,
+  ActionMenu, Alert, DataTable, Drawer, EmptyState, Modal, StatusIndicator, PlatformIcon,
+} from '@shared/components'
+import {
+  getProducer, deleteProducer as apiDeleteProducer,
+  getInteractions, getProductions, getOrganizations, getRelationship,
   getHistory, refreshProducer, addTag, removeTag,
+  getProducerTraits, getProducerIntel,
+  addInteraction, editInteraction, deleteInteraction, transcribeAudio,
+  resolveFollowUp,
   addAffiliation, updateAffiliation, removeAffiliation,
-  resolveFollowUp, updateFollowUp, deleteFollowUp,
-  listOrganizations,
+  listOrganizations, gatherIntel,
+  getProducerShows, listShows, addProducerToShow, removeProducerFromShow,
+  listAllProductions, addProducerToProduction, removeProducerFromProduction,
 } from '@producers/api'
+import { useLookupValues } from '@shared/hooks/useLookupValues'
+import ProductionDrawer from '@producers/components/ProductionDrawer'
+import OrganizationDrawer from '@producers/components/OrganizationDrawer'
+
+const NAV_LINKS = [
+  { label: 'Overview', anchor: 'overview' },
+  { label: 'Intel', anchor: 'intel' },
+  { label: 'Shows & Productions', anchor: 'productions' },
+  { label: 'Organizations', anchor: 'organizations' },
+  { label: 'Interactions', anchor: 'interactions' },
+]
 
 const STATE_CONFIG = {
   no_contact: { label: 'No contact', variant: 'neutral' },
@@ -23,997 +41,886 @@ const STATE_CONFIG = {
   gone_cold: { label: 'Gone cold', variant: 'neutral' },
 }
 
-const FIELD_LABELS = {
-  production_added: 'Production Added', organization_added: 'Organization Added',
-}
-
 function relativeTime(dateStr) {
-  if (!dateStr) return ''
+  if (!dateStr) return null
   const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24))
   if (days === 0) return 'today'
   if (days === 1) return 'yesterday'
-  if (days < 30) return `${days} days ago`
-  if (days < 365) return `${Math.floor(days / 30)} months ago`
-  return `${Math.floor(days / 365)} years ago`
+  if (days < 30) return `${days}d ago`
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`
+  return `${Math.floor(days / 365)}y ago`
 }
 
-function EditableField({ label, value, field, onSave, multiline = false }) {
-  const [editing, setEditing] = useState(false)
-  const [editValue, setEditValue] = useState(value || '')
-
-  function handleSave() {
-    onSave(field, editValue)
-    setEditing(false)
-  }
-
-  if (!editing) {
-    return (
-      <div className="editable-field-wrap">
-        {label && <div className="type-meta">{label}</div>}
-        <div
-          className="editable-field"
-          onClick={() => { setEditValue(value || ''); setEditing(true) }}
-        >
-          <span className="value-light">{value || <span className="cell-muted">&mdash;</span>}</span>
-        </div>
-      </div>
-    )
-  }
-
+function Field({ label, children }) {
   return (
-    <div className="editable-field-wrap">
-      {label && <div className="type-meta">{label}</div>}
-      <div className="editable-field editing">
-        {multiline ? (
-          <textarea
-            className="textarea textarea-inline"
-            value={editValue}
-            onChange={e => setEditValue(e.target.value)}
-            autoFocus
-          />
-        ) : (
-          <input
-            className="input input-inline"
-            value={editValue}
-            onChange={e => setEditValue(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
-            autoFocus
-          />
-        )}
-        <div className="edit-actions">
-          <button className="btn btn-ghost" onClick={() => setEditing(false)}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave}>Save</button>
-        </div>
-      </div>
+    <div className="sidebar-field">
+      <div className="type-label">{label}</div>
+      <div>{children || <span className="cell-muted">&mdash;</span>}</div>
     </div>
   )
 }
 
 function ChipInput({ tags = [], onAdd, onRemove }) {
-  const [inputVal, setInputVal] = useState('')
-
-  function handleKeyDown(e) {
+  const [val, setVal] = useState('')
+  function handleKey(e) {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault()
-      const tag = inputVal.trim().replace(/,$/, '')
-      if (tag) { onAdd(tag); setInputVal('') }
-    } else if (e.key === 'Backspace' && !inputVal && tags.length > 0) {
+      const t = val.trim().replace(/,$/, '')
+      if (t) { onAdd(t); setVal('') }
+    } else if (e.key === 'Backspace' && !val && tags.length) {
       onRemove(tags[tags.length - 1])
     }
   }
-
   return (
-    <div className="chip-input-wrapper input-full" onClick={e => e.currentTarget.querySelector('input')?.focus()}>
+    <div className="chip-input-wrapper" onClick={e => e.currentTarget.querySelector('input')?.focus()}>
       {tags.map(t => (
-        <span key={t} className="chip">
-          {t}
+        <span key={t} className="chip">{t}
           <button type="button" className="chip-remove" onClick={() => onRemove(t)}>
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M2 2l6 6M8 2l-6 6" />
-            </svg>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 2l6 6M8 2l-6 6" /></svg>
           </button>
         </span>
       ))}
-      <input
-        type="text"
-        className="chip-input"
-        placeholder={tags.length === 0 ? 'Add tag...' : ''}
-        value={inputVal}
-        onChange={e => setInputVal(e.target.value)}
-        onKeyDown={handleKeyDown}
-      />
+      <input type="text" className="chip-input" placeholder={tags.length === 0 ? 'Add tag…' : ''}
+        value={val} onChange={e => setVal(e.target.value)} onKeyDown={handleKey} />
     </div>
   )
 }
 
-function FreshnessIndicator({ history, fields }) {
-  const change = history.find(h => fields.some(f =>
-    h.field_name === f || h.field_name.startsWith(f)
-  ))
-  if (!change) return null
-
-  const daysAgo = Math.floor((Date.now() - new Date(change.changed_at).getTime()) / (1000 * 60 * 60 * 24))
-  const label = change.changed_by.startsWith('AI') ? change.changed_by : change.changed_by.split('@')[0]
-  const freshness = daysAgo <= 7 ? 'fresh' : daysAgo <= 30 ? 'recent' : 'stale'
-
-  return (
-    <span className={`freshness freshness--${freshness}`}>
-      {daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo}d ago`} by {label}
-    </span>
+function TagAdder({ onAdd }) {
+  const [adding, setAdding] = useState(false)
+  const [val, setVal] = useState('')
+  function handleKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); if (val.trim()) { onAdd(val.trim()); setVal(''); setAdding(false) } }
+    if (e.key === 'Escape') { setAdding(false); setVal('') }
+  }
+  if (!adding) return (
+    <button className="pd-add-tag-btn" onClick={() => setAdding(true)} title="Add tag">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 1v8M1 5h8" /></svg>
+    </button>
   )
-}
-
-function SectionHeader({ title, collapsed, onToggle, children }) {
-  return (
-    <div className="section-card-header section-card-header--clickable" onClick={onToggle}>
-      <div className="section-header-toggle">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"
-          className={`section-chevron${collapsed ? ' section-chevron--collapsed' : ''}`}>
-          <path d="M3 4.5l3 3 3-3" />
-        </svg>
-        <div className="section-card-title">{title}</div>
-      </div>
-      <div>
-        {children}
-      </div>
-    </div>
-  )
+  return <input className="input pd-tag-input" value={val} onChange={e => setVal(e.target.value)} onKeyDown={handleKey} onBlur={() => { setAdding(false); setVal('') }} autoFocus placeholder="Tag…" />
 }
 
 export default function ProducerDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const user = useAuth()
   const [producer, setProducer] = useState(null)
   const [interactions, setInteractions] = useState([])
   const [productions, setProductions] = useState([])
   const [organizations, setOrganizations] = useState([])
   const [relationship, setRelationship] = useState(null)
   const [history, setHistory] = useState([])
-  const [newInteraction, setNewInteraction] = useState('')
+  const [traits, setTraits] = useState([])
+  const [intel, setIntel] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
-
-  // Organization affiliation state
-  const [addOrgModal, setAddOrgModal] = useState(false)
-  const [editOrgModal, setEditOrgModal] = useState(null)
-  const [orgQuery, setOrgQuery] = useState('')
-  const [orgSuggestions, setOrgSuggestions] = useState([])
-  const [orgForm, setOrgForm] = useState({ organization_name: '', role_title: '', start_date: '', end_date: '' })
-  const orgDebounceRef = React.useRef(null)
-
-  // Interaction edit state
-  const [editingInteraction, setEditingInteraction] = useState(null)
-  const [editInteractionContent, setEditInteractionContent] = useState('')
-
-  // Follow-up edit state
-  const [editingFollowUp, setEditingFollowUp] = useState(null)
-  const [followUpForm, setFollowUpForm] = useState({ implied_action: '', timeframe: '' })
-
-  // AI processing feedback
-  const [interactionProcessing, setInteractionProcessing] = useState(false)
-  const [researchPolling, setResearchPolling] = useState(false)
-  const researchPollRef = useRef(null)
-
-  // Audio recording state
+  const [editIntId, setEditIntId] = useState(null)
+  const [editIntText, setEditIntText] = useState('')
+  const pollRef = useRef(null)
+  const [intVisible, setIntVisible] = useState(15)
+  // Interaction modal
+  const [intModal, setIntModal] = useState(false)
+  const [newInt, setNewInt] = useState('')
+  const [intProcessing, setIntProcessing] = useState(false)
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
-  const mediaRecorderRef = React.useRef(null)
-  const audioChunksRef = React.useRef([])
+  const mediaRef = useRef(null)
+  const chunksRef = useRef([])
 
-  // Contact edit state
-  const [editingContact, setEditingContact] = useState(false)
+  const [orgModal, setOrgModal] = useState(null)
+  const [orgQuery, setOrgQuery] = useState('')
+  const [orgSugs, setOrgSugs] = useState([])
+  const [orgForm, setOrgForm] = useState({ organization_name: '', role_title: '', start_date: '', end_date: '' })
+  const orgDbRef = useRef(null)
 
-  // Sections — most admin sections collapsed by default
-  const [collapsed, setCollapsed] = useState({
-    productions: true,
-    metadata: true, history: true,
-  })
-  function toggle(key) {
-    setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
-  }
+  // Show/Production add modals
+  const [shows, setShows] = useState([])
+  const [addShowModal, setAddShowModal] = useState(false)
+  const [addShowQuery, setAddShowQuery] = useState('')
+  const [addShowResults, setAddShowResults] = useState([])
+  const [addShowSelected, setAddShowSelected] = useState(null)
+  const [addShowRoleId, setAddShowRoleId] = useState('')
+  const [addShowSaving, setAddShowSaving] = useState(false)
+  const [addProdModal, setAddProdModal] = useState(false)
+  const [addProdQuery, setAddProdQuery] = useState('')
+  const [addProdResults, setAddProdResults] = useState([])
+  const [addProdSelected, setAddProdSelected] = useState(null)
+  const [addProdRoleId, setAddProdRoleId] = useState('')
+  const [addProdSaving, setAddProdSaving] = useState(false)
+  const [removeConfirm, setRemoveConfirm] = useState(null)
+  const addShowDbRef = useRef(null)
+  const addProdDbRef = useRef(null)
+  const [modalError, setModalError] = useState(null)
+  const [productionDrawerId, setProductionDrawerId] = useState(null)
+  const [orgDrawerId, setOrgDrawerId] = useState(null)
+  const [researchDrawer, setResearchDrawer] = useState(false)
+  const [historyModal, setHistoryModal] = useState(false)
+
+  const { values: showRoleValues } = useLookupValues('role', 'producer_show')
+  const { values: prodRoleValues } = useLookupValues('role', 'producer_production')
 
   const loadAll = useCallback(() => {
     setLoading(true)
     Promise.allSettled([
       getProducer(id), getInteractions(id), getProductions(id),
       getOrganizations(id), getRelationship(id), getHistory(id),
-    ]).then(results => {
-      const val = (i, fallback) => results[i].status === 'fulfilled' ? results[i].value : fallback
-      setProducer(val(0, null))
-      setInteractions(val(1, []))
-      setProductions(val(2, []))
-      setOrganizations(val(3, []))
-      setRelationship(val(4, null))
-      setHistory(val(5, []))
+      getProducerTraits(id), getProducerIntel(id), getProducerShows(id),
+    ]).then(r => {
+      const v = (i, fb) => r[i].status === 'fulfilled' ? r[i].value : fb
+      setProducer(v(0, null)); setInteractions(v(1, [])); setProductions(v(2, []))
+      setOrganizations(v(3, [])); setRelationship(v(4, null)); setHistory(v(5, []))
+      setTraits(v(6, [])); setIntel(v(7, [])); setShows(v(8, []))
     }).finally(() => setLoading(false))
   }, [id])
 
   useEffect(() => { loadAll() }, [loadAll])
 
-  // Poll for research completion when status is in_progress
-  function startResearchPolling() {
-    setResearchPolling(true)
-    if (researchPollRef.current) clearInterval(researchPollRef.current)
-    researchPollRef.current = setInterval(async () => {
+  // Research polling
+  function startPoll() {
+    setRefreshing(true)
+    if (pollRef.current) clearInterval(pollRef.current)
+    pollRef.current = setInterval(async () => {
       try {
         const p = await getProducer(id)
         if (p.research_status !== 'in_progress') {
-          clearInterval(researchPollRef.current)
-          researchPollRef.current = null
-          setResearchPolling(false)
-          setRefreshing(false)
-          loadAll()
+          clearInterval(pollRef.current); pollRef.current = null; setRefreshing(false); loadAll()
         }
-      } catch { /* ignore polling errors */ }
+      } catch {}
     }, 4000)
   }
-
-  // Auto-start polling if we land on a producer mid-research
   useEffect(() => {
-    if (producer?.research_status === 'in_progress' && !researchPollRef.current) {
-      startResearchPolling()
-    }
-    return () => { if (researchPollRef.current) clearInterval(researchPollRef.current) }
+    if (producer?.research_status === 'in_progress' && !pollRef.current) startPoll()
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [producer?.research_status])
 
-  async function handleAddInteraction(e) {
-    e.preventDefault()
-    if (!newInteraction.trim()) return
-    setInteractionProcessing(true)
-    await addInteraction(id, newInteraction)
-    setNewInteraction('')
-    loadAll()
-    // Poll briefly for AI processing (follow-ups, summary)
+  async function handleRefresh() { try { await refreshProducer(id); startPoll() } catch {} }
+  const [gatheringIntel, setGatheringIntel] = useState(false)
+  async function handleGatherIntel() {
+    setGatheringIntel(true)
+    try {
+      await gatherIntel(id)
+      // When the real pipeline is ready, this will poll for completion
+      // instead of immediately reloading
+      const newIntel = await getProducerIntel(id)
+      setIntel(newIntel)
+    } catch {}
+    finally { setGatheringIntel(false) }
+  }
+  async function handleDelete() { await apiDeleteProducer(id); navigate('/producers/list') }
+
+  // Interactions
+  async function handleAddInt(e) {
+    e.preventDefault(); if (!newInt.trim()) return
+    setIntProcessing(true)
+    await addInteraction(id, newInt)
+    setNewInt(''); setIntModal(false)
+    // Refresh just interactions, not the whole page
+    const newInteractions = await getInteractions(id)
+    setInteractions(newInteractions)
+    // Delayed second fetch picks up AI-processed follow-ups and relationship updates
     setTimeout(async () => {
-      await loadAll()
-      setInteractionProcessing(false)
+      const [ints, rel] = await Promise.all([getInteractions(id), getRelationship(id)])
+      setInteractions(ints); setRelationship(rel)
+      setIntProcessing(false)
     }, 5000)
   }
-
-  async function handleAddTag(tagName) { await addTag(id, tagName); loadAll() }
-  async function handleRemoveTag(tagName) { await removeTag(id, tagName); loadAll() }
-
-  async function handleRefresh() {
-    setRefreshing(true)
+  async function handleEditInt(iid) {
+    if (!editIntText.trim()) return
     try {
-      await refreshProducer(id)
-      startResearchPolling()
-    } catch {
-      setRefreshing(false)
-    }
+      await editInteraction(id, iid, editIntText); setEditIntId(null)
+      const ints = await getInteractions(id); setInteractions(ints)
+    } catch (err) { console.error('Edit failed:', err) }
+  }
+  async function handleDeleteInt(iid) {
+    try {
+      await deleteInteraction(id, iid)
+      const [ints, rel] = await Promise.all([getInteractions(id), getRelationship(id)])
+      setInteractions(ints); setRelationship(rel)
+    } catch (err) { console.error('Delete failed:', err) }
   }
 
-  async function handleFieldSave(field, value) {
-    await updateProducer(id, { [field]: value })
-    loadAll()
-  }
-
-  // Audio recording
-  async function startRecording() {
+  // Recording
+  async function startRec() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
-      audioChunksRef.current = []
-      recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
-      recorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop())
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        setTranscribing(true)
-        try {
-          const result = await transcribeAudio(id, blob)
-          if (result.text) {
-            setNewInteraction(prev => prev ? `${prev}\n\n${result.text}` : result.text)
-          } else if (result.error) {
-            console.error('Transcription error:', result.error)
-          }
-        } catch (err) {
-          console.error('Transcription failed:', err)
-        }
+      const rec = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+      chunksRef.current = []
+      rec.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      rec.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop()); setTranscribing(true)
+        try { const r = await transcribeAudio(id, new Blob(chunksRef.current, { type: 'audio/webm' })); if (r.text) setNewInt(p => p ? `${p}\n\n${r.text}` : r.text) } catch {}
         setTranscribing(false)
       }
-      mediaRecorderRef.current = recorder
-      recorder.start()
-      setRecording(true)
-    } catch (err) {
-      console.error('Microphone access denied:', err)
-    }
+      mediaRef.current = rec; rec.start(); setRecording(true)
+    } catch {}
   }
+  function stopRec() { if (mediaRef.current && recording) { mediaRef.current.stop(); setRecording(false) } }
 
-  function stopRecording() {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop()
-      setRecording(false)
-    }
-  }
-
-  // Delete producer
-  async function handleDeleteProducer() {
-    await apiDeleteProducer(id)
-    navigate('/producers/list')
-  }
-
-  // Org affiliation handlers
-  React.useEffect(() => {
-    if (orgDebounceRef.current) clearTimeout(orgDebounceRef.current)
-    if (orgQuery.length < 2) { setOrgSuggestions([]); return }
-    orgDebounceRef.current = setTimeout(() => {
-      listOrganizations({ search: orgQuery, limit: 8 })
-        .then(data => setOrgSuggestions(data.organizations || []))
-        .catch(() => {})
+  // Org search
+  useEffect(() => {
+    if (orgDbRef.current) clearTimeout(orgDbRef.current)
+    if (orgQuery.length < 2) { setOrgSugs([]); return }
+    orgDbRef.current = setTimeout(() => {
+      listOrganizations({ search: orgQuery, limit: 8 }).then(d => setOrgSugs(d.organizations || [])).catch(() => {})
     }, 250)
-    return () => { if (orgDebounceRef.current) clearTimeout(orgDebounceRef.current) }
+    return () => { if (orgDbRef.current) clearTimeout(orgDbRef.current) }
   }, [orgQuery])
 
-  async function handleAddAffiliation(e) {
+  async function refreshOrgs() {
+    const orgs = await getOrganizations(id); setOrganizations(orgs)
+  }
+  async function handleAddOrg(e) {
+    e.preventDefault(); if (!orgForm.organization_name.trim()) return
+    setModalError(null)
+    try {
+      const result = await addAffiliation(id, orgForm)
+      if (result.error) { setModalError(result.error); return }
+      setOrgModal(null); setOrgQuery(''); setModalError(null); refreshOrgs()
+    } catch (err) { setModalError(err.message) }
+  }
+  async function handleEditOrg(e) {
+    e.preventDefault(); if (!orgModal?.id) return
+    setModalError(null)
+    try {
+      const result = await updateAffiliation(id, orgModal.id, { role_title: orgForm.role_title, start_date: orgForm.start_date || null, end_date: orgForm.end_date || null })
+      if (result.error) { setModalError(result.error); return }
+      setOrgModal(null); setModalError(null); refreshOrgs()
+    } catch (err) { setModalError(err.message) }
+  }
+  async function handleRemoveOrg(affId) {
+    try { await removeAffiliation(id, affId); refreshOrgs() }
+    catch (err) { console.error('Remove failed:', err) }
+  }
+
+  // Show search for add modal
+  useEffect(() => {
+    if (addShowDbRef.current) clearTimeout(addShowDbRef.current)
+    if (addShowQuery.length < 2) { setAddShowResults([]); return }
+    addShowDbRef.current = setTimeout(() => {
+      listShows({ search: addShowQuery, limit: 8 }).then(d => setAddShowResults(d.shows || [])).catch(() => {})
+    }, 250)
+    return () => { if (addShowDbRef.current) clearTimeout(addShowDbRef.current) }
+  }, [addShowQuery])
+
+  // Production search for add modal
+  useEffect(() => {
+    if (addProdDbRef.current) clearTimeout(addProdDbRef.current)
+    if (addProdQuery.length < 2) { setAddProdResults([]); return }
+    addProdDbRef.current = setTimeout(() => {
+      listAllProductions({ search: addProdQuery, limit: 8 }).then(d => setAddProdResults(d.productions || [])).catch(() => {})
+    }, 250)
+    return () => { if (addProdDbRef.current) clearTimeout(addProdDbRef.current) }
+  }, [addProdQuery])
+
+  async function refreshCredits() {
+    const [prods, shs] = await Promise.all([getProductions(id), getProducerShows(id)])
+    setProductions(prods); setShows(shs)
+  }
+  async function handleAddToShow(e) {
     e.preventDefault()
-    if (!orgForm.organization_name.trim()) return
-    await addAffiliation(id, orgForm)
-    setAddOrgModal(false)
-    setOrgForm({ organization_name: '', role_title: '', start_date: '', end_date: '' })
-    setOrgQuery('')
-    loadAll()
+    if (!addShowSelected) return
+    setAddShowSaving(true); setModalError(null)
+    try {
+      const result = await addProducerToShow(addShowSelected.id, { producer_id: parseInt(id), role_id: addShowRoleId ? parseInt(addShowRoleId) : null })
+      if (result.error) { setModalError(result.error); setAddShowSaving(false); return }
+      setAddShowModal(false); setAddShowSelected(null); setAddShowRoleId(''); setAddShowQuery(''); setModalError(null); refreshCredits()
+    } catch (err) { setModalError(err.message) }
+    finally { setAddShowSaving(false) }
   }
 
-  async function handleUpdateAffiliation(e) {
+  async function handleAddToProduction(e) {
     e.preventDefault()
-    if (!editOrgModal) return
-    await updateAffiliation(id, editOrgModal.id, {
-      role_title: orgForm.role_title,
-      start_date: orgForm.start_date || null,
-      end_date: orgForm.end_date || null,
-    })
-    setEditOrgModal(null)
-    loadAll()
+    if (!addProdSelected) return
+    setAddProdSaving(true); setModalError(null)
+    try {
+      const result = await addProducerToProduction(addProdSelected.id, { producer_id: parseInt(id), role_id: addProdRoleId ? parseInt(addProdRoleId) : null })
+      if (result.error) { setModalError(result.error); setAddProdSaving(false); return }
+      setAddProdModal(false); setAddProdSelected(null); setAddProdRoleId(''); setAddProdQuery(''); setModalError(null); refreshCredits()
+    } catch (err) { setModalError(err.message) }
+    finally { setAddProdSaving(false) }
   }
 
-  async function handleRemoveAffiliation(affId) {
-    await removeAffiliation(id, affId)
-    loadAll()
+  async function handleRemoveShowLink(linkId) {
+    await removeProducerFromShow(shows.find(s => s.id === linkId)?.show_id, linkId)
+    refreshCredits()
   }
 
-  // Interaction edit/delete handlers
-  async function handleEditInteraction(intId) {
-    if (!editInteractionContent.trim()) return
-    await editInteraction(id, intId, editInteractionContent)
-    setEditingInteraction(null)
-    setEditInteractionContent('')
-    loadAll()
+  async function handleRemoveProdLink(prodId, linkId) {
+    await removeProducerFromProduction(prodId, linkId)
+    refreshCredits()
   }
 
-  async function handleDeleteInteraction(intId) {
-    await deleteInteraction(id, intId)
-    loadAll()
-  }
-
-  // Follow-up handlers
-  async function handleResolveFollowUp(signalId) {
-    await resolveFollowUp(id, signalId)
-    loadAll()
-  }
-
-  async function handleUpdateFollowUp(e) {
-    e.preventDefault()
-    if (!editingFollowUp) return
-    await updateFollowUp(id, editingFollowUp.id, followUpForm)
-    setEditingFollowUp(null)
-    loadAll()
-  }
-
-  async function handleDeleteFollowUp(signalId) {
-    await deleteFollowUp(id, signalId)
-    loadAll()
-  }
-
-  if (loading) {
-    return <div className="disc-center"><div className="loading-spinner" /></div>
-  }
-
-  if (!producer || producer.error) {
-    return <div className="empty-state"><div className="empty-state-title">Producer not found</div></div>
-  }
+  if (loading) return <div className="page-loading"><div className="loading-spinner" /></div>
+  if (!producer || producer.error) return <EmptyState title="Producer not found" />
 
   const state = STATE_CONFIG[producer.relationship_state] || STATE_CONFIG.no_contact
   const currentOrg = organizations.find(o => !o.end_date)
+  const location = [producer.city, producer.state_region, producer.country].filter(Boolean).join(', ')
+  const hometown = [producer.hometown, producer.hometown_state, producer.hometown_country].filter(Boolean).join(', ')
   const pendingFollowUps = relationship?.pending_follow_ups?.filter(f => !f.resolved) || []
-  const locationStr = [producer.city, producer.state_region, producer.country].filter(Boolean).join(', ')
+  const INTEL_COLS = [
+    { key: 'observation', label: 'Observation', render: v => <span className="prose">{v}</span> },
+    { key: 'confidence', label: 'Confidence', render: v => v != null ? `${v}%` : null, className: 'cell-number' },
+    { key: 'discovered_at', label: 'Date', render: v => v ? new Date(v).toLocaleDateString() : null, className: 'cell-muted' },
+    { key: 'source_url', label: 'Source', sortable: false, render: v => v
+      ? <a href={v} target="_blank" rel="noopener noreferrer" className="link link-external">{new URL(v).hostname.replace('www.', '')}</a>
+      : <span className="cell-muted">&mdash;</span>
+    },
+  ]
 
-  // SVG icon helpers (inline, small)
-  const IconMail = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
-  const IconPhone = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-  const IconGlobe = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-  const IconPin = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-  const IconLinkedIn = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6zM2 9h4v12H2zM4 6a2 2 0 100-4 2 2 0 000 4z"/></svg>
-  const IconInstagram = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>
-  const IconX = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l6.5 8L4 20h2l5.5-6.8L16 20h4l-6.8-8.5L20 4h-2l-5.2 6.3L8 4H4z"/></svg>
-  const IconEdit = <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-  const IconTrash = <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14"/></svg>
-  const IconCheck = <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent-sage)" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+  // Unified shows + productions list
+  const allCredits = (() => {
+    const rows = []
+    for (const s of (shows || [])) {
+      rows.push({
+        _key: `show-${s.id}`,
+        _type: 'show',
+        link_id: s.id,
+        show_id: s.show_id,
+        title: s.show_title || s.title,
+        venue: null,
+        year: null,
+        role: s.role,
+        scale: null,
+        source: 'show',
+        source_label: 'Show',
+      })
+    }
+    for (const p of (productions || [])) {
+      const detail = [p.year, p.scale?.display_label, p.venue?.name].filter(Boolean).join(' · ')
+      rows.push({
+        _key: `prod-${p.production_id}`,
+        _type: 'production',
+        link_id: p.link_id,
+        production_id: p.production_id,
+        title: p.title,
+        venue: p.venue?.name,
+        year: p.year,
+        role: p.role,
+        scale: p.scale,
+        source: 'production',
+        source_label: detail || 'Production',
+      })
+    }
+    return rows
+  })()
+
+  const ORG_COLS = [
+    {
+      key: '_actions', label: '', sortable: false, className: 'th-actions',
+      render: (_, row) => (
+        <ActionMenu items={[
+          { label: 'Edit', icon: 'M11 1.5l2 2-7.5 7.5H3.5v-2L11 1.5z', onClick: () => {
+            setOrgForm({ organization_name: row.name, role_title: row.role_title || '', start_date: row.start_date || '', end_date: row.end_date || '' })
+            setOrgModal(row)
+          }},
+          { divider: true },
+          { label: 'Remove', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4', destructive: true, onClick: () => handleRemoveOrg(row.id || row.organization_id) },
+        ]} />
+      ),
+    },
+    { key: 'name', label: 'Name', strong: true },
+    { key: 'role_title', label: 'Role' },
+    {
+      key: 'start_date', label: 'Tenure',
+      render: (_, row) => {
+        const start = row.start_date
+        const end = row.end_date
+        if (!start && !end) return <span className="cell-muted">&mdash;</span>
+        const s = start ? new Date(start + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''
+        const e = end ? new Date(end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'present'
+        return `${s} — ${e}`
+      },
+      className: 'cell-muted',
+    },
+  ]
+
+  const CREDIT_COLS = [
+    {
+      key: '_actions', label: '', sortable: false, className: 'th-actions',
+      render: (_, row) => (
+        <ActionMenu items={[
+          { label: 'Remove', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4',
+            destructive: true,
+            onClick: () => row.source === 'show'
+              ? handleRemoveShowLink(row.link_id)
+              : handleRemoveProdLink(row.production_id, row.link_id) },
+        ]} />
+      ),
+    },
+    { key: 'title', label: 'Title', strong: true },
+    { key: 'venue', label: 'Venue' },
+    { key: 'year', label: 'Year' },
+    { key: 'role', label: 'Role', render: v => v?.display_label || <span className="cell-muted">&mdash;</span> },
+    {
+      key: 'source_label', label: 'Relationship',
+      render: (v, row) => row.source === 'show'
+        ? <span className="badge badge-warm">Show</span>
+        : <span className="badge badge-blue">{v}</span>,
+    },
+  ]
 
   return (
     <>
-      {/* ===== BREADCRUMBS ===== */}
-      <div className="breadcrumbs">
-        <span className="breadcrumb" onClick={() => navigate('/producers/list')}>Producers</span>
-        <span className="breadcrumb-sep">/</span>
-        <span className="breadcrumb-current">{producer.first_name} {producer.last_name}</span>
+      <EntityNav title={`${producer.first_name} ${producer.last_name}`} backText="Producers" backPath="/producers/list" links={NAV_LINKS} anchor />
+
+      {/* Alerts */}
+      {(producer.research_status === 'in_progress' || refreshing) && <Alert variant="info" title="Research in progress">{producer.research_status_detail || 'Page updates automatically.'}</Alert>}
+      {pendingFollowUps.length > 0 && (
+        <Alert variant="warning" title={`${pendingFollowUps.length} follow-up${pendingFollowUps.length > 1 ? 's' : ''}`}>
+          {pendingFollowUps.map(f => (
+            <div key={f.id} className="pd-followup-row">
+              {f.overdue && <span className="badge badge-rose">Overdue</span>}
+              <span>{f.implied_action}</span>
+              {f.timeframe && <span className="cell-muted">{f.timeframe}</span>}
+              <button className="link link-subtle" onClick={() => resolveFollowUp(id, f.id).then(loadAll)}>Resolve</button>
+            </div>
+          ))}
+        </Alert>
+      )}
+
+      {/* Header */}
+      <div className="page-header">
+        <div className="page-title-row">
+          <h1 className="page-title">{producer.first_name} {producer.last_name}</h1>
+          <ActionMenu items={[
+            { label: 'Edit', icon: 'M11 1.5l2 2-7.5 7.5H3.5v-2L11 1.5z', onClick: () => navigate(`/producers/detail/${id}/edit`) },
+            { label: 'Research Details', icon: 'M7.5 2a5.5 5.5 0 110 11 5.5 5.5 0 010-11zM7.5 5v3M7.5 10v.5', onClick: () => setResearchDrawer(true) },
+            { label: 'Change History', icon: 'M1.5 2.5h12M1.5 7.5h12M1.5 12.5h8', onClick: () => setHistoryModal(true) },
+            { divider: true },
+            { label: 'Delete', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4', destructive: true, onClick: () => setDeleteConfirm(true) },
+          ]} />
+          <div className="pd-header-right">
+            <button className="btn btn-primary" onClick={() => { setNewInt(''); setIntModal(true) }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              Log Interaction
+            </button>
+            <button className="btn btn-secondary" onClick={handleRefresh} disabled={refreshing || producer.research_status === 'in_progress'}>
+              {refreshing ? 'Researching…' : 'Re-research'}
+            </button>
+          </div>
+        </div>
+        {currentOrg && <div className="pd-org-line">{currentOrg.role_title && `${currentOrg.role_title}, `}{currentOrg.name}</div>}
+        <div className="pd-contact-row">
+          {producer.email && <a href={`mailto:${producer.email}`} className="link">{producer.email}</a>}
+          {producer.email && producer.phone && <span className="cell-muted">·</span>}
+          {producer.phone && <a href={`tel:${producer.phone}`} className="link">{producer.phone}</a>}
+          {(producer.email || producer.phone) && location && <span className="cell-muted">·</span>}
+          {location && <span>{location}</span>}
+          {producer.website && <><span className="cell-muted">·</span><a href={producer.website} target="_blank" rel="noopener noreferrer" className="link link-external">{producer.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a></>}
+          {(producer.social_links || []).map((link, i) => (
+            <a key={i} href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+              target="_blank" rel="noopener noreferrer" className="pd-social-link" title={link.platform_name}>
+              <PlatformIcon svg={link.icon_svg} />
+            </a>
+          ))}
+          {!producer.email && !producer.phone && !location && !producer.website && (producer.social_links || []).length === 0 && (
+            <span className="cell-muted">No contact information</span>
+          )}
+        </div>
       </div>
 
-      {/* ===== RESEARCH STATUS BANNER ===== */}
-      {(producer.research_status === 'in_progress' || researchPolling || refreshing) && (
-        <div className="alert alert-info alert-compact">
-          <div className="loading-spinner alert-spinner" />
-          <div className="alert-content">
-            <div className="alert-title">
-              {producer.research_status_detail || (refreshing ? 'Dossier refresh in progress' : 'AI research in progress')}
+      {/* ===== OVERVIEW — 2:5 grid ===== */}
+      <div id="overview" className="pd-overview-grid">
+        <div>
+          <div className="section-card">
+            <div className="section-card-header">
+              <h3 className="section-card-title">Details</h3>
             </div>
-            <div className="alert-subtitle">
-              This page will update automatically when complete.
+            <div className="pd-details-grid">
+              <Field label="Pronouns">{producer.pronouns}</Field>
+              <Field label="Nickname">{producer.nickname}</Field>
+              <Field label="Birthdate">{producer.birthdate}</Field>
+              <Field label="College">{producer.college}</Field>
+              <Field label="Hometown">{hometown}</Field>
+              <Field label="Partner">{producer.spouse_partner}</Field>
+              <Field label="Languages">{producer.languages}</Field>
+              <Field label="Seasonal">{producer.seasonal_location}</Field>
             </div>
-          </div>
-        </div>
-      )}
-
-      {producer.research_status === 'failed' && !researchPolling && !refreshing && (
-        <div className="alert alert-error alert-compact">
-          <div className="alert-content">
-            <div className="alert-title">Research failed</div>
-            <div className="alert-subtitle--detail">
-              {producer.research_status_detail || 'AI research could not complete. Try refreshing the dossier again.'}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {interactionProcessing && (
-        <div className="alert alert-info alert-compact">
-          <div className="loading-spinner alert-spinner" />
-          <div className="alert-content">
-            <div className="alert-title">Processing interaction</div>
-            <div className="alert-subtitle">
-              Extracting follow-ups and updating relationship summary.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===== HERO HEADER — borderless, dominant ===== */}
-      <div className="detail-hero">
-        <div className="hero-identity">
-          <div className="person-avatar person-avatar-lg">
-            {producer.photo_url
-              ? <img className="person-avatar-photo person-avatar-lg" src={producer.photo_url} alt="" />
-              : `${(producer.first_name || '')[0] || ''}${(producer.last_name || '')[0] || ''}`.toUpperCase()
-            }
-          </div>
-          <div>
-            <h1 className="type-display-1 mb-4">{producer.first_name} {producer.last_name}</h1>
-            {currentOrg && (
-              <div className="hero-subtitle">
-                {currentOrg.role_title && `${currentOrg.role_title}, `}{currentOrg.name}
-              </div>
-            )}
-            <div className="hero-meta-row">
-              <span className={`status status-${state.variant}`}>
-                <span className="status-dot" />
-                {state.label}
-              </span>
-              {pendingFollowUps.length > 0 && (
-                <span className="hero-followup-count">
-                  {pendingFollowUps.length} follow-up{pendingFollowUps.length > 1 ? 's' : ''}
+            <div className="pd-sidebar-divider" />
+            <div className="pd-tags-row">
+              {(producer.tags || []).map(t => (
+                <span key={t} className="tag">
+                  {t}
+                  <button type="button" className="chip-remove" onClick={async () => { await removeTag(id, t); const p = await getProducer(id); setProducer(p) }}>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 2l6 6M8 2l-6 6" /></svg>
+                  </button>
                 </span>
-              )}
-              {producer.research_status === 'pending' && (
-                <span className="status status-blue"><span className="status-dot pulse" />researching</span>
-              )}
-              {locationStr && (
-                <span className="hero-location">
-                  {IconPin} {locationStr}
-                </span>
-              )}
-            </div>
-            {/* Contact icon buttons — scannable at a glance */}
-            <div className="hero-contact-icons">
-              {producer.email && <a className="contact-icon-btn" href={`mailto:${producer.email}`} title={producer.email}>{IconMail}</a>}
-              {producer.phone && <a className="contact-icon-btn" href={`tel:${producer.phone}`} title={producer.phone}>{IconPhone}</a>}
-              {producer.website && <a className="contact-icon-btn" href={producer.website} target="_blank" rel="noopener noreferrer" title={producer.website}>{IconGlobe}</a>}
-              {(producer.social_links || []).map((link, i) => (
-                <a key={i} className="contact-icon-btn" href={link.url.startsWith('http') ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer" title={`${link.platform_name}: ${link.url}`}><PlatformIcon svg={link.icon_svg} /></a>
               ))}
+              <TagAdder onAdd={async t => { await addTag(id, t); const p = await getProducer(id); setProducer(p) }} />
             </div>
+            <div className="pd-sidebar-divider" />
+            <Field label="Last Contact">{relativeTime(relationship?.last_contact_date)}</Field>
           </div>
         </div>
-        <div className="hero-actions">
-          <button className="btn btn-secondary btn-refresh"
-            onClick={handleRefresh} disabled={refreshing || researchPolling || producer.research_status === 'in_progress'}>
-            {(refreshing || researchPolling || producer.research_status === 'in_progress') ? 'Researching...' : 'Refresh Dossier'}
-          </button>
-          <button className="btn-icon btn-icon--rose"
-            onClick={() => setDeleteConfirm(true)} title="Delete Producer">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14" />
-            </svg>
-          </button>
+
+        <div>
+          <div className="pd-dossier-block">
+            <div className="type-meta">Description</div>
+            <p className="prose">{producer.description || <span className="cell-muted">&mdash;</span>}</p>
+          </div>
+
+          <div className="pd-dossier-block">
+            <div className="type-meta">Traits</div>
+            <p className="prose">{traits?.length > 0 ? traits.map(t => t.value).join(' ') : <span className="cell-muted">&mdash;</span>}</p>
+          </div>
         </div>
       </div>
 
-      {/* ===== TWO-COLUMN LAYOUT ===== */}
-      <div className="detail-layout">
+      {/* ===== PRODUCTIONS ===== */}
+      <div id="intel" className="section-card pd-section">
+        <div className="section-card-header">
+          <h3 className="section-card-title">
+            Intel on {producer.first_name} {producer.last_name}
+            {gatheringIntel && <span className="status status-warm" style={{ marginLeft: 12, fontSize: '0.8125rem' }}><span className="status-dot pulse" />Gathering</span>}
+          </h3>
+          <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8125rem' }} onClick={handleGatherIntel} disabled={gatheringIntel}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            {gatheringIntel ? 'Gathering…' : 'Gather Intel'}
+          </button>
+        </div>
+        <DataTable
+          data={intel || []}
+          columns={INTEL_COLS}
+          rowKey="id"
+          emptyState={<EmptyState title="No intel yet" description="Click Gather Intel to find information about this producer." />}
+        />
+      </div>
 
-        {/* ========== MAIN COLUMN ========== */}
-        <div className="detail-main">
+      <div id="productions" className="section-card pd-section">
+        <div className="section-card-header">
+          <h3 className="section-card-title">Shows & Productions for {producer.first_name} {producer.last_name}</h3>
+          <span className="section-card-meta">
+            {allCredits.length} total
+            <span className="link" style={{ marginLeft: 12, cursor: 'pointer' }} onClick={() => { setAddShowSelected(null); setAddShowRoleId(''); setAddShowQuery(''); setModalError(null); setAddShowModal(true) }}>+ Add to show</span>
+            <span className="link" style={{ marginLeft: 12, cursor: 'pointer' }} onClick={() => { setAddProdSelected(null); setAddProdRoleId(''); setAddProdQuery(''); setModalError(null); setAddProdModal(true) }}>+ Add to production</span>
+          </span>
+        </div>
+        <DataTable data={allCredits} columns={CREDIT_COLS} rowKey="_key"
+          onRowClick={row => row._type === 'production' ? setProductionDrawerId(row.production_id) : navigate(`/producers/shows/${row.show_id}`)}
+          emptyState={<EmptyState title="No shows or productions" description="Link this producer to shows and productions." />} />
+      </div>
 
-          {/* --- Pending Follow-ups — alert-styled action items --- */}
-          {pendingFollowUps.length > 0 && (
-            <div>
-              <div className="sidebar-label">Action Items</div>
-              {pendingFollowUps.map(f => (
-                <div key={f.id} className={`followup-item ${f.overdue ? 'followup-item--overdue' : 'followup-item--pending'}`}>
-                  {f.overdue
-                    ? <span className="badge badge-rose">Overdue</span>
-                    : <span className="followup-pending-label">Pending</span>
-                  }
-                  {editingFollowUp?.id === f.id ? (
-                    <form onSubmit={handleUpdateFollowUp} className="followup-edit-form">
-                      <input className="input input-compact flex-1"
-                        value={followUpForm.implied_action} onChange={e => setFollowUpForm(prev => ({ ...prev, implied_action: e.target.value }))} autoFocus />
-                      <input className="input input-compact-sm"
-                        value={followUpForm.timeframe} onChange={e => setFollowUpForm(prev => ({ ...prev, timeframe: e.target.value }))} placeholder="Timeframe" />
-                      <button type="submit" className="btn btn-primary">Save</button>
-                      <button type="button" className="btn btn-ghost" onClick={() => setEditingFollowUp(null)}>Cancel</button>
-                    </form>
+      {/* ===== ORGANIZATIONS ===== */}
+      <div id="organizations" className="section-card pd-section">
+        <div className="section-card-header">
+          <h3 className="section-card-title">Organizations for {producer.first_name} {producer.last_name}</h3>
+          <span className="section-card-meta">
+            {organizations.length} total
+            <span className="link" style={{ marginLeft: 12, cursor: 'pointer' }} onClick={() => {
+              setOrgForm({ organization_name: '', role_title: '', start_date: '', end_date: '' })
+              setOrgQuery(''); setOrgSugs([]); setModalError(null); setOrgModal('add')
+            }}>+ Add</span>
+          </span>
+        </div>
+        <DataTable
+          data={organizations}
+          columns={ORG_COLS}
+          rowKey={row => row.id || row.organization_id}
+          onRowClick={row => setOrgDrawerId(row.organization_id || row.id)}
+          emptyState={<EmptyState title="No organizations" description="Affiliations populate from research or add manually." />}
+        />
+      </div>
+
+      {/* ===== INTERACTIONS ===== */}
+      <div id="interactions" className="section-card pd-section">
+        <div className="section-card-header">
+          <h3 className="section-card-title">Interaction history with {producer.first_name} {producer.last_name}</h3>
+          <span className="section-card-meta">
+            {interactions.length} total
+            <span className="link" style={{ marginLeft: 12, cursor: 'pointer' }} onClick={() => { setNewInt(''); setIntModal(true) }}>+ Add</span>
+          </span>
+        </div>
+        {interactions.length > 0 ? (
+          <>
+            <ul className="item-list">
+              {interactions.slice(0, intVisible).map(int => (
+                <li key={int.id} className="pd-interaction-row">
+                  <div className="pd-interaction-header">
+                    <span className="pd-interaction-date">
+                      {int.date ? new Date(int.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
+                      {int.author && ` — ${int.author}`}
+                    </span>
+                    <ActionMenu items={[
+                      { label: 'Edit', icon: 'M11 1.5l2 2-7.5 7.5H3.5v-2L11 1.5z', onClick: () => { setEditIntId(int.id); setEditIntText(int.content) } },
+                      { divider: true },
+                      { label: 'Delete', icon: 'M2 4h11M5.5 4V2.5h4V4M3.5 4v8.5a1 1 0 001 1h6a1 1 0 001-1V4', destructive: true, onClick: () => handleDeleteInt(int.id) },
+                    ]} />
+                  </div>
+                  {editIntId === int.id ? (
+                    <div className="field-stack">
+                      <textarea className="textarea textarea-full" value={editIntText} onChange={e => setEditIntText(e.target.value)} autoFocus rows={4} />
+                      <div className="form-actions">
+                        <button className="btn btn-ghost" onClick={() => setEditIntId(null)}>Cancel</button>
+                        <button className="btn btn-primary" onClick={() => handleEditInt(int.id)}>Save</button>
+                      </div>
+                    </div>
                   ) : (
-                    <>
-                      <span className="followup-text value-light">{f.implied_action}</span>
-                      {f.timeframe && <span className="type-meta">{f.timeframe}</span>}
-                      <div className="followup-actions">
-                        <button className="btn-icon" onClick={() => handleResolveFollowUp(f.id)} title="Resolve">{IconCheck}</button>
-                        <button className="btn-icon" onClick={() => { setEditingFollowUp(f); setFollowUpForm({ implied_action: f.implied_action, timeframe: f.timeframe || '' }) }} title="Edit">{IconEdit}</button>
-                        <button className="btn-icon" onClick={() => handleDeleteFollowUp(f.id)} title="Delete">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                        </button>
-                      </div>
-                    </>
+                    <div className="pd-interaction-content">{int.content}</div>
                   )}
-                </div>
+                  {int.follow_up_signals?.length > 0 && (
+                    <div className="pd-interaction-followups">
+                      {int.follow_up_signals.map(f => (
+                        <div key={f.id} className={`pd-interaction-followup${f.resolved ? ' pd-interaction-followup-resolved' : ''}`}>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            {f.resolved ? <path d="M2 5.5l2.5 2.5 3.5-4" /> : <path d="M5 2v6M2 5l3 3 3-3" />}
+                          </svg>
+                          <span>{f.implied_action}</span>
+                          {f.timeframe && <span className="cell-muted">{f.timeframe}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </li>
               ))}
-            </div>
-          )}
-
-          {/* --- Interaction Compose --- */}
-          <form onSubmit={handleAddInteraction} className="compose-area">
-            <textarea
-              className="textarea compose-textarea"
-              placeholder="Log an interaction..."
-              value={newInteraction}
-              onChange={e => setNewInteraction(e.target.value)}
-            />
-            <div className="compose-actions">
-              <button type="submit" className="btn btn-primary" disabled={!newInteraction.trim()}>Log Interaction</button>
-              {recording ? (
-                <button type="button" className="btn btn-secondary btn-secondary--rose" onClick={stopRecording}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent-rose)" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-                  Stop Recording
+            </ul>
+            {interactions.length > intVisible && (
+              <div className="pd-show-older">
+                <button className="link" onClick={() => setIntVisible(v => v + 15)}>
+                  Show older ({interactions.length - intVisible} more)
                 </button>
-              ) : (
-                <button type="button" className="btn btn-ghost" onClick={startRecording} disabled={transcribing} title="Voice memo">
-                  {transcribing ? 'Transcribing...' : (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
-                      </svg>
-                      Voice Memo
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          </form>
-
-          {/* --- Interaction History — timeline --- */}
-          <div className="section-card">
-            <SectionHeader title="Interaction History" collapsed={collapsed.interactions} onToggle={() => toggle('interactions')}>
-              <div className="section-card-meta">{interactions.length}</div>
-            </SectionHeader>
-            {!collapsed.interactions && (
-              interactions.length > 0 ? (
-                <div className="timeline">
-                  {interactions.map(i => (
-                    <div key={i.id} className="timeline-item">
-                      <div className={`timeline-dot ${i === interactions[0] ? 'timeline-dot-active' : ''}`} />
-                      <div className="interaction-header">
-                        <div className="timeline-date">{i.date ? new Date(i.date).toLocaleDateString() : ''} &mdash; {i.author}</div>
-                        <div className="interaction-actions">
-                          <button className="btn-icon" onClick={() => { setEditingInteraction(i.id); setEditInteractionContent(i.content) }} title="Edit">{IconEdit}</button>
-                          <button className="btn-icon" onClick={() => handleDeleteInteraction(i.id)} title="Delete">{IconTrash}</button>
-                        </div>
-                      </div>
-                      {editingInteraction === i.id ? (
-                        <div className="interaction-edit-area">
-                          <textarea className="textarea textarea-edit-full"
-                            value={editInteractionContent} onChange={e => setEditInteractionContent(e.target.value)} autoFocus />
-                          <div className="interaction-edit-actions">
-                            <button className="btn btn-primary" onClick={() => handleEditInteraction(i.id)}>Save</button>
-                            <button className="btn btn-ghost" onClick={() => setEditingInteraction(null)}>Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="timeline-content">{i.content}</div>
-                      )}
-                      {i.follow_up_signals && i.follow_up_signals.length > 0 && (
-                        <div className="followup-signals">
-                          {i.follow_up_signals.map(f => (
-                            <div key={f.id} className="followup-signal">
-                              <span className={`followup-signal-label ${f.resolved ? 'followup-signal-label--resolved' : 'followup-signal-label--pending'}`}>
-                                {f.resolved ? 'Resolved' : 'Follow-up'}
-                              </span>
-                              <span className="followup-signal-text">{f.implied_action}</span>
-                              {f.timeframe && <span className="type-meta">{f.timeframe}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="cell-muted p-16">No interactions yet.</div>
-              )
-            )}
-          </div>
-
-          {/* --- Production History — collapsed by default --- */}
-          <div className="section-card">
-            <SectionHeader title="Production History" collapsed={collapsed.productions} onToggle={() => toggle('productions')}>
-              <div className="section-card-meta">{productions.length}</div>
-            </SectionHeader>
-            {!collapsed.productions && (
-              productions.length > 0 ? (
-                <table className="data-table">
-                  <thead><tr><th>Title</th><th>Venue</th><th>Year</th><th>Role</th></tr></thead>
-                  <tbody>
-                    {productions.map(p => (
-                      <tr key={p.production_id}>
-                        <td className="cell-strong">{p.title}</td>
-                        <td>{p.venue ? p.venue.name : '\u2014'}</td>
-                        <td>{p.year || '\u2014'}</td>
-                        <td>{p.role?.display_label || '\u2014'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="cell-muted p-16">No productions yet.</div>
-              )
-            )}
-          </div>
-
-        </div>
-
-        {/* ========== SIDEBAR ========== */}
-        <div className="detail-sidebar">
-
-          {/* --- Contact Card --- */}
-          <div className="contact-card">
-            <div className="contact-card-header">
-              <div className="sidebar-label">Contact</div>
-              <button className="btn btn-ghost"
-                onClick={() => setEditingContact(!editingContact)}>
-                {editingContact ? 'Done' : 'Edit'}
-              </button>
-            </div>
-            {editingContact ? (
-              <div className="contact-edit-grid">
-                <div className="contact-edit-name-grid">
-                  <EditableField label="First Name" value={producer.first_name} field="first_name" onSave={handleFieldSave} />
-                  <EditableField label="Last Name" value={producer.last_name} field="last_name" onSave={handleFieldSave} />
-                </div>
-                <EditableField label="Email" value={producer.email} field="email" onSave={handleFieldSave} />
-                <EditableField label="Phone" value={producer.phone} field="phone" onSave={handleFieldSave} />
-                <div>
-                  <div className="type-meta">Location</div>
-                  <LocationAutocomplete
-                    city={producer.city} stateRegion={producer.state_region} country={producer.country}
-                    onChange={loc => { handleFieldSave('city', loc.city); handleFieldSave('state_region', loc.state_region); handleFieldSave('country', loc.country) }}
-                  />
-                </div>
-                <EditableField label="Website" value={producer.website} field="website" onSave={handleFieldSave} />
-                <div>
-                  <div className="type-meta">Profiles</div>
-                  <div className="social-links-list">
-                    {(producer.social_links || []).map((link, i) => (
-                      <a key={i} href={link.url.startsWith('http') ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer" className="link link-external">{link.platform_name}</a>
-                    ))}
-                    {(!producer.social_links || producer.social_links.length === 0) && <span className="cell-muted">&mdash;</span>}
-                  </div>
-                </div>
-                <EditableField label="Nickname" value={producer.nickname} field="nickname" onSave={handleFieldSave} />
-                <EditableField label="Pronouns" value={producer.pronouns} field="pronouns" onSave={handleFieldSave} />
-                <EditableField label="Birthdate" value={producer.birthdate} field="birthdate" onSave={handleFieldSave} />
-                <EditableField label="College" value={producer.college} field="college" onSave={handleFieldSave} />
-                <EditableField label="Hometown" value={producer.hometown} field="hometown" onSave={handleFieldSave} />
-                <EditableField label="Spouse/Partner" value={producer.spouse_partner} field="spouse_partner" onSave={handleFieldSave} />
-                <EditableField label="Languages" value={producer.languages} field="languages" onSave={handleFieldSave} />
-                <EditableField label="Seasonal Location" value={producer.seasonal_location} field="seasonal_location" onSave={handleFieldSave} />
-                <EditableField label="Photo URL" value={producer.photo_url} field="photo_url" onSave={handleFieldSave} />
               </div>
-            ) : (
-              <>
-                <div className="contact-row">
-                  <span className="contact-icon">{IconMail}</span>
-                  <span className={`contact-value ${!producer.email ? 'contact-value--empty' : ''}`}>
-                    {producer.email ? <a href={`mailto:${producer.email}`}>{producer.email}</a> : 'No email'}
-                  </span>
-                </div>
-                <div className="contact-row">
-                  <span className="contact-icon">{IconPhone}</span>
-                  <span className={`contact-value ${!producer.phone ? 'contact-value--empty' : ''}`}>
-                    {producer.phone ? <a href={`tel:${producer.phone}`}>{producer.phone}</a> : 'No phone'}
-                  </span>
-                </div>
-                <div className="contact-row">
-                  <span className="contact-icon">{IconPin}</span>
-                  <span className={`contact-value ${!locationStr ? 'contact-value--empty' : ''}`}>
-                    {locationStr || 'No location'}
-                  </span>
-                </div>
-                {producer.website && (
-                  <div className="contact-row">
-                    <span className="contact-icon">{IconGlobe}</span>
-                    <span className="contact-value"><a href={producer.website} target="_blank" rel="noopener noreferrer">{producer.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}</a></span>
-                  </div>
-                )}
-                {(producer.social_links || []).length > 0
-                  ? (producer.social_links || []).map((link, i) => (
-                      <div className="contact-row" key={i}>
-                        <span className="contact-icon"><PlatformIcon svg={link.icon_svg} /></span>
-                        <span className="contact-value"><a href={link.url.startsWith('http') ? link.url : `https://${link.url}`} target="_blank" rel="noopener noreferrer">{link.platform_name}</a></span>
-                      </div>
-                    ))
-                  : (
-                    <div className="contact-row">
-                      <span className="contact-icon">{IconGlobe}</span>
-                      <span className="contact-value contact-value--empty">No profiles</span>
-                    </div>
-                  )}
-                {producer.nickname && (
-                  <div className="contact-row">
-                    <span className="contact-icon">&nbsp;</span>
-                    <span className="contact-value"><span className="type-meta">Nickname</span> {producer.nickname}</span>
-                  </div>
-                )}
-                {producer.pronouns && (
-                  <div className="contact-row">
-                    <span className="contact-icon">&nbsp;</span>
-                    <span className="contact-value"><span className="type-meta">Pronouns</span> {producer.pronouns}</span>
-                  </div>
-                )}
-                {producer.birthdate && (
-                  <div className="contact-row">
-                    <span className="contact-icon">&nbsp;</span>
-                    <span className="contact-value"><span className="type-meta">Birthdate</span> {producer.birthdate}</span>
-                  </div>
-                )}
-                {producer.college && (
-                  <div className="contact-row">
-                    <span className="contact-icon">&nbsp;</span>
-                    <span className="contact-value"><span className="type-meta">College</span> {producer.college}</span>
-                  </div>
-                )}
-                {producer.hometown && (
-                  <div className="contact-row">
-                    <span className="contact-icon">&nbsp;</span>
-                    <span className="contact-value"><span className="type-meta">Hometown</span> {producer.hometown}</span>
-                  </div>
-                )}
-                {producer.spouse_partner && (
-                  <div className="contact-row">
-                    <span className="contact-icon">&nbsp;</span>
-                    <span className="contact-value"><span className="type-meta">Spouse/Partner</span> {producer.spouse_partner}</span>
-                  </div>
-                )}
-                {producer.languages && (
-                  <div className="contact-row">
-                    <span className="contact-icon">&nbsp;</span>
-                    <span className="contact-value"><span className="type-meta">Languages</span> {producer.languages}</span>
-                  </div>
-                )}
-                {producer.seasonal_location && (
-                  <div className="contact-row">
-                    <span className="contact-icon">&nbsp;</span>
-                    <span className="contact-value"><span className="type-meta">Seasonal Location</span> {producer.seasonal_location}</span>
-                  </div>
-                )}
-              </>
             )}
-          </div>
-
-          {/* --- Relationship Stats --- */}
-          {relationship && (
-            <div>
-              <div className="sidebar-label">Relationship</div>
-              <div className="stat-grid relationship-stat-grid">
-                <div className="stat-card">
-                  <div className="stat-label">Interactions</div>
-                  <div className="stat-value">{relationship.interaction_count || 0}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Frequency</div>
-                  <div className="stat-value stat-value--sm">{relationship.interaction_frequency ? `${Math.round(relationship.interaction_frequency)}d` : '\u2014'}</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Last</div>
-                  <div className="stat-value stat-value--sm">{relationship.last_contact_date ? relativeTime(relationship.last_contact_date) : 'Never'}</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* --- Organizations --- */}
-          <div>
-            <div className="sidebar-section-header">
-              <div className="sidebar-label">Organizations</div>
-              <button className="btn btn-ghost"
-                onClick={() => setAddOrgModal(true)}>Add</button>
-            </div>
-            {organizations.length > 0 ? (
-              <ul className="item-list">
-                {organizations.map(o => (
-                  <li key={o.id || o.organization_id} className="item-row org-row-detail">
-                    <div>
-                      <div className="item-primary org-name">{o.name}</div>
-                      <div className="item-secondary org-role">
-                        {o.role_title || ''}
-                        {o.start_date && ` \u2014 since ${o.start_date}`}
-                      </div>
-                    </div>
-                    <div className="org-row-actions">
-                      {!o.end_date && <span className="org-current-badge">Current</span>}
-                      <button className="btn-icon"
-                        onClick={() => { setEditOrgModal(o); setOrgForm({ organization_name: o.name, role_title: o.role_title || '', start_date: o.start_date || '', end_date: o.end_date || '' }) }} title="Edit">{IconEdit}</button>
-                      <button className="btn-icon"
-                        onClick={() => handleRemoveAffiliation(o.id || o.organization_id)} title="Remove">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="cell-muted">No organizations yet.</div>
-            )}
-          </div>
-
-          {/* --- Tags --- */}
-          <div>
-            <div className="sidebar-label">Tags</div>
-            <ChipInput tags={producer.tags || []} onAdd={handleAddTag} onRemove={handleRemoveTag} />
-          </div>
-
-          {/* --- Dossier Metadata — collapsed --- */}
-          <div className="section-card section-card--compact">
-            <SectionHeader title="Metadata" collapsed={collapsed.metadata} onToggle={() => toggle('metadata')} />
-            {!collapsed.metadata && (
-              <>
-                <div className="metadata-list">
-                  <div>
-                    <div className="type-meta">Last researched</div>
-                    <div className="metadata-value">{producer.last_research_date ? new Date(producer.last_research_date).toLocaleDateString() : 'Never'}</div>
-                  </div>
-                  <div>
-                    <div className="type-meta">Intake source</div>
-                    <div className="metadata-value">{producer.intake_source || '\u2014'}</div>
-                  </div>
-                </div>
-                {producer.research_status_detail && (
-                  <div className="mt-8">
-                    <div className="type-meta">Last research result</div>
-                    <div className="metadata-value">{producer.research_status_detail}</div>
-                  </div>
-                )}
-                {producer.research_sources_consulted && producer.research_sources_consulted.length > 0 && (
-                  <div className="mt-8">
-                    <div className="type-meta">Sources consulted</div>
-                    <div className="metadata-value">{producer.research_sources_consulted.join(', ')}</div>
-                  </div>
-                )}
-                {producer.research_gaps && producer.research_gaps.length > 0 && (
-                  <div className="mt-8">
-                    <div className="type-meta">Research gaps</div>
-                    <div className="metadata-value--warn">{producer.research_gaps.join(', ')}</div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* --- Change History — collapsed --- */}
-          <div className="section-card section-card--compact">
-            <SectionHeader title="Change History" collapsed={collapsed.history} onToggle={() => toggle('history')}>
-              <div className="section-card-meta">{history.length}</div>
-            </SectionHeader>
-            {!collapsed.history && (
-              history.length > 0 ? (
-                <div className="history-scroll">
-                  {history.slice(0, 20).map(h => (
-                    <div key={h.id} className="history-entry">
-                      <div className="history-entry-header">
-                        <span className="value-bold">{FIELD_LABELS[h.field_name] || h.field_name.replace(/_/g, ' ')}</span>
-                        <span className="cell-muted">{new Date(h.changed_at).toLocaleDateString()}</span>
-                      </div>
-                      <div className="history-entry-value line-clamp-2">{h.new_value || '\u2014'}</div>
-                      <div className="cell-muted history-entry-author">by {h.changed_by}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="cell-muted">No changes recorded.</div>
-              )
-            )}
-          </div>
-
-        </div>
+          </>
+        ) : (
+          <EmptyState title="No interactions" description="Log your first interaction using the button above." />
+        )}
       </div>
 
-      {/* ===== MODALS ===== */}
 
-      {addOrgModal && (
-        <Modal title="Add Organization"
-          onClose={() => { setAddOrgModal(false); setOrgQuery(''); setOrgSuggestions([]) }}
-          footer={<><button className="btn btn-ghost" onClick={() => setAddOrgModal(false)}>Cancel</button><button className="btn btn-primary" onClick={handleAddAffiliation} disabled={!orgForm.organization_name.trim()}>Add</button></>}>
-          <form onSubmit={handleAddAffiliation}>
-            <div className="modal-field-relative">
-              <div className="input-label">Organization</div>
-              <input className="input input-full" placeholder="Type to search..."
-                value={orgQuery}
-                onChange={e => { setOrgQuery(e.target.value); setOrgForm(prev => ({ ...prev, organization_name: e.target.value })) }}
-                autoFocus />
-              {orgSuggestions.length > 0 && (
-                <div className="autocomplete-dropdown">
-                  {orgSuggestions.map(org => (
-                    <div key={org.id} className="autocomplete-option"
-                      onMouseDown={() => { setOrgQuery(org.name); setOrgForm(prev => ({ ...prev, organization_name: org.name })); setOrgSuggestions([]) }}>
-                      {org.name}
-                      {org.org_type && <span className="cell-muted ml-8 fs-meta">{org.org_type}</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="modal-field">
-              <div className="input-label">Role / Title</div>
-              <input className="input input-full" placeholder="e.g. Executive Producer"
-                value={orgForm.role_title} onChange={e => setOrgForm(prev => ({ ...prev, role_title: e.target.value }))} />
-            </div>
-            <div className="org-date-grid">
-              <div><div className="input-label">Start Date</div><input className="input input-full" type="date" value={orgForm.start_date} onChange={e => setOrgForm(prev => ({ ...prev, start_date: e.target.value }))} /></div>
-              <div><div className="input-label">End Date</div><input className="input input-full" type="date" value={orgForm.end_date} onChange={e => setOrgForm(prev => ({ ...prev, end_date: e.target.value }))} /></div>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {editOrgModal && (
-        <Modal title={`Edit \u2014 ${editOrgModal.name}`} onClose={() => setEditOrgModal(null)}
-          footer={<><button className="btn btn-ghost" onClick={() => setEditOrgModal(null)}>Cancel</button><button className="btn btn-primary" onClick={handleUpdateAffiliation}>Save</button></>}>
-          <form onSubmit={handleUpdateAffiliation}>
-            <div className="modal-field">
-              <div className="input-label">Role / Title</div>
-              <input className="input input-full" value={orgForm.role_title} onChange={e => setOrgForm(prev => ({ ...prev, role_title: e.target.value }))} autoFocus />
-            </div>
-            <div className="org-date-grid">
-              <div><div className="input-label">Start Date</div><input className="input input-full" type="date" value={orgForm.start_date} onChange={e => setOrgForm(prev => ({ ...prev, start_date: e.target.value }))} /></div>
-              <div><div className="input-label">End Date</div><input className="input input-full" type="date" value={orgForm.end_date} onChange={e => setOrgForm(prev => ({ ...prev, end_date: e.target.value }))} /></div>
-            </div>
-          </form>
-        </Modal>
-      )}
-
+      {/* Modals */}
       {deleteConfirm && (
         <Modal title="Delete Producer" onClose={() => setDeleteConfirm(false)}
-          footer={<><button className="btn btn-ghost" onClick={() => setDeleteConfirm(false)}>Cancel</button><button className="btn btn-primary btn-danger" onClick={handleDeleteProducer}>Delete</button></>}>
-          <div className="prose">Permanently delete <strong>{producer.first_name} {producer.last_name}</strong> and all their data? This cannot be undone.</div>
+          footer={<><button className="btn btn-ghost" onClick={() => setDeleteConfirm(false)}>Cancel</button><button className="btn btn-destructive" onClick={handleDelete}>Delete</button></>}>
+          <p className="confirm-body">Permanently delete <strong>{producer.first_name} {producer.last_name}</strong>? This cannot be undone.</p>
+        </Modal>
+      )}
+      {orgModal && (
+        <Modal title={orgModal === 'add' ? 'Add Organization' : `Edit — ${orgModal.name}`} onClose={() => setOrgModal(null)}
+          footer={<><button className="btn btn-ghost" onClick={() => setOrgModal(null)}>Cancel</button><button className="btn btn-primary" onClick={orgModal === 'add' ? handleAddOrg : handleEditOrg} disabled={orgModal === 'add' && !orgForm.organization_name.trim()}>{orgModal === 'add' ? 'Add' : 'Save'}</button></>}>
+          {modalError && <Alert variant="error" title={modalError} />}
+          <form onSubmit={orgModal === 'add' ? handleAddOrg : handleEditOrg}>
+            <div className="field-stack">
+              {orgModal === 'add' && (
+                <div style={{ position: 'relative' }}>
+                  <label className="input-label">Organization *</label>
+                  <input className="input" placeholder="Type to search…" value={orgQuery} autoFocus
+                    onChange={e => { setOrgQuery(e.target.value); setOrgForm(p => ({ ...p, organization_name: e.target.value })) }} />
+                  {orgSugs.length > 0 && (
+                    <div className="dropdown-select-panel" style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4 }}>
+                      {orgSugs.map(org => (
+                        <div key={org.id} className="dropdown-select-option" onMouseDown={() => { setOrgQuery(org.name); setOrgForm(p => ({ ...p, organization_name: org.name })); setOrgSugs([]) }}>
+                          <div className="dropdown-select-check-empty" />{org.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div><label className="input-label">Role / Title</label><input className="input" placeholder="e.g. Executive Producer" value={orgForm.role_title} onChange={e => setOrgForm(p => ({ ...p, role_title: e.target.value }))} /></div>
+              <div className="form-grid-2col">
+                <div><label className="input-label">Start Date</label><input className="input" type="date" value={orgForm.start_date} onChange={e => setOrgForm(p => ({ ...p, start_date: e.target.value }))} /></div>
+                <div><label className="input-label">End Date</label><input className="input" type="date" value={orgForm.end_date} onChange={e => setOrgForm(p => ({ ...p, end_date: e.target.value }))} /></div>
+              </div>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Change history modal */}
+      {historyModal && (
+        <Modal title={`Change history — ${producer.first_name} ${producer.last_name}`} wide onClose={() => setHistoryModal(false)}
+          footer={<button className="btn btn-ghost" onClick={() => setHistoryModal(false)}>Close</button>}>
+          <DataTable
+            data={history}
+            columns={[
+              { key: 'changed_at', label: 'Date', render: v => new Date(v).toLocaleDateString(), className: 'cell-muted' },
+              { key: 'changed_by', label: 'By', render: v => v?.includes('@') ? v.split('@')[0] : v },
+              { key: 'field_name', label: 'Field', strong: true, render: v => v.replace(/_/g, ' ') },
+              { key: 'new_value', label: 'Value', render: v => v ? <span className="line-clamp-2">{v}</span> : <span className="cell-muted">&mdash;</span> },
+            ]}
+            rowKey="id"
+            emptyState={<EmptyState title="No changes" description="Changes will appear as the producer's data is updated." />}
+          />
+        </Modal>
+      )}
+
+      {/* Interaction modal */}
+      {intModal && (
+        <Modal title="Log Interaction" onClose={() => { if (!intProcessing) { setIntModal(false); setNewInt('') } }}
+          footer={<>
+            <button className="btn btn-ghost" onClick={() => { setIntModal(false); setNewInt('') }} disabled={intProcessing}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleAddInt} disabled={!newInt.trim() || intProcessing}>
+              {intProcessing ? 'Processing…' : 'Log'}
+            </button>
+          </>}>
+          <form onSubmit={handleAddInt}>
+            <div className="field-stack">
+              <div>
+                <label className="input-label">Notes</label>
+                <textarea className="textarea textarea-full" placeholder="What happened?"
+                  value={newInt} onChange={e => setNewInt(e.target.value)} rows={5} autoFocus />
+              </div>
+              <div>
+                <label className="input-label">Voice Memo</label>
+                {recording ? (
+                  <div className="voice-recording-state">
+                    <button type="button" className="voice-record-btn recording" onClick={stopRec}>
+                      <div className="record-dot" />
+                    </button>
+                    <div className="voice-waveform">
+                      {[0, 0.1, 0.2, 0.3, 0.15, 0.25, 0.05, 0.35].map((delay, i) => (
+                        <div key={i} className="voice-waveform-bar" style={{ animationDelay: `${delay}s` }} />
+                      ))}
+                    </div>
+                    <span className="voice-timer">Recording…</span>
+                  </div>
+                ) : transcribing ? (
+                  <div className="voice-recording-state">
+                    <div className="loading-spinner" />
+                    <span className="cell-muted">Transcribing…</span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button type="button" className="voice-record-btn" onClick={startRec}>
+                      <div className="record-dot" />
+                    </button>
+                    <span className="cell-muted" style={{ fontSize: '0.9375rem', fontWeight: 300 }}>Tap to record</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Drawers */}
+      {productionDrawerId && <ProductionDrawer productionId={productionDrawerId} onClose={() => setProductionDrawerId(null)} />}
+      {orgDrawerId && <OrganizationDrawer organizationId={orgDrawerId} onClose={() => setOrgDrawerId(null)} />}
+      {researchDrawer && (
+        <Drawer open onClose={() => setResearchDrawer(false)} title="Research Details" subtitle={`${producer.first_name} ${producer.last_name}`}>
+          <div className="drawer-section">
+            <Field label="Status">{producer.research_status || <span className="cell-muted">&mdash;</span>}</Field>
+            {producer.research_status_detail && <Field label="Detail">{producer.research_status_detail}</Field>}
+            <Field label="Last Researched">{producer.last_research_date ? new Date(producer.last_research_date).toLocaleDateString() : null}</Field>
+            <Field label="Intake Source">{producer.intake_source}</Field>
+            {producer.intake_source_url && <Field label="Intake URL"><a href={producer.intake_source_url} target="_blank" rel="noopener noreferrer" className="link link-external">{new URL(producer.intake_source_url).hostname.replace('www.', '')}</a></Field>}
+            {producer.intake_ai_reasoning && <Field label="AI Reasoning">{producer.intake_ai_reasoning}</Field>}
+            <Field label="Sources Consulted">{producer.research_sources_consulted?.length > 0 ? producer.research_sources_consulted.join(', ') : null}</Field>
+            <Field label="Research Gaps">{producer.research_gaps?.length > 0 ? producer.research_gaps.join(', ') : null}</Field>
+          </div>
+        </Drawer>
+      )}
+
+      {/* Add to show modal */}
+      {addShowModal && (
+        <Modal title="Add to Show" onClose={() => setAddShowModal(false)}
+          footer={<>
+            <button className="btn btn-ghost" onClick={() => setAddShowModal(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={addShowSaving || !addShowSelected} onClick={handleAddToShow}>
+              {addShowSaving ? 'Adding…' : 'Add'}
+            </button>
+          </>}>
+          {modalError && <Alert variant="error" title={modalError} />}
+          <form onSubmit={handleAddToShow}>
+            <div className="field-stack">
+              <div style={{ position: 'relative' }}>
+                <label className="input-label">Show *</label>
+                {addShowSelected ? (
+                  <div className="producer-search-selected">
+                    <span className="cell-strong">{addShowSelected.title}</span>
+                    <button type="button" className="producer-search-clear" onClick={() => { setAddShowSelected(null); setAddShowQuery('') }}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input className="input" placeholder="Search shows…" value={addShowQuery} autoFocus
+                      onChange={e => setAddShowQuery(e.target.value)} />
+                    {addShowResults.length > 0 && (
+                      <div className="dropdown-select-panel" style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4 }}>
+                        {addShowResults.map(s => (
+                          <div key={s.id} className="dropdown-select-option"
+                            onMouseDown={() => { setAddShowSelected(s); setAddShowResults([]) }}>
+                            <div className="dropdown-select-check-empty" />
+                            {s.title}
+                            {s.medium && <span className="cell-muted"> · {s.medium.display_label}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div>
+                <label className="input-label">Role</label>
+                <div className="select-wrapper">
+                  <select className="select" value={addShowRoleId} onChange={e => setAddShowRoleId(e.target.value)}>
+                    <option value="">Select role…</option>
+                    {showRoleValues.map(r => <option key={r.id} value={r.id}>{r.display_label}</option>)}
+                  </select>
+                  <svg className="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5" /></svg>
+                </div>
+              </div>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Add to production modal */}
+      {addProdModal && (
+        <Modal title="Add to Production" onClose={() => setAddProdModal(false)}
+          footer={<>
+            <button className="btn btn-ghost" onClick={() => setAddProdModal(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={addProdSaving || !addProdSelected} onClick={handleAddToProduction}>
+              {addProdSaving ? 'Adding…' : 'Add'}
+            </button>
+          </>}>
+          {modalError && <Alert variant="error" title={modalError} />}
+          <form onSubmit={handleAddToProduction}>
+            <div className="field-stack">
+              <div style={{ position: 'relative' }}>
+                <label className="input-label">Production *</label>
+                {addProdSelected ? (
+                  <div className="producer-search-selected">
+                    <span className="cell-strong">{addProdSelected.show_title || addProdSelected.title}</span>
+                    <span className="cell-muted"> · {[addProdSelected.year, addProdSelected.venue_name].filter(Boolean).join(' · ')}</span>
+                    <button type="button" className="producer-search-clear" onClick={() => { setAddProdSelected(null); setAddProdQuery('') }}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input className="input" placeholder="Search productions…" value={addProdQuery} autoFocus
+                      onChange={e => setAddProdQuery(e.target.value)} />
+                    {addProdResults.length > 0 && (
+                      <div className="dropdown-select-panel" style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4 }}>
+                        {addProdResults.map(p => (
+                          <div key={p.id} className="dropdown-select-option"
+                            onMouseDown={() => { setAddProdSelected(p); setAddProdResults([]) }}>
+                            <div className="dropdown-select-check-empty" />
+                            {p.show_title || p.title}
+                            <span className="cell-muted"> · {[p.year, p.venue_name, p.scale?.display_label].filter(Boolean).join(' · ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div>
+                <label className="input-label">Role</label>
+                <div className="select-wrapper">
+                  <select className="select" value={addProdRoleId} onChange={e => setAddProdRoleId(e.target.value)}>
+                    <option value="">Select role…</option>
+                    {prodRoleValues.map(r => <option key={r.id} value={r.id}>{r.display_label}</option>)}
+                  </select>
+                  <svg className="select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3.5 5.5l3.5 3.5 3.5-3.5" /></svg>
+                </div>
+              </div>
+            </div>
+          </form>
         </Modal>
       )}
     </>

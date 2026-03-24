@@ -353,6 +353,9 @@ export const updateProducerIntel = (producerId, intelId, data) => request(`/${pr
 export const deleteProducerIntel = (producerId, intelId) => request(`/${producerId}/intel/${intelId}`, {
   method: 'DELETE',
 })
+export const gatherIntel = (producerId) => request(`/${producerId}/intel/gather`, {
+  method: 'POST',
+})
 
 // Entity Emails
 // entityPrefix maps: 'producer' -> '', 'organization' -> '/organizations', 'venue' -> '/venues'

@@ -582,11 +582,44 @@ def main():
                 p.last_contact_date = max(ix.date for ix in ixs)
 
         s.commit()
+
+        # --- Traits & Intel for first producer (Jordan Roth) ---
+        lv = {f"{l.category}/{l.value}": l.id for l in s.query(LookupValue).filter(LookupValue.category.in_(['trait_category', 'intel_category'])).all()}
+
+        # Description
+        producers[0].description = "One of Broadway's most influential producers and the president of Jordan Roth Theaters (formerly Jujamcyn). Known for championing bold, commercially ambitious work that pushes the form forward — from The Book of Mormon to Hadestown. A vocal advocate for the future of live theatre and a consistent force in shaping what gets produced on Broadway."
+
+        # Traits — all under one category, displayed as a single group
+        trait_cat_id = lv.get('trait_category/genres')
+        trait_data = [
+            ('Produces exclusively at Broadway scale — large commercial houses, national tours, West End transfers. No Off-Broadway or intimate work.', 95),
+            ('Drawn to musicals and plays that combine artistic ambition with mainstream commercial viability. Champions work about identity, legacy, and reinvention.', 85),
+            ('Lead producer on marquee titles. When co-producing, takes a prominent creative role rather than a passive financial position.', 90),
+            ('Extremely active — multiple productions running simultaneously, consistently developing new work, frequent public appearances and industry engagement.', 90),
+        ]
+        for value, conf in trait_data:
+            if trait_cat_id:
+                s.add(ProducerTrait(producer_id=producers[0].id, category_id=trait_cat_id, value=value, confidence=conf, computed_at=now))
+
+        # Intel — all under one category, displayed as a single group
+        intel_cat_id = lv.get('intel_category/career_move')
+        intel_data = [
+            ('Won the Tony Award for Best Musical as lead producer of The Book of Mormon. Multiple Tony nominations across his career.', 95, 'https://www.ibdb.com'),
+            ('Developing several new musicals for the 2026-2027 Broadway season. Actively seeking new work that pushes the form forward.', 75, None),
+            ('Recently renamed Jujamcyn Theaters to Jordan Roth Theaters, signaling a more personal brand identity for his theater portfolio.', 90, None),
+        ]
+        for obs, conf, url in intel_data:
+            if intel_cat_id:
+                s.add(ProducerIntel(producer_id=producers[0].id, category_id=intel_cat_id, observation=obs, confidence=conf, source_url=url, discovered_at=now))
+
+        s.commit()
+
         print(f"Seeded: {len(producers)} producers, {len(orgs)} organizations, "
               f"{len(venues)} venues, {len(shows)} shows, {len(productions)} productions, "
               f"{len(tags)} tags, {len(awards_data)} awards, "
               f"{len(interactions_data)} interactions, {len(followups_data)} follow-ups, "
-              f"{len(ps_links)} producer-show links")
+              f"{len(ps_links)} producer-show links, "
+              f"{len(trait_data)} traits, {len(intel_data)} intel")
 
 
 if __name__ == "__main__":

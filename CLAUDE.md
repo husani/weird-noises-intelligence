@@ -29,6 +29,13 @@ This is not optional. Skipping this step has been a persistent failure across ev
 - **NEVER invent CSS classes without checking the design system first.** If you need a pattern (button variant, card layout, form structure, spacing), check `specs/mockups/design-system.html` for an existing solution. If nothing exists, flag it as "needs new CSS" in your design plan — do not silently create classes. If a pattern is genuinely missing from the design system and is reusable across tools, add it to `shared/frontend/styles/components.css`, not to the tool's CSS.
 - **NEVER copy-paste components across files.** If two pages need the same component (a select arrow SVG, a stage progression indicator, a form field), make it a shared component or a tool-level component — not duplicated code in multiple page files.
 
+## Platform Philosophy
+
+- **AI is infrastructure, not a feature.** Like the database or GCS — it's how the system works, not what the user interacts with. Uploading a script populates the show. Uploading an image populates the visual understanding. Don't frame anything as "AI analysis," "AI-extracted data," or "AI-generated content" in specs, UI, or code. The data is just the data. "Edit" and "Regenerate from script" are both just actions on data — neither is special because of its source.
+- **WN is a media company** (Weird Noises Media Group LLC) creating original IP across theatre, film, and TV. Only Producers and Theatre Ops are theatre-specific. Every other tool must work equally well for a musical, a play, a TV show, or a film.
+- **Don't build FPO.** Nothing goes live until there's a critical mass of tools completed. Don't build placeholder versions of features that depend on tools that don't exist yet. Build each tool's own stuff fully. Cross-tool features come when the dependencies are real.
+- **This project is mid-development. Build everything fully.** There are no users waiting, no production system to maintain, no reason to cut corners or defer work. When something needs to exist, build it properly now. Never suggest doing something "later" or offer a shortcut alongside the right approach. If it's important enough to discuss, it's important enough to build.
+
 ## Specs
 
 - `specs/weird-noises-intelligence-MAIN.md` — main project spec

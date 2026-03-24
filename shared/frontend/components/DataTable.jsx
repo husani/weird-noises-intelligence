@@ -16,6 +16,7 @@
  *   - render: optional (value, row) => ReactNode for custom cell content
  *   - className: optional extra class on td
  *   - sortable: if false, renders a plain th instead of SortHeader (default: true)
+ *   - renderHeader: optional () => ReactNode for custom header content (e.g. checkbox)
  * @param {function} onRowClick - Optional (row) => void, makes rows clickable.
  * @param {string} rowKey - Field name to use as React key for rows. Defaults to 'id'.
  * @param {object} footer - Optional array of cell values for tfoot row.
@@ -77,7 +78,9 @@ export default function DataTable({ data, columns, onRowClick, rowKey = 'id', fo
         <thead>
           <tr>
             {columns.map(col => (
-              col.sortable === false
+              col.renderHeader
+                ? <th key={col.key} className={col.className}>{col.renderHeader()}</th>
+                : col.sortable === false
                 ? <th key={col.key} className={col.number ? 'cell-number' : col.className}>{col.label}</th>
                 : <SortHeader
                     key={col.key}

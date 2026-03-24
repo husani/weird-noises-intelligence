@@ -10,7 +10,7 @@ import mimetypes
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import joinedload
 
@@ -111,6 +111,17 @@ class UpdateLookupValueRequest(BaseModel):
 
 class ReorderLookupValuesRequest(BaseModel):
     ids: list[int]
+
+
+class CreateShowDataRequest(BaseModel):
+    data_type: str
+    content: dict
+    source_type: str
+    source_id: int
+
+
+class UpdateShowDataRequest(BaseModel):
+    content: dict
 
 
 class UpdateSettingsRequest(BaseModel):
@@ -302,6 +313,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     @router.post("/shows/{show_id}/scripts")
     async def upload_script(
         show_id: int,
+        background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
         version_label: str = Form(...),
         change_notes: str = Form(""),
@@ -329,6 +341,9 @@ def create_slate_router(interface, session_factory) -> APIRouter:
             session.flush()
             version_id = version.id
             session.commit()
+
+        from slate.backend.ai import process_script
+        background_tasks.add_task(process_script, session_factory, version_id)
 
         return {"id": version_id, "version_label": version_label}
 
@@ -418,6 +433,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     async def upload_music(
         show_id: int,
         version_id: int,
+        background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
         track_name: str = Form(...),
         track_type_id: int = Form(None),
@@ -454,6 +470,9 @@ def create_slate_router(interface, session_factory) -> APIRouter:
             session.flush()
             music_id = music.id
             session.commit()
+
+        from slate.backend.ai import process_music
+        background_tasks.add_task(process_music, session_factory, music_id)
 
         return {"id": music_id, "track_name": track_name}
 
@@ -672,6 +691,7 @@ def create_slate_router(interface, session_factory) -> APIRouter:
     @router.post("/shows/{show_id}/visual")
     async def upload_visual_asset(
         show_id: int,
+        background_tasks: BackgroundTasks,
         file: UploadFile = File(...),
         label: str = Form(...),
         asset_type_id: int = Form(None),
@@ -710,6 +730,9 @@ def create_slate_router(interface, session_factory) -> APIRouter:
             session.flush()
             asset_id = asset.id
             session.commit()
+
+        from slate.backend.ai import process_visual
+        background_tasks.add_task(process_visual, session_factory, asset_id)
 
         return {"id": asset_id, "label": label}
 
@@ -758,6 +781,274 @@ def create_slate_router(interface, session_factory) -> APIRouter:
                 return {"error": "Visual asset not found"}
             url = get_signed_url(asset.file_path, expiration_minutes=60)
             return {"url": url}
+
+    # ==================== SHOW DATA ====================
+
+    @router.get("/shows/{show_id}/data")
+    def get_show_data(
+        show_id: int,
+        version_id: int = Query(None, description="Script version ID (default: latest)"),
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            # If no version_id, find the latest script version for this show
+            if version_id is None:
+                latest = (
+                    session.query(ScriptVersion)
+                    .filter(ScriptVersion.show_id == show_id)
+                    .order_by(ScriptVersion.created_at.desc())
+                    .first()
+                )
+                version_id = latest.id if latest else None
+
+            results = {}
+
+            # Script version data
+            if version_id is not None:
+                script_data = (
+                    session.query(ShowData)
+                    .filter(
+                        ShowData.show_id == show_id,
+                        ShowData.source_type == "script_version",
+                        ShowData.source_id == version_id,
+                    )
+                    .all()
+                )
+                results["script_version"] = [
+                    {
+                        "id": d.id,
+                        "data_type": d.data_type,
+                        "content": d.content,
+                        "generated_at": d.generated_at.isoformat() if d.generated_at else None,
+                        "model_used": d.model_used,
+                        "source_type": d.source_type,
+                        "source_id": d.source_id,
+                    }
+                    for d in script_data
+                ]
+
+            # Music file data
+            music_data = (
+                session.query(ShowData)
+                .filter(
+                    ShowData.show_id == show_id,
+                    ShowData.source_type == "music_file",
+                )
+                .all()
+            )
+            results["music_file"] = [
+                {
+                    "id": d.id,
+                    "data_type": d.data_type,
+                    "content": d.content,
+                    "generated_at": d.generated_at.isoformat() if d.generated_at else None,
+                    "model_used": d.model_used,
+                    "source_type": d.source_type,
+                    "source_id": d.source_id,
+                }
+                for d in music_data
+            ]
+
+            # Visual asset data
+            visual_data = (
+                session.query(ShowData)
+                .filter(
+                    ShowData.show_id == show_id,
+                    ShowData.source_type == "visual_asset",
+                )
+                .all()
+            )
+            results["visual_asset"] = [
+                {
+                    "id": d.id,
+                    "data_type": d.data_type,
+                    "content": d.content,
+                    "generated_at": d.generated_at.isoformat() if d.generated_at else None,
+                    "model_used": d.model_used,
+                    "source_type": d.source_type,
+                    "source_id": d.source_id,
+                }
+                for d in visual_data
+            ]
+
+            return results
+
+    @router.get("/shows/{show_id}/data/{data_type}")
+    def get_show_data_by_type(
+        show_id: int,
+        data_type: str,
+        version_id: int = Query(None, description="Script version ID (default: latest)"),
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            # If no version_id, find the latest script version for this show
+            if version_id is None:
+                latest = (
+                    session.query(ScriptVersion)
+                    .filter(ScriptVersion.show_id == show_id)
+                    .order_by(ScriptVersion.created_at.desc())
+                    .first()
+                )
+                version_id = latest.id if latest else None
+
+            if version_id is None:
+                return None
+
+            data = (
+                session.query(ShowData)
+                .filter(
+                    ShowData.show_id == show_id,
+                    ShowData.source_type == "script_version",
+                    ShowData.source_id == version_id,
+                    ShowData.data_type == data_type,
+                )
+                .first()
+            )
+            if not data:
+                return None
+
+            return {
+                "id": data.id,
+                "data_type": data.data_type,
+                "content": data.content,
+                "generated_at": data.generated_at.isoformat() if data.generated_at else None,
+                "model_used": data.model_used,
+                "source_type": data.source_type,
+                "source_id": data.source_id,
+            }
+
+    @router.post("/shows/{show_id}/data")
+    def create_show_data(
+        show_id: int,
+        req: CreateShowDataRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            data = ShowData(
+                show_id=show_id,
+                data_type=req.data_type,
+                content=req.content,
+                source_type=req.source_type,
+                source_id=req.source_id,
+            )
+            session.add(data)
+            session.flush()
+            data_id = data.id
+            session.commit()
+            return {"id": data_id, "data_type": req.data_type}
+
+    @router.put("/shows/{show_id}/data/{data_id}")
+    def update_show_data(
+        show_id: int,
+        data_id: int,
+        req: UpdateShowDataRequest,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            data = session.query(ShowData).filter(
+                ShowData.id == data_id, ShowData.show_id == show_id
+            ).first()
+            if not data:
+                return {"error": "Show data not found"}
+
+            old_content = str(data.content)
+            data.content = req.content
+            _log_change(session, "show_data", data_id, "content", old_content, str(req.content), user["email"])
+
+            session.commit()
+            return {"updated": True}
+
+    @router.delete("/shows/{show_id}/data/{data_id}")
+    def delete_show_data(
+        show_id: int,
+        data_id: int,
+        user: dict = Depends(get_current_user),
+    ):
+        with session_factory() as session:
+            data = session.query(ShowData).filter(
+                ShowData.id == data_id, ShowData.show_id == show_id
+            ).first()
+            if not data:
+                return {"error": "Show data not found"}
+            session.delete(data)
+            session.commit()
+            return {"deleted": True}
+
+    # ==================== REPROCESSING ====================
+
+    @router.post("/shows/{show_id}/scripts/{version_id}/reprocess")
+    async def reprocess_script(
+        show_id: int,
+        version_id: int,
+        background_tasks: BackgroundTasks,
+        user: dict = Depends(get_current_user),
+    ):
+        from slate.backend.ai import process_script
+        background_tasks.add_task(process_script, session_factory, version_id)
+        return {"status": "processing", "version_id": version_id}
+
+    @router.post("/shows/{show_id}/scripts/{version_id}/reprocess/{data_type}")
+    async def reprocess_data_type(
+        show_id: int,
+        version_id: int,
+        data_type: str,
+        background_tasks: BackgroundTasks,
+        user: dict = Depends(get_current_user),
+    ):
+        # Delete existing ShowData record for this type/version
+        with session_factory() as session:
+            session.query(ShowData).filter_by(
+                show_id=show_id,
+                source_type="script_version",
+                source_id=version_id,
+                data_type=data_type,
+            ).delete()
+            session.commit()
+
+        from slate.backend.ai import _run_analysis, extract_script_content, SCRIPT_ANALYSIS_TYPES
+
+        async def _reprocess_one():
+            from slate.backend.ai import call_llm
+            from slate.backend.models import SlateScriptVersion, SlateShow
+            from shared.backend.storage.gcs import download_file as dl_file
+
+            with session_factory() as session:
+                version = session.query(ScriptVersion).get(version_id)
+                if not version:
+                    return
+                file_path = version.file_path
+                original_filename = version.original_filename
+
+            with session_factory() as session:
+                show = session.query(Show).get(show_id)
+                if not show:
+                    return
+                medium_label = show.medium.display_label if show.medium else "Unknown"
+                context = {
+                    "title": show.title,
+                    "medium": medium_label,
+                    "genre": show.genre or "Not specified",
+                    "script_text": "",
+                }
+
+            file_bytes = dl_file(file_path)
+            text, file_parts = extract_script_content(original_filename, file_bytes)
+            context["script_text"] = text or ""
+
+            await _run_analysis(
+                data_type, text, file_parts, context,
+                show_id, version_id, session_factory,
+            )
+
+        background_tasks.add_task(_reprocess_one)
+        return {"status": "processing", "version_id": version_id, "data_type": data_type}
+
+    # ==================== MODEL OPTIONS ====================
+
+    @router.get("/settings/models")
+    def get_model_options(user: dict = Depends(get_current_user)):
+        from slate.backend.ai import MODEL_OPTIONS
+        return MODEL_OPTIONS
 
     # ==================== LOOKUP VALUES ====================
 

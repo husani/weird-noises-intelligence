@@ -128,6 +128,9 @@ slate_session_factory = create_session_factory(slate_engine)
 slate_interface = SlateInterface(
     session_factory=slate_session_factory, mcp_server=mcp_server
 )
+# Initialize AI module with session factory so call_llm can read behaviors
+from slate.backend.ai import init as slate_ai_init
+slate_ai_init(slate_session_factory)
 registry.register(
     "slate",
     name="Slate",

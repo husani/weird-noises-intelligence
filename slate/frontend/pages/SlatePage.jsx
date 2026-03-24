@@ -15,6 +15,7 @@ const ShowDetail = lazy(() => import('./ShowDetail'))
 const OptionsPage = lazy(() => import('./OptionsPage'))
 const OptionEdit = lazy(() => import('./OptionEdit'))
 const Settings = lazy(() => import('./Settings'))
+const AIConfig = lazy(() => import('./AIConfig'))
 
 // SVG icons for sidebar links
 const icons = {
@@ -22,6 +23,7 @@ const icons = {
   shows: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 6h16M4 10h16M4 14h12M4 18h8" /></svg>,
   options: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="8" cy="6" r="2" fill="currentColor" /><circle cx="16" cy="12" r="2" fill="currentColor" /><circle cx="10" cy="18" r="2" fill="currentColor" /></svg>,
   settings: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>,
+  ai: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2a4 4 0 014 4v1h1a3 3 0 013 3v1a3 3 0 01-3 3h-1v4a4 4 0 01-8 0v-4H7a3 3 0 01-3-3v-1a3 3 0 013-3h1V6a4 4 0 014-4z" /><circle cx="10" cy="10" r="1" fill="currentColor" /><circle cx="14" cy="10" r="1" fill="currentColor" /></svg>,
 }
 
 function Sidebar({ onQuickAdd }) {
@@ -49,6 +51,11 @@ function Sidebar({ onQuickAdd }) {
         <div className="sidebar-nav-section">Data</div>
         <NavLink to="/slate/options" className={({ isActive }) => `sidebar-nav-link${isActive ? ' active' : ''}`}>
           {icons.options} Options
+        </NavLink>
+
+        <div className="sidebar-nav-section">Advanced</div>
+        <NavLink to="/slate/ai-config" className={({ isActive }) => `sidebar-nav-link${isActive ? ' active' : ''}`}>
+          {icons.ai} AI Configuration
         </NavLink>
       </nav>
 
@@ -119,6 +126,7 @@ export default function SlatePage() {
             <Route path="options/new" element={<OptionEdit />} />
             <Route path="options/:id/edit" element={<OptionEdit />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="ai-config" element={<AIConfig />} />
           </Routes>
         </Suspense>
       </div>

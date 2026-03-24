@@ -18,7 +18,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from shared.backend.db import create_engine_for, create_session_factory
-from slate.backend.models import SlateLookupValue
+from slate.backend.models import SlateAIBehavior, SlateLookupValue
 
 DATA_FILE = Path(__file__).parent / "seed_slate_data.yml"
 
@@ -51,6 +51,28 @@ def seed_lookup_values(session, lookup_data, force=False):
     return count
 
 
+def seed_ai_behaviors(session, behaviors, force=False):
+    """Seed AI behaviors from YAML data."""
+    if not force and session.query(SlateAIBehavior).count() > 0:
+        print("  AI behaviors: already seeded, skipping (use --force to re-seed)")
+        return 0
+
+    if force:
+        session.query(SlateAIBehavior).delete()
+
+    count = 0
+    for entry in behaviors:
+        session.add(SlateAIBehavior(
+            name=entry["name"],
+            display_label=entry["display_label"],
+            system_prompt=entry["system_prompt"].strip(),
+            user_prompt=entry["user_prompt"].strip(),
+            model=entry["model"],
+        ))
+        count += 1
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(description="Seed Slate reference data")
     parser.add_argument("--force", action="store_true", help="Delete existing data and re-seed")
@@ -67,6 +89,11 @@ def main():
         lookup_count = seed_lookup_values(session, data["lookup_values"], force=args.force)
         if lookup_count:
             print(f"  Lookup values: {lookup_count} inserted")
+
+        if "ai_behaviors" in data:
+            behavior_count = seed_ai_behaviors(session, data["ai_behaviors"], force=args.force)
+            if behavior_count:
+                print(f"  AI behaviors: {behavior_count} inserted")
 
         session.commit()
 

@@ -153,6 +153,43 @@ export function downloadVisualAsset(showId, assetId) {
   return request(`/shows/${showId}/visual/${assetId}/download`)
 }
 
+// Show data
+export function getShowData(showId, params = {}) {
+  const qs = new URLSearchParams()
+  if (params.version_id) qs.set('version_id', params.version_id)
+  return request(`/shows/${showId}/data?${qs}`)
+}
+
+export function getShowDataByType(showId, dataType) {
+  return request(`/shows/${showId}/data/${dataType}`)
+}
+
+export function createShowData(showId, data) {
+  return request(`/shows/${showId}/data`, { method: 'POST', body: JSON.stringify(data) })
+}
+
+export function updateShowData(showId, dataId, data) {
+  return request(`/shows/${showId}/data/${dataId}`, { method: 'PUT', body: JSON.stringify(data) })
+}
+
+export function deleteShowData(showId, dataId) {
+  return request(`/shows/${showId}/data/${dataId}`, { method: 'DELETE' })
+}
+
+// Reprocessing
+export function reprocessScript(showId, versionId) {
+  return request(`/shows/${showId}/scripts/${versionId}/reprocess`, { method: 'POST' })
+}
+
+export function reprocessDataType(showId, versionId, dataType) {
+  return request(`/shows/${showId}/scripts/${versionId}/reprocess/${dataType}`, { method: 'POST' })
+}
+
+// Model options
+export function getModelOptions() {
+  return request('/settings/models')
+}
+
 // Lookup values
 export function getLookupValues(params = {}) {
   const qs = new URLSearchParams()

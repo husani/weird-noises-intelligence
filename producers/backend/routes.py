@@ -996,6 +996,14 @@ def create_producers_router(interface, mcp_server: FastMCP, session_factory) -> 
                      user: dict = Depends(get_current_user)):
         return interface.delete_producer_intel(intel_id)
 
+    @router.post("/{producer_id}/intel/gather")
+    def gather_intel(producer_id: int,
+                     background_tasks: BackgroundTasks,
+                     user: dict = Depends(get_current_user)):
+        """Trigger AI to gather intel about this producer. Pipeline TBD."""
+        # TODO: Wire to AI pipeline when ready
+        return {"status": "queued", "message": "Intel gathering is not yet implemented."}
+
     @router.post("/settings/refresh-all")
     def refresh_all_producers(
         background_tasks: BackgroundTasks,

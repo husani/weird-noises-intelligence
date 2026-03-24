@@ -102,6 +102,7 @@ class Producer(Base):
     spouse_partner = Column(String, nullable=True)
     languages = Column(String, nullable=True)
     seasonal_location = Column(String, nullable=True)
+    description = Column(Text, nullable=True)  # Prose summary of who this producer is
 
     # Dossier metadata
     last_research_date = Column(DateTime(timezone=True), nullable=True)

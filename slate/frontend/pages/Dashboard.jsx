@@ -7,8 +7,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import StageProgression from '@shared/components/StageProgression'
-import { listShows, getLookupValues, getRecentMilestones } from '@slate/api'
+import { listShows, getRecentMilestones } from '@slate/api'
 
 const MEDIUM_ACCENT = {
   musical: 'warm',
@@ -42,20 +41,17 @@ function daysSince(dateStr) {
 
 export default function Dashboard() {
   const [shows, setShows] = useState([])
-  const [stages, setStages] = useState([])
   const [milestones, setMilestones] = useState([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   const load = useCallback(async () => {
     try {
-      const [showData, lvData, msData] = await Promise.all([
+      const [showData, msData] = await Promise.all([
         listShows({ limit: 50 }),
-        getLookupValues({ category: 'development_stage' }),
         getRecentMilestones(8),
       ])
       setShows(showData.shows || [])
-      setStages(lvData.lookup_values || [])
       setMilestones(msData.milestones || [])
     } catch (err) {
       console.error('Failed to load dashboard:', err)

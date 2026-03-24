@@ -47,19 +47,6 @@
   grid-column: 1 / -1;
 }
 
-/* Filter row for search + dropdowns */
-.slate-filter-row {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-  align-items: center;
-}
-.slate-filter-row .input {
-  flex: 1;
-}
-.slate-filter-row .select-wrapper {
-  max-width: 200px;
-}
 
 /* Dashboard two-column layout */
 .dash-columns {
@@ -236,4 +223,493 @@
   background: var(--bg-surface);
   color: var(--text-tertiary);
   font-size: 0.75rem;
+}
+
+/* ================================================================
+   AI Workbench — two-panel layout for AI behavior configuration
+   ================================================================ */
+
+.ai-workbench {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  min-height: 560px;
+}
+
+/* Left panel — behavior nav */
+.ai-workbench-nav {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 8px;
+  overflow-y: auto;
+}
+.ai-workbench-nav-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-micro), border-color var(--transition-micro);
+}
+.ai-workbench-nav-item:hover {
+  background: var(--bg-hover);
+}
+.ai-workbench-nav-item.selected {
+  background: var(--accent-warm-subtle);
+  border-left-color: var(--accent-warm);
+}
+.ai-nav-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ai-nav-item-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ai-model-tag {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--accent-warm);
+  display: inline-block;
+}
+
+/* Right panel — editor */
+.ai-workbench-editor {
+  flex: 1;
+  padding: 28px 32px;
+  min-width: 0;
+  min-height: 580px;
+}
+.ai-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.ai-editor-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+.ai-editor-model-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.ai-editor-model-controls .select-wrapper {
+  min-width: 220px;
+}
+
+/* Prompt sections */
+.ai-prompt-section {
+  /* gap handles spacing */
+}
+.ai-prompt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.ai-prompt-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-prompt-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Prompt preview (read-only) */
+.ai-prompt-preview {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.875rem;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 16px 20px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+/* Prompt editor (textarea) */
+.ai-prompt-editor {
+  width: 100%;
+  min-height: 340px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+  background: var(--bg-deep);
+  border: 1px solid var(--accent-warm-muted);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  resize: vertical;
+  transition: border-color var(--transition-micro);
+}
+.ai-prompt-editor:focus {
+  outline: none;
+  border-color: var(--accent-warm);
+}
+.ai-prompt-save-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ================================================================
+   Character Breakdown — readable character blocks
+   ================================================================ */
+
+.slate-character-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.slate-character-block {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+.slate-character-block:first-child {
+  padding-top: 0;
+}
+.slate-character-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.slate-character-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.slate-character-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.slate-character-notes {
+  margin-top: 8px;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.slate-middot {
+  margin: 0 6px;
+  color: var(--text-tertiary);
+}
+
+/* ================================================================
+   Scene Breakdown — act groups with collapsible scenes
+   ================================================================ */
+
+.slate-act-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.slate-act-group {
+  border-bottom: 1px solid var(--border);
+}
+.slate-act-group:last-child {
+  border-bottom: none;
+}
+.slate-act-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+.slate-act-title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+.slate-act-count {
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+  font-weight: 300;
+  margin-left: auto;
+}
+.slate-act-chevron {
+  transition: transform 0.2s ease;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.slate-act-chevron.open {
+  transform: rotate(180deg);
+}
+.slate-scene-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 8px;
+}
+.slate-scene-block {
+  padding: 12px 0 12px 16px;
+  border-left: 2px solid var(--border);
+  margin-left: 4px;
+}
+.slate-scene-block + .slate-scene-block {
+  border-top: 1px solid rgba(239, 233, 223, 0.04);
+}
+.slate-scene-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.slate-scene-number {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+}
+.slate-scene-title {
+  font-weight: 400;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+}
+.slate-scene-location {
+  margin-bottom: 4px;
+}
+.slate-scene-characters {
+  margin-bottom: 6px;
+}
+
+/* ================================================================
+   Song List — readable song blocks
+   ================================================================ */
+
+.slate-song-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.slate-song-block {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.slate-song-block:first-child {
+  padding-top: 0;
+}
+.slate-song-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.slate-song-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.slate-song-title {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+}
+
+/* ================================================================
+   Emotional Arc — chart container and custom tooltip
+   ================================================================ */
+
+.slate-arc-chart-container {
+  margin: 8px 0 16px;
+}
+.slate-arc-tooltip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 0.875rem;
+}
+.slate-arc-tooltip-label {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.slate-arc-tooltip-tone {
+  font-size: 0.8125rem;
+  color: var(--accent-warm);
+  font-weight: 400;
+  margin-bottom: 4px;
+}
+.slate-arc-tooltip-value {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 300;
+}
+.slate-arc-summary {
+  margin-top: 4px;
+}
+
+/* ================================================================
+   Producing Info — list layout
+   ================================================================ */
+
+.slate-producing-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.slate-producing-list li {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  padding-left: 16px;
+  position: relative;
+}
+.slate-producing-list li::before {
+  content: '\2022';
+  position: absolute;
+  left: 0;
+  color: var(--text-tertiary);
+}
+
+/* ================================================================
+   Draft Options — logline/summary suggestions
+   ================================================================ */
+
+.slate-draft-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.slate-draft-option {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.slate-draft-option:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.slate-draft-option .prose {
+  flex: 1;
+  min-width: 0;
+}
+.slate-draft-option .btn {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ================================================================
+   Comparables — overview comparable blocks
+   ================================================================ */
+
+.slate-comparable {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.slate-comparable:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.slate-comparable-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.slate-comparable-title {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+}
+
+/* ================================================================
+   Script Processing — wrapper for processing panel in version entry
+   ================================================================ */
+
+.slate-processing-wrapper {
+  margin: 12px 0;
+}
+
+/* ================================================================
+   Music Analysis — inline display below music file items
+   ================================================================ */
+
+.slate-music-analysis {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 6px 0 4px 40px;
+}
+
+/* ================================================================
+   Visual Analysis — inline display below asset cards
+   ================================================================ */
+
+.slate-visual-analysis {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.slate-visual-analysis-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.slate-visual-analysis-row:last-child {
+  margin-bottom: 0;
+}
+.slate-visual-analysis-row .type-label {
+  flex-shrink: 0;
+  min-width: 60px;
+}
+.slate-visual-analysis-comm {
+  margin-top: 6px;
+}
+.slate-visual-processing-badge {
+  margin-left: 8px;
+  font-size: 0.75rem;
+}
+
+/* ================================================================
+   Overview — script status row in sidebar
+   ================================================================ */
+
+.slate-script-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }

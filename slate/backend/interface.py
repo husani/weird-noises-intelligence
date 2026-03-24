@@ -56,6 +56,16 @@ class SlateInterface:
             the information other tools most commonly need."""
             return self.get_show_summary(show_id)
 
+        @mcp_server.tool
+        def slate_get_characters(show_id: int) -> dict | None:
+            """Character breakdown for a show's current script version."""
+            return self.get_characters(show_id)
+
+        @mcp_server.tool
+        def slate_get_structure(show_id: int) -> dict | None:
+            """Scene breakdown for a show's current script version."""
+            return self.get_structure(show_id)
+
     # --- Business logic methods ---
 
     def _lookup_dict(self, lv):
@@ -298,3 +308,49 @@ class SlateInterface:
                 "development_stage": self._lookup_dict(show.development_stage),
                 "comparables": comparables,
             }
+
+    def get_characters(self, show_id):
+        with self._session_factory() as session:
+            # Find current version
+            version = (
+                session.query(ScriptVersion)
+                .filter(ScriptVersion.show_id == show_id)
+                .order_by(ScriptVersion.created_at.desc())
+                .first()
+            )
+            if not version:
+                return None
+            data = (
+                session.query(ShowData)
+                .filter(
+                    ShowData.show_id == show_id,
+                    ShowData.source_type == "script_version",
+                    ShowData.source_id == version.id,
+                    ShowData.data_type == "character_breakdown",
+                )
+                .first()
+            )
+            return data.content if data else None
+
+    def get_structure(self, show_id):
+        with self._session_factory() as session:
+            # Find current version
+            version = (
+                session.query(ScriptVersion)
+                .filter(ScriptVersion.show_id == show_id)
+                .order_by(ScriptVersion.created_at.desc())
+                .first()
+            )
+            if not version:
+                return None
+            data = (
+                session.query(ShowData)
+                .filter(
+                    ShowData.show_id == show_id,
+                    ShowData.source_type == "script_version",
+                    ShowData.source_id == version.id,
+                    ShowData.data_type == "scene_breakdown",
+                )
+                .first()
+            )
+            return data.content if data else None

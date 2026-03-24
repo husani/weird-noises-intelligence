@@ -1,11 +1,12 @@
 /**
  * Show > Visual Identity — asset gallery with upload, download, delete, set primary.
+ * Shows visual analysis alongside assets when available.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Modal from '@shared/components/Modal'
 import SelectArrow from '@shared/components/SelectArrow'
-import { listVisualAssets, uploadVisualAsset, updateVisualAsset, deleteVisualAsset, downloadVisualAsset, getLookupValues } from '@slate/api'
+import { listVisualAssets, uploadVisualAsset, updateVisualAsset, deleteVisualAsset, downloadVisualAsset, getLookupValues, getShowData } from '@slate/api'
 
 export default function ShowVisual({ show, onUpdate }) {
   const [assets, setAssets] = useState([])
@@ -16,6 +17,7 @@ export default function ShowVisual({ show, onUpdate }) {
   const [uploadForm, setUploadForm] = useState({ label: '', asset_type_id: '', version: '' })
   const [uploadFile, setUploadFile] = useState(null)
   const [error, setError] = useState(null)
+  const [visualAnalysis, setVisualAnalysis] = useState({})
   const fileRef = useRef(null)
 
   const load = useCallback(async () => {
@@ -33,7 +35,28 @@ export default function ShowVisual({ show, onUpdate }) {
     }
   }, [show.id])
 
+  const loadAnalysis = useCallback(async () => {
+    try {
+      const res = await getShowData(show.id)
+      const allData = [
+        ...(res.script_data || []),
+        ...(res.music_data || []),
+        ...(res.visual_data || []),
+      ]
+      const analysisMap = {}
+      allData.forEach(d => {
+        if (d.data_type === 'visual_analysis' && d.source_type === 'visual_asset' && d.source_id) {
+          analysisMap[d.source_id] = d.content
+        }
+      })
+      setVisualAnalysis(analysisMap)
+    } catch (err) {
+      // Ignore errors loading analysis
+    }
+  }, [show.id])
+
   useEffect(() => { load() }, [load])
+  useEffect(() => { loadAnalysis() }, [loadAnalysis])
 
   function openUploadModal() {
     setUploadForm({ label: '', asset_type_id: '', version: '' })
@@ -58,6 +81,7 @@ export default function ShowVisual({ show, onUpdate }) {
       setUploadFile(null)
       setUploadForm({ label: '', asset_type_id: '', version: '' })
       load()
+      loadAnalysis()
       onUpdate()
     } catch (err) {
       setError(err.message)
@@ -129,36 +153,86 @@ export default function ShowVisual({ show, onUpdate }) {
           </div>
         ) : (
           <div className="asset-gallery">
-            {assets.map(a => (
-              <div key={a.id} className="asset-card">
-                <div className="asset-card-preview">
-                  {a.is_current && <span className="asset-card-overlay">Primary</span>}
-                  <div className="asset-card-actions">
-                    <div className="asset-card-action" onClick={(e) => { e.stopPropagation(); handleDownload(a.id) }} title="Download">
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M7 2v8M4 7l3 3 3-3" /><path d="M2 10v2h10v-2" />
-                      </svg>
-                    </div>
-                    {!a.is_current && (
-                      <div className="asset-card-action" onClick={(e) => { e.stopPropagation(); handleSetPrimary(a.id) }} title="Set as primary">
+            {assets.map(a => {
+              const analysis = visualAnalysis[a.id]
+              const isAssetProcessing = a.processing_status === 'processing'
+
+              return (
+                <div key={a.id} className="asset-card">
+                  <div className="asset-card-preview">
+                    {a.is_current && <span className="asset-card-overlay">Primary</span>}
+                    <div className="asset-card-actions">
+                      <div className="asset-card-action" onClick={(e) => { e.stopPropagation(); handleDownload(a.id) }} title="Download">
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path d="M7 1l1.8 3.6L13 5.3l-3 2.9.7 4.1L7 10.3 3.3 12.3l.7-4.1-3-2.9 4.2-.7z" />
+                          <path d="M7 2v8M4 7l3 3 3-3" /><path d="M2 10v2h10v-2" />
                         </svg>
                       </div>
-                    )}
-                    <div className="asset-card-action" onClick={(e) => { e.stopPropagation(); handleDelete(a.id) }} title="Delete">
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M3 3l8 8M11 3l-8 8" />
-                      </svg>
+                      {!a.is_current && (
+                        <div className="asset-card-action" onClick={(e) => { e.stopPropagation(); handleSetPrimary(a.id) }} title="Set as primary">
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M7 1l1.8 3.6L13 5.3l-3 2.9.7 4.1L7 10.3 3.3 12.3l.7-4.1-3-2.9 4.2-.7z" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="asset-card-action" onClick={(e) => { e.stopPropagation(); handleDelete(a.id) }} title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M3 3l8 8M11 3l-8 8" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
+                  <div className="asset-card-info">
+                    <div className="asset-card-label">
+                      {a.label}{a.version ? ` \u2014 ${a.version}` : ''}
+                      {isAssetProcessing && (
+                        <span className="status status-warm slate-visual-processing-badge">
+                          <span className="status-dot pulse" />
+                          Processing
+                        </span>
+                      )}
+                    </div>
+                    <div className="asset-card-type">{a.asset_type?.display_label || 'Asset'}</div>
+                  </div>
+                  {analysis && (
+                    <div className="slate-visual-analysis">
+                      {analysis.mood && (
+                        <div className="slate-visual-analysis-row">
+                          <span className="type-label">Mood</span>
+                          <span className="text-secondary">{analysis.mood}</span>
+                        </div>
+                      )}
+                      {analysis.tone && (
+                        <div className="slate-visual-analysis-row">
+                          <span className="type-label">Tone</span>
+                          <span className="text-secondary">{analysis.tone}</span>
+                        </div>
+                      )}
+                      {analysis.visual_themes && (
+                        <div className="slate-visual-analysis-row">
+                          <span className="type-label">Themes</span>
+                          <span className="text-secondary">
+                            {Array.isArray(analysis.visual_themes) ? analysis.visual_themes.join(', ') : analysis.visual_themes}
+                          </span>
+                        </div>
+                      )}
+                      {analysis.color_palette && (
+                        <div className="slate-visual-analysis-row">
+                          <span className="type-label">Palette</span>
+                          <span className="text-secondary">
+                            {Array.isArray(analysis.color_palette) ? analysis.color_palette.join(', ') : analysis.color_palette}
+                          </span>
+                        </div>
+                      )}
+                      {analysis.communicates && (
+                        <div className="slate-visual-analysis-comm">
+                          <div className="prose text-secondary">{analysis.communicates}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="asset-card-info">
-                  <div className="asset-card-label">{a.label}{a.version ? ` \u2014 ${a.version}` : ''}</div>
-                  <div className="asset-card-type">{a.asset_type?.display_label || 'Asset'}</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
             <div className="asset-card-upload" onClick={openUploadModal}>
               <div className="asset-card-upload-icon">
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="1.5">
